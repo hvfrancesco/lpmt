@@ -25,10 +25,14 @@ class testApp : public ofSimpleApp{
 		ofTrueTypeFont ttf;
 
 		quad quads[16];
+		
 		int activeQuad;
 		int nOfQuads;
-		bool isSetup;
 		int borderColor;
+		
+		bool isSetup;
+		bool bFullscreen;
+		
 
 };
 

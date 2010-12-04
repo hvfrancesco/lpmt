@@ -3,6 +3,7 @@
 *#
 *.swp
 *.layout
+*.depend
 *.mo
 *.pot
 

@@ -15,6 +15,9 @@ void testApp::setup(){
 	borderColor = 0xFF6600;
 	// starts in quads setup mode
 	isSetup = True;
+	// starts in windowed mode
+	bFullscreen	= 0;
+	ofSetWindowShape(800, 600);
 	// defines the first 4 default quads
 	quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5);
     	quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5);
@@ -31,7 +34,7 @@ void testApp::update(){
 	
 	// sets default window background and fixed shape
 	ofBackground(20, 20, 20);
-	ofSetWindowShape(800, 600);
+	//ofSetWindowShape(800, 600);
 	// loops through initialized quads and runs update, setting the border color as well
     	for(int i = 0; i < 16; i++){
     		if (quads[i].initialized) {
@@ -126,6 +129,24 @@ if ( key ==' ' ) {
 			}	
 	}
 	}
+
+
+if(key == 'f'){
+	
+		bFullscreen = !bFullscreen;
+		
+		if(!bFullscreen){
+			ofSetWindowShape(800, 600);
+			ofSetFullscreen(false);
+			// figure out how to put the window in the center:
+			int screenW = ofGetScreenWidth();
+			int screenH = ofGetScreenHeight();
+			ofSetWindowPosition(screenW/2-800/2, screenH/2-600/2);
+		} else if(bFullscreen == 1){
+			ofSetFullscreen(true);
+		}
+	}
+
 
 }
 
