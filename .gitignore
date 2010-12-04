@@ -2,7 +2,7 @@
 *~
 *#
 *.swp
-
+*.layout
 *.mo
 *.pot
 
@@ -12,6 +12,8 @@
 # no CVS or SVN
 CVS/
 .svn/
+
+/bin/projection_mapping*
 
 # general generated data
 *.a
