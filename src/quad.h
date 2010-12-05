@@ -18,8 +18,17 @@ public:
     ofImage img;
     ball balls[80];
     int borderColor;
+    int bgR;
+    int bgG;
+    int bgB;
+    int bgA;
+    
+    int quadNumber;
+    
     bool initialized;
     bool isSetup;
+    bool isActive;
+    bool colorBg;
 
 
     void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
@@ -31,7 +40,7 @@ public:
         //lets load a test image too
         img.loadImage("car.jpg");
 
-
+        quadNumber = 0;
         //this is just for our gui / mouse handles
         //this will end up being the destination quad we are warping too
 
@@ -59,11 +68,17 @@ public:
 
         initialized = True;
         isSetup = True;
+        isActive = True;
+        colorBg = True;
+        bgR = 0;
+        bgG = 0;
+        bgB = 0;
+        bgA = 0;
     }
 
     void update()
     {
-
+        if (isActive) {
 
         for(int i = 0; i < 80; i++)
         {
@@ -98,16 +113,15 @@ public:
             dst[i].y = corners[i].y * (float) ofGetHeight();
         }
 
-
-
+    }
     }
 
     void draw()
     {
+    if (isActive) {
+        // save actual GL coordinates
         ofPushMatrix();
-
-
-
+        
         // find transformation matrix
         findHomography(src, dst, matrix);
 
@@ -119,18 +133,29 @@ public:
 
         // -- NOW LETS DRAW!!!!!!  -----
 
+        // if a solid color background is set it draws it
+        if (colorBg) {
+            ofFill();
+            ofEnableAlphaBlending();
+            ofSetColor(bgR, bgG, bgB, bgA);
+            ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
+            ofDisableAlphaBlending();
+            ofNoFill();
+        }
+
+
         //test an image
         ofSetColor(0xAAAAAA);
         img.draw(20, 60);
 
-        //lets draw a bounding box
+        //lets draw a bounding box if we are in setup mode
         ofNoFill();
         if (isSetup)
         {
             ofSetColor(borderColor);
             ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
         }
-
+        
 
         //our particles
         ofEnableAlphaBlending();
@@ -138,6 +163,14 @@ public:
         ofFill();
         for(int i = 0; i < 40; i++)balls[i].draw();
         ofDisableAlphaBlending();
+
+        // writes quad number
+        if (isSetup) {
+            ofSetColor(0x000000);
+            ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
+            ofSetColor(0xFFFFFF);
+            ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
+        }
 
         //some text
         ofSetColor(0x000000);
@@ -157,9 +190,10 @@ public:
 
         ofSetColor(0xFFFFFF);
         ttf2.drawString("press 'r' to reset", 560, 555);
-
+        
+        // restore previous coordinates
         ofPopMatrix();
-
+    }
     }
 
 

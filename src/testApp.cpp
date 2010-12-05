@@ -21,9 +21,13 @@ void testApp::setup()
     ofSetWindowShape(800, 600);
     // defines the first 4 default quads
     quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5);
+    quads[0].quadNumber = 0;
     quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5);
+    quads[1].quadNumber = 1;
     quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0);
+    quads[2].quadNumber = 2;
     quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0);
+    quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
     // number of total quads, to be modified later at each quad insertion
@@ -35,7 +39,12 @@ void testApp::update()
 {
 
     // sets default window background and fixed shape
+    if (isSetup) {
     ofBackground(20, 20, 20);
+    }
+    else {
+    ofBackground(0, 0, 0);
+    }
     //ofSetWindowShape(800, 600);
     // loops through initialized quads and runs update, setting the border color as well
     for(int i = 0; i < 16; i++)
@@ -71,7 +80,7 @@ void testApp::draw()
     if (isSetup)
     {
         ofSetColor(0xFFFFFF);
-        ttf.drawString("active quad: "+ofToString(activeQuad), 30, 570);
+        ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
     }
 
 }
@@ -79,7 +88,7 @@ void testApp::draw()
 //--------------------------------------------------------------
 void testApp::keyPressed(int key)
 {
-
+    // fills window with active quad
     if ( key =='r' || key == 'R' )
     {
         if (isSetup)
@@ -97,7 +106,8 @@ void testApp::keyPressed(int key)
             quads[activeQuad].corners[3].y = 1.0;
         }
     }
-
+    
+    // activates next quad
     if ( key =='>' )
     {
         if (isSetup)
@@ -110,6 +120,7 @@ void testApp::keyPressed(int key)
         }
     }
 
+    // activates prev quad
     if ( key =='<' )
     {
         if (isSetup)
@@ -122,6 +133,7 @@ void testApp::keyPressed(int key)
         }
     }
 
+    // add a new quad
     if ( key =='a' )
     {
         if (isSetup)
@@ -130,12 +142,14 @@ void testApp::keyPressed(int key)
             {
                 quad q;
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75);
+                quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
             }
         }
     }
 
+    // toggles setup mode
     if ( key ==' ' )
     {
         if (isSetup)
@@ -162,7 +176,7 @@ void testApp::keyPressed(int key)
         }
     }
 
-
+    // toggles fullscreen mode
     if(key == 'f')
     {
 
