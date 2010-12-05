@@ -27,7 +27,7 @@ public:
     
     bool initialized;
     bool isSetup;
-    bool isActive;
+    bool isOn;
     bool colorBg;
 
 
@@ -68,7 +68,7 @@ public:
 
         initialized = True;
         isSetup = True;
-        isActive = True;
+        isOn = True;
         colorBg = True;
         bgR = 0;
         bgG = 0;
@@ -78,7 +78,7 @@ public:
 
     void update()
     {
-        if (isActive) {
+        if (isOn) {
 
         for(int i = 0; i < 80; i++)
         {
@@ -118,7 +118,7 @@ public:
 
     void draw()
     {
-    if (isActive) {
+    if (isOn) {
         // save actual GL coordinates
         ofPushMatrix();
         
