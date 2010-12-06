@@ -20,13 +20,20 @@ public:
     int borderColor;
     ofColor bgColor;
     int bgAlpha;
-    
+    // camera stuff
+    ofTexture camTexture;
+    int camWidth;
+    int camHeight;
+    int camMultX;
+    int camMultY;
+
     int quadNumber;
-    
+
     bool initialized;
     bool isSetup;
     bool isOn;
     bool colorBg;
+    bool camBg;
 
 
     void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
@@ -64,10 +71,19 @@ public:
             balls[i].vel.y = ofRandom(1.5, 2.8);
         }
 
+	// sets default variables
         initialized = True;
         isSetup = True;
         isOn = True;
         colorBg = False;
+        camBg = False;
+
+	camWidth = 320;
+	camHeight = 240;
+	camMultX = 1;
+	camMultY = 1;
+	camTexture.allocate(camWidth*4,camHeight*4, GL_RGB);
+
         bgColor.r = 0;
 	bgColor.g = 0;
 	bgColor.b = 0;
@@ -119,7 +135,7 @@ public:
     if (isOn) {
         // save actual GL coordinates
         ofPushMatrix();
-        
+
         // find transformation matrix
         findHomography(src, dst, matrix);
 
@@ -153,7 +169,12 @@ public:
             ofSetColor(borderColor);
             ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
         }
-        
+
+
+	// camera stuff
+	if (camBg) {
+	camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
+	}
 
         //our particles
         ofEnableAlphaBlending();
@@ -175,7 +196,7 @@ public:
         ttf2.drawString("warps images nicely too!", 558, 533);
         ofSetColor(0xFF6600);
         ttf2.drawString("warps images nicely too!", 560, 530);
-        
+
         // restore previous coordinates
         ofPopMatrix();
     }

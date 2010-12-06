@@ -37,6 +37,12 @@ public:
     // gui elements
     bool showGui;
 
+    // camera grabber
+    ofVideoGrabber camGrabber;
+    ofTexture camTexture;
+    int camWidth;
+    int camHeight;
+
 
 
 

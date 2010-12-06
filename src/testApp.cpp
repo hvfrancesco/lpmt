@@ -20,6 +20,14 @@ void testApp::setup()
     // starts in windowed mode
     bFullscreen	= 0;
     ofSetWindowShape(800, 600);
+
+    // camera stuff
+    camWidth = 320;	// try to grab at this size. 
+    camHeight = 240;	
+    camGrabber.setVerbose(true);
+    camGrabber.initGrabber(camWidth,camHeight);
+
+
     // defines the first 4 default quads
     quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5);
     quads[0].quadNumber = 0;
@@ -33,6 +41,8 @@ void testApp::setup()
     activeQuad = 3;
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
+
+
 
     // gui stuff
 
@@ -65,51 +75,81 @@ void testApp::setup()
     gui.addToggle("show/hide", quads[0].isOn);
     gui.addToggle("solid bg on/off", quads[0].colorBg);
     gui.addColorPicker("Color", &quads[0].bgColor.r);
+    gui.addToggle("cam on/off", quads[0].camBg);
+    gui.addSlider("camera mult X", quads[0].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[0].camMultY, 1, 4);
     gui.addPage("quad 1");
     gui.addTitle("quad n. 1");
     gui.addToggle("show/hide", quads[1].isOn);
     gui.addToggle("solid bg on/off", quads[1].colorBg);
     gui.addColorPicker("Color", &quads[1].bgColor.r);
+    gui.addToggle("cam on/off", quads[1].camBg);
+    gui.addSlider("camera mult X", quads[1].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[1].camMultY, 1, 4);
     gui.addPage("quad 2");
     gui.addTitle("quad n. 2");
     gui.addToggle("show/hide", quads[2].isOn);
     gui.addToggle("solid bg on/off", quads[2].colorBg);
     gui.addColorPicker("Color", &quads[2].bgColor.r);
+    gui.addToggle("cam on/off", quads[2].camBg);
+    gui.addSlider("camera mult X", quads[2].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[2].camMultY, 1, 4);
     gui.addPage("quad 3");
     gui.addTitle("quad n. 3");
     gui.addToggle("show/hide", quads[3].isOn);
     gui.addToggle("solid bg on/off", quads[3].colorBg);
     gui.addColorPicker("Color", &quads[3].bgColor.r);
+    gui.addToggle("cam on/off", quads[3].camBg);
+    gui.addSlider("camera mult X", quads[3].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[3].camMultY, 1, 4);
     gui.addPage("quad 4");
     gui.addTitle("quad n. 4");
     gui.addToggle("show/hide", quads[4].isOn);
     gui.addToggle("solid bg on/off", quads[4].colorBg);
     gui.addColorPicker("Color", &quads[4].bgColor.r);
+    gui.addToggle("cam on/off", quads[4].camBg);
+    gui.addSlider("camera mult X", quads[4].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[4].camMultY, 1, 4);
     gui.addPage("quad 5");
     gui.addTitle("quad n. 5");
     gui.addToggle("show/hide", quads[5].isOn);
     gui.addToggle("solid bg on/off", quads[5].colorBg);
     gui.addColorPicker("Color", &quads[5].bgColor.r);
+    gui.addToggle("cam on/off", quads[5].camBg);
+    gui.addSlider("camera mult X", quads[5].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[5].camMultY, 1, 4);
     gui.addPage("quad 6");
     gui.addTitle("quad n. 6");
     gui.addToggle("show/hide", quads[6].isOn);
     gui.addToggle("solid bg on/off", quads[6].colorBg);
     gui.addColorPicker("Color", &quads[6].bgColor.r);
+    gui.addToggle("cam on/off", quads[6].camBg);
+    gui.addSlider("camera mult X", quads[6].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[6].camMultY, 1, 4);
     gui.addPage("quad 7");
     gui.addTitle("quad n. 7");
     gui.addToggle("show/hide", quads[7].isOn);
     gui.addToggle("solid bg on/off", quads[7].colorBg);
     gui.addColorPicker("Color", &quads[7].bgColor.r);
+    gui.addToggle("cam on/off", quads[7].camBg);
+    gui.addSlider("camera mult X", quads[7].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[7].camMultY, 1, 4);
     gui.addPage("quad 8");
     gui.addTitle("quad n. 8");
     gui.addToggle("show/hide", quads[8].isOn);
     gui.addToggle("solid bg on/off", quads[8].colorBg);
     gui.addColorPicker("Color", &quads[8].bgColor.r);
+    gui.addToggle("cam on/off", quads[8].camBg);
+    gui.addSlider("camera mult X", quads[8].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[8].camMultY, 1, 4);
     gui.addPage("quad 9");
     gui.addTitle("quad n. 9");
     gui.addToggle("show/hide", quads[9].isOn);
     gui.addToggle("solid bg on/off", quads[9].colorBg);
     gui.addColorPicker("Color", &quads[9].bgColor.r);
+    gui.addToggle("cam on/off", quads[9].camBg);
+    gui.addSlider("camera mult X", quads[9].camMultX, 1, 4);
+    gui.addSlider("camera mult Y", quads[9].camMultY, 1, 4);
 
     gui.setPage(activeQuad+2);
     gui.show();
@@ -119,7 +159,22 @@ void testApp::setup()
 //--------------------------------------------------------------
 void testApp::update()
 {
-    
+    // grabs video frame from camera
+    camGrabber.grabFrame();
+    if (camGrabber.isFrameNew()){
+		int totalPixels = camWidth*camHeight*3;
+		unsigned char * pixels = camGrabber.getPixels();
+		for (int i = 0; i < 16; i++) {
+			if (quads[i].initialized) {
+				if (quads[i].camBg) {
+				quads[i].camTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
+				quads[i].camWidth = camWidth;
+				quads[i].camHeight = camHeight;
+				}
+			}
+		}
+	}
+
     // sets default window background and fixed shape
     if (isSetup) {
     ofBackground(20, 20, 20);
@@ -158,6 +213,8 @@ void testApp::draw()
             quads[i].draw();
         }
     }
+
+
 
     // in setup mode writes the number of active quad at the bottom of the window
     if (isSetup)
