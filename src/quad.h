@@ -18,10 +18,8 @@ public:
     ofImage img;
     ball balls[80];
     int borderColor;
-    int bgR;
-    int bgG;
-    int bgB;
-    int bgA;
+    ofColor bgColor;
+    int bgAlpha;
     
     int quadNumber;
     
@@ -69,11 +67,11 @@ public:
         initialized = True;
         isSetup = True;
         isOn = True;
-        colorBg = True;
-        bgR = 0;
-        bgG = 0;
-        bgB = 0;
-        bgA = 0;
+        colorBg = False;
+        bgColor.r = 0;
+	bgColor.g = 0;
+	bgColor.b = 0;
+	bgColor.a = 0;
     }
 
     void update()
@@ -137,7 +135,7 @@ public:
         if (colorBg) {
             ofFill();
             ofEnableAlphaBlending();
-            ofSetColor(bgR, bgG, bgB, bgA);
+            ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
             ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
             ofDisableAlphaBlending();
             ofNoFill();

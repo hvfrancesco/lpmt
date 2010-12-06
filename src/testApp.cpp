@@ -1,6 +1,7 @@
 #include "testApp.h"
 #include "stdio.h"
 #include <iostream>
+#include "ofxSimpleGuiToo.h"
 
 
 //--------------------------------------------------------------
@@ -32,12 +33,87 @@ void testApp::setup()
     activeQuad = 3;
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
+
+    // gui stuff
+    showGui = True;
+    gui.addTitle("show/hide quads");
+    gui.addToggle("quad 0", quads[0].isOn);
+    gui.addToggle("quad 1", quads[1].isOn);
+    gui.addToggle("quad 2", quads[2].isOn);
+    gui.addToggle("quad 3", quads[3].isOn);
+    gui.addToggle("quad 4", quads[4].isOn);
+    gui.addToggle("quad 5", quads[5].isOn);
+    gui.addToggle("quad 6", quads[6].isOn);
+    gui.addToggle("quad 7", quads[7].isOn);
+    gui.addToggle("quad 8", quads[8].isOn);
+    gui.addToggle("quad 9", quads[9].isOn);
+    gui.addToggle("quad 10", quads[10].isOn);
+    gui.addToggle("quad 11", quads[11].isOn);
+    gui.addToggle("quad 12", quads[12].isOn);
+    gui.addToggle("quad 13", quads[13].isOn);
+    gui.addToggle("quad 14", quads[14].isOn);
+    gui.addToggle("quad 15", quads[15].isOn);
+
+    gui.addPage("quad 0");
+    gui.addTitle("quad n. 0");
+    gui.addToggle("show/hide", quads[0].isOn);
+    gui.addToggle("solid bg on/off", quads[0].colorBg);
+    gui.addColorPicker("Color", &quads[0].bgColor.r);
+    gui.addPage("quad 1");
+    gui.addTitle("quad n. 1");
+    gui.addToggle("show/hide", quads[1].isOn);
+    gui.addToggle("solid bg on/off", quads[1].colorBg);
+    gui.addColorPicker("Color", &quads[1].bgColor.r);
+    gui.addPage("quad 2");
+    gui.addTitle("quad n. 2");
+    gui.addToggle("show/hide", quads[2].isOn);
+    gui.addToggle("solid bg on/off", quads[2].colorBg);
+    gui.addColorPicker("Color", &quads[2].bgColor.r);
+    gui.addPage("quad 3");
+    gui.addTitle("quad n. 3");
+    gui.addToggle("show/hide", quads[3].isOn);
+    gui.addToggle("solid bg on/off", quads[3].colorBg);
+    gui.addColorPicker("Color", &quads[3].bgColor.r);
+    gui.addPage("quad 4");
+    gui.addTitle("quad n. 4");
+    gui.addToggle("show/hide", quads[4].isOn);
+    gui.addToggle("solid bg on/off", quads[4].colorBg);
+    gui.addColorPicker("Color", &quads[4].bgColor.r);
+    gui.addPage("quad 5");
+    gui.addTitle("quad n. 5");
+    gui.addToggle("show/hide", quads[5].isOn);
+    gui.addToggle("solid bg on/off", quads[5].colorBg);
+    gui.addColorPicker("Color", &quads[5].bgColor.r);
+    gui.addPage("quad 6");
+    gui.addTitle("quad n. 6");
+    gui.addToggle("show/hide", quads[6].isOn);
+    gui.addToggle("solid bg on/off", quads[6].colorBg);
+    gui.addColorPicker("Color", &quads[6].bgColor.r);
+    gui.addPage("quad 7");
+    gui.addTitle("quad n. 7");
+    gui.addToggle("show/hide", quads[7].isOn);
+    gui.addToggle("solid bg on/off", quads[7].colorBg);
+    gui.addColorPicker("Color", &quads[7].bgColor.r);
+    gui.addPage("quad 8");
+    gui.addTitle("quad n. 8");
+    gui.addToggle("show/hide", quads[8].isOn);
+    gui.addToggle("solid bg on/off", quads[8].colorBg);
+    gui.addColorPicker("Color", &quads[8].bgColor.r);
+    gui.addPage("quad 9");
+    gui.addTitle("quad n. 9");
+    gui.addToggle("show/hide", quads[9].isOn);
+    gui.addToggle("solid bg on/off", quads[9].colorBg);
+    gui.addColorPicker("Color", &quads[9].bgColor.r);
+
+    gui.setPage(activeQuad+2);
+    gui.show();
+
 }
 
 //--------------------------------------------------------------
 void testApp::update()
 {
-
+    
     // sets default window background and fixed shape
     if (isSetup) {
     ofBackground(20, 20, 20);
@@ -55,6 +131,7 @@ void testApp::update()
             quads[i].borderColor = borderColor;
         }
     }
+
 }
 
 //--------------------------------------------------------------
@@ -82,6 +159,12 @@ void testApp::draw()
         ofSetColor(0xFFFFFF);
         ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
     }
+
+   // draws gui
+   if (isSetup)
+   {
+   gui.draw();
+   }
 
 }
 
@@ -118,6 +201,7 @@ void testApp::keyPressed(int key)
                 activeQuad = 0;
             }
         }
+    gui.setPage(activeQuad+2);
     }
 
     // activates prev quad
@@ -131,6 +215,7 @@ void testApp::keyPressed(int key)
                 activeQuad = nOfQuads-1;
             }
         }
+    gui.setPage(activeQuad+2);
     }
 
     // add a new quad
@@ -145,6 +230,7 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
+		gui.setPage(activeQuad+2);
             }
         }
     }
@@ -197,6 +283,26 @@ void testApp::keyPressed(int key)
         }
     }
 
+    // toggles gui
+    if(key == 'g')
+    {
+    gui.toggleDraw();
+    }
+
+    if(key == '[')
+    {
+    gui.prevPage();
+    }
+
+    if(key == ']')
+    {
+    gui.nextPage();
+    }
+
+    if(key == '1')
+    {
+    gui.setPage(1);
+    }
 
 }
 

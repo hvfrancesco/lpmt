@@ -34,6 +34,11 @@ public:
     bool isSetup;
     bool bFullscreen;
 
+    // gui elements
+    bool showGui;
+
+
+
 
 };
 

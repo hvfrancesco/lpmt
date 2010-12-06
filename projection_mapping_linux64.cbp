@@ -66,6 +66,11 @@
 			<Add directory="../../../libs/gstappsink/include" />
 			<Add directory="../../../addons" />
 			<Add directory="../../../libs/poco/include" />
+	    		<Add directory="../../../addons/ofxXmlSettings/src" />
+	    		<Add directory="../../../addons/ofxXmlSettings/libs" />
+	    		<Add directory="../../../addons/ofxSimpleGuiToo/src/" />
+            		<Add directory="../../../addons/ofxSimpleGuiToo/src/Controls/" />
+	    		<Add directory="../../../addons/ofxMSAInteractiveObject/src/" />
 		</Compiler>
 		<Linker>
 			<Add library="fmodex" />
@@ -110,6 +115,62 @@
 		<Unit filename="src/ball.h">
 			<Option virtualFolder="src/" />
 		</Unit>
+
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiConfig.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiConfig.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiControl.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiControl.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiPage.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiPage.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiToo.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiToo.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/ofxSimpleGuiIncludes.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiButton.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiButton.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiColorPicker.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiColorPicker.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiContent.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiContent.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiFPSCounter.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiFPSCounter.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiMovieSlider.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiMovieSlider.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiQuadWarp.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiQuadWarp.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiSlider2d.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiSlider2d.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiSliderBase.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiSliderFloat.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiSliderInt.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiTitle.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiTitle.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiToggle.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiToggle.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiComboBox.h"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>
+				<Unit filename="../../../addons/ofxSimpleGuiToo/src/Controls/ofxSimpleGuiComboBox.cpp"><Option virtualFolder="addons/ofxSimpleGuiToo/src/Controls" /></Unit>	
+				<Unit filename="../../../addons/ofxMSAInteractiveObject/src/ofxMSAInteractiveObject.h"><Option virtualFolder="addons/ofxMSAInteractiveObject/src" /></Unit>
+				<Unit filename="../../../addons/ofxMSAInteractiveObject/src/ofxMSAInteractiveObject.cpp"><Option virtualFolder="addons/ofxMSAInteractiveObject/src" /></Unit>
+
+		<Unit filename="../../../addons/ofxXmlSettings/libs/tinyxml.cpp">
+			<Option virtualFolder="addons/ofxXmlSettings/libs" />
+        </Unit>
+		<Unit filename="../../../addons/ofxXmlSettings/libs/tinyxml.h" >
+			<Option virtualFolder="addons/ofxXmlSettings/libs" />
+        </Unit>
+		<Unit filename="../../../addons/ofxXmlSettings/libs/tinyxmlerror.cpp" >
+			<Option virtualFolder="addons/ofxXmlSettings/libs" />
+        </Unit>
+		<Unit filename="../../../addons/ofxXmlSettings/libs/tinyxmlparser.cpp" >
+			<Option virtualFolder="addons/ofxXmlSettings/libs" />
+        </Unit>
+		<Unit filename="../../../addons/ofxXmlSettings/src/ofxXmlSettings.cpp">
+			<Option virtualFolder="addons/ofxXmlSettings/src" />
+		</Unit>
+		<Unit filename="../../../addons/ofxXmlSettings/src/ofxXmlSettings.h">
+			<Option virtualFolder="addons/ofxXmlSettings/src" />
+		</Unit>
+
 		<Extensions>
 			<lib_finder>
 				<lib name="gstreamer-0.10" />
