@@ -41,7 +41,7 @@ void testApp::setup()
     gui.config->toggleHeight = 24;
     gui.config->sliderTextHeight = 30;
     gui.config->titleHeight = 30;
-    gui.config->fullActiveColor = 0x911664;
+    gui.config->fullActiveColor = 0x6B404B;
     // adding controls
     gui.addToggle("quad 0", quads[0].isOn);
     gui.addToggle("quad 1", quads[1].isOn);

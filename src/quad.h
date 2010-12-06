@@ -172,22 +172,9 @@ public:
 
         //some text
         ofSetColor(0x000000);
-        ttf.drawString("grab corners to warp openGL graphics", 28, 33);
-
-        ofSetColor(0xFFFFFF);
-        ttf.drawString("grab corners to warp openGL graphics", 30, 30);
-
-        ofSetColor(0x000000);
         ttf2.drawString("warps images nicely too!", 558, 533);
-
         ofSetColor(0xFF6600);
         ttf2.drawString("warps images nicely too!", 560, 530);
-
-        ofSetColor(0x000000);
-        ttf2.drawString("press 'r' to reset", 558, 558);
-
-        ofSetColor(0xFFFFFF);
-        ttf2.drawString("press 'r' to reset", 560, 555);
         
         // restore previous coordinates
         ofPopMatrix();
