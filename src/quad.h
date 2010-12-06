@@ -54,7 +54,7 @@ public:
         corners[3].x = x4;
         corners[3].y = y4;
 
-        borderColor = 0xFF6600;
+        borderColor = 0x666666;
 
         //lets setup some stupid particles
         for(int i = 0; i < 80; i++)

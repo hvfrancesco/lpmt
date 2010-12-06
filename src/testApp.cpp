@@ -14,7 +14,7 @@ void testApp::setup()
 
     ttf.loadFont("type/frabk.ttf", 11);
     // set border color for quads in setup mode
-    borderColor = 0xFF6600;
+    borderColor = 0x666666;
     // starts in quads setup mode
     isSetup = True;
     // starts in windowed mode
@@ -35,8 +35,14 @@ void testApp::setup()
     nOfQuads = 4;
 
     // gui stuff
-    showGui = True;
+
     gui.addTitle("show/hide quads");
+    // overriding default theme
+    gui.config->toggleHeight = 24;
+    gui.config->sliderTextHeight = 30;
+    gui.config->titleHeight = 30;
+    gui.config->fullActiveColor = 0x911664;
+    // adding controls
     gui.addToggle("quad 0", quads[0].isOn);
     gui.addToggle("quad 1", quads[1].isOn);
     gui.addToggle("quad 2", quads[2].isOn);
