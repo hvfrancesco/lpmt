@@ -24,8 +24,8 @@ public:
     ofTexture camTexture;
     int camWidth;
     int camHeight;
-    int camMultX;
-    int camMultY;
+    float camMultX;
+    float camMultY;
 
     int quadNumber;
 
