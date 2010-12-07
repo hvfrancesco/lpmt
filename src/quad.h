@@ -26,6 +26,8 @@ public:
     int camHeight;
     float camMultX;
     float camMultY;
+    float imgMultX;
+    float imgMultY;
 
     int quadNumber;
 
@@ -34,16 +36,28 @@ public:
     bool isOn;
     bool colorBg;
     bool camBg;
+    bool imgBg;
+    bool videoBg;
+    
+    int bgImg;
+    int bgVideo;
+    vector<string> images;
+    vector<string> videos;
+    
+    string loadedImg;
+    
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles)
     {
 
         //loads load in some truetype fonts
         ttf.loadFont("type/frabk.ttf", 22);
         ttf2.loadFont("type/frabk.ttf", 14);
         //lets load a test image too
-        img.loadImage("car.jpg");
+        //img.loadImage("car.jpg");
+        
+        loadedImg = string("");
 
         quadNumber = 0;
         //this is just for our gui / mouse handles
@@ -60,7 +74,10 @@ public:
 
         corners[3].x = x4;
         corners[3].y = y4;
-
+        
+        images = imgFiles;
+        videos = videoFiles;
+        
         borderColor = 0x666666;
 
         //lets setup some stupid particles
@@ -71,29 +88,42 @@ public:
             balls[i].vel.y = ofRandom(1.5, 2.8);
         }
 
-	// sets default variables
+	    // sets default variables
         initialized = True;
         isSetup = True;
         isOn = True;
         colorBg = False;
         camBg = False;
 
-	camWidth = 320;
-	camHeight = 240;
-	camMultX = 1;
-	camMultY = 1;
-	camTexture.allocate(camWidth*4,camHeight*4, GL_RGB);
+	    camWidth = 320;
+	    camHeight = 240;
+	    camMultX = 1;
+	    camMultY = 1;
+	    camTexture.allocate(camWidth*4,camHeight*4, GL_RGB);
+	    
+	    imgMultX = 1.0;
+	    imgMultY = 1.0;
 
         bgColor.r = 0;
-	bgColor.g = 0;
-	bgColor.b = 0;
-	bgColor.a = 0;
+	    bgColor.g = 0;
+	    bgColor.b = 0;
+	    bgColor.a = 0;
     }
 
     void update()
     {
         if (isOn) {
-
+        
+        // loads an image if it has changed (and if its index in array is >1 as we have . and .. at the beginning)
+        if (imgBg && (bgImg>1)) {
+            string imgName = images[bgImg];
+            if (imgName != loadedImg) {
+                img.loadImage("img/"+imgName);
+                loadedImg = imgName;
+            }
+        } 
+        
+       // temp stuff
         for(int i = 0; i < 80; i++)
         {
             balls[i].update(ofGetWidth(), ofGetHeight());
@@ -157,10 +187,11 @@ public:
             ofNoFill();
         }
 
-
-        //test an image
-        ofSetColor(0xAAAAAA);
-        img.draw(20, 60);
+        //if an image background is chosen it draws it
+        if (imgBg) {
+        ofSetColor(0xFFFFFF);
+        img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+        }
 
         //lets draw a bounding box if we are in setup mode
         ofNoFill();
@@ -170,20 +201,20 @@ public:
             ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
         }
 
+	    // camera stuff
+	    if (camBg) {
+	    ofSetColor(0xFFFFFF);
+	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
+	    }
 
-	// camera stuff
-	if (camBg) {
-	camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
-	}
-
-        //our particles
+        // TEMP STUFF - our particles
         ofEnableAlphaBlending();
         ofSetColor(255, 120, 0, 130);
         ofFill();
         for(int i = 0; i < 40; i++)balls[i].draw();
         ofDisableAlphaBlending();
 
-        // writes quad number
+        // writes quad number - KEEP IT AT LAST POSITION IN draw()
         if (isSetup) {
             ofSetColor(0x000000);
             ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
@@ -192,10 +223,10 @@ public:
         }
 
         //some text
-        ofSetColor(0x000000);
-        ttf2.drawString("warps images nicely too!", 558, 533);
-        ofSetColor(0xFF6600);
-        ttf2.drawString("warps images nicely too!", 560, 530);
+        //ofSetColor(0x000000);
+        //ttf2.drawString("warps images nicely too!", 558, 533);
+        //ofSetColor(0xFF6600);
+        //ttf2.drawString("warps images nicely too!", 560, 530);
 
         // restore previous coordinates
         ofPopMatrix();

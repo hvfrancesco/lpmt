@@ -3,6 +3,32 @@
 #include <iostream>
 #include "ofxSimpleGuiToo.h"
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <vector>
+#include <string>
+
+
+using namespace std;
+
+int getdir (string dir, vector<string> &files)
+{
+    DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir(dir.c_str())) == NULL) {
+        cout << "Error(" << errno << ") opening " << dir << endl;
+        return errno;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+        files.push_back(string(dirp->d_name));
+    }
+    closedir(dp);
+    return 0;
+}
+
+
 
 //--------------------------------------------------------------
 void testApp::setup()
@@ -10,7 +36,26 @@ void testApp::setup()
     //we run at 60 fps!
     ofSetVerticalSync(true);
 
+    // we scan the img dir for images
+	string imgDir = string("./data/img");
+    //vector<string> imgFiles = vector<string>();
+    imgFiles = vector<string>();
+    getdir(imgDir,imgFiles);
+    string images[imgFiles.size()];
+    for (unsigned int i = 0;i < imgFiles.size();i++) {
+        images[i]= imgFiles[i];
+    }
 
+
+    // we scan the video dir for videos
+	string videoDir = string("./data/video");
+    //vector<string> videoFiles = vector<string>();
+    videoFiles = vector<string>();
+    getdir(videoDir,videoFiles);
+    string videos[videoFiles.size()];
+    for (unsigned int i = 0;i < videoFiles.size();i++) {
+        videos[i]= videoFiles[i];
+    }
 
     ttf.loadFont("type/frabk.ttf", 11);
     // set border color for quads in setup mode
@@ -29,18 +74,19 @@ void testApp::setup()
 
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5,imgFiles, videoFiles);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5,imgFiles, videoFiles);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0,imgFiles, videoFiles);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0,imgFiles, videoFiles);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
+
 
 
 
@@ -77,7 +123,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[0].bgColor.r);
     gui.addToggle("cam on/off", quads[0].camBg);
     gui.addSlider("camera mult X", quads[0].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[0].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[0].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[0].imgBg);
+    gui.addComboBox("image bg", quads[0].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[0].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[0].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[0].videoBg);
+    gui.addComboBox("video bg", quads[0].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 1");
     gui.addTitle("quad n. 1");
     gui.addToggle("show/hide", quads[1].isOn);
@@ -85,7 +139,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[1].bgColor.r);
     gui.addToggle("cam on/off", quads[1].camBg);
     gui.addSlider("camera mult X", quads[1].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[1].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[1].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[1].imgBg);
+    gui.addComboBox("image bg", quads[1].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[1].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[1].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[1].videoBg);
+    gui.addComboBox("video bg", quads[1].bgVideo, videoFiles.size(), videos); 
+    
     gui.addPage("quad 2");
     gui.addTitle("quad n. 2");
     gui.addToggle("show/hide", quads[2].isOn);
@@ -93,7 +155,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[2].bgColor.r);
     gui.addToggle("cam on/off", quads[2].camBg);
     gui.addSlider("camera mult X", quads[2].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[2].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[2].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[2].imgBg);
+    gui.addComboBox("image bg", quads[2].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[2].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[2].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[2].videoBg);
+    gui.addComboBox("video bg", quads[2].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 3");
     gui.addTitle("quad n. 3");
     gui.addToggle("show/hide", quads[3].isOn);
@@ -101,7 +171,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[3].bgColor.r);
     gui.addToggle("cam on/off", quads[3].camBg);
     gui.addSlider("camera mult X", quads[3].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[3].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[3].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[3].imgBg);
+    gui.addComboBox("image bg", quads[3].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[3].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[3].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[3].videoBg);
+    gui.addComboBox("video bg", quads[3].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 4");
     gui.addTitle("quad n. 4");
     gui.addToggle("show/hide", quads[4].isOn);
@@ -109,7 +187,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[4].bgColor.r);
     gui.addToggle("cam on/off", quads[4].camBg);
     gui.addSlider("camera mult X", quads[4].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[4].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[4].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[4].imgBg);
+    gui.addComboBox("image bg", quads[4].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[4].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[4].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[4].videoBg);
+    gui.addComboBox("video bg", quads[4].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 5");
     gui.addTitle("quad n. 5");
     gui.addToggle("show/hide", quads[5].isOn);
@@ -117,7 +203,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[5].bgColor.r);
     gui.addToggle("cam on/off", quads[5].camBg);
     gui.addSlider("camera mult X", quads[5].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[5].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[5].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[5].imgBg);
+    gui.addComboBox("image bg", quads[5].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[5].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[5].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[5].videoBg);
+    gui.addComboBox("video bg", quads[5].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 6");
     gui.addTitle("quad n. 6");
     gui.addToggle("show/hide", quads[6].isOn);
@@ -125,7 +219,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[6].bgColor.r);
     gui.addToggle("cam on/off", quads[6].camBg);
     gui.addSlider("camera mult X", quads[6].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[6].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[6].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[6].imgBg);
+    gui.addComboBox("image bg", quads[6].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[6].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[6].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[6].videoBg);
+    gui.addComboBox("video bg", quads[6].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 7");
     gui.addTitle("quad n. 7");
     gui.addToggle("show/hide", quads[7].isOn);
@@ -133,7 +235,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[7].bgColor.r);
     gui.addToggle("cam on/off", quads[7].camBg);
     gui.addSlider("camera mult X", quads[7].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[7].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[7].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[7].imgBg);
+    gui.addComboBox("image bg", quads[7].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[7].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[7].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[7].videoBg);
+    gui.addComboBox("video bg", quads[7].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 8");
     gui.addTitle("quad n. 8");
     gui.addToggle("show/hide", quads[8].isOn);
@@ -141,7 +251,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[8].bgColor.r);
     gui.addToggle("cam on/off", quads[8].camBg);
     gui.addSlider("camera mult X", quads[8].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[8].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[8].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[8].imgBg);
+    gui.addComboBox("image bg", quads[8].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[8].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[8].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[8].videoBg);
+    gui.addComboBox("video bg", quads[8].bgVideo, videoFiles.size(), videos);
+    
     gui.addPage("quad 9");
     gui.addTitle("quad n. 9");
     gui.addToggle("show/hide", quads[9].isOn);
@@ -149,7 +267,15 @@ void testApp::setup()
     gui.addColorPicker("Color", &quads[9].bgColor.r);
     gui.addToggle("cam on/off", quads[9].camBg);
     gui.addSlider("camera mult X", quads[9].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[9].camMultY, 0.5, 4.0);;
+    gui.addSlider("camera mult Y", quads[9].camMultY, 0.5, 4.0);
+    gui.addTitle("Contents").setNewColumn(true);
+    gui.addToggle("img bg on/off", quads[9].imgBg);
+    gui.addComboBox("image bg", quads[9].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[9].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[9].imgMultY, 0.5, 4.0);
+    gui.addToggle("video bg on/off", quads[9].videoBg);
+    gui.addComboBox("video bg", quads[9].bgVideo, videoFiles.size(), videos);
+    
 
     gui.setPage(activeQuad+2);
     gui.show();
@@ -175,6 +301,7 @@ void testApp::update()
 		}
 	}
 
+    
     // sets default window background and fixed shape
     if (isSetup) {
     ofBackground(20, 20, 20);
@@ -289,7 +416,7 @@ void testApp::keyPressed(int key)
             if (nOfQuads < 15)
             {
                 quad q;
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;

@@ -42,6 +42,9 @@ public:
     ofTexture camTexture;
     int camWidth;
     int camHeight;
+    
+    vector<string> imgFiles;
+    vector<string> videoFiles;
 
 
 
