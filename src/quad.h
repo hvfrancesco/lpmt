@@ -41,6 +41,8 @@ public:
     float imgMultY;
     float videoMultX;
     float videoMultY;
+    float videoSpeed;
+    float previousSpeed;
 
     int quadNumber;
 
@@ -124,7 +126,8 @@ public:
 
 	    videoMultX = 1.0;
 	    videoMultY = 1.0;
-
+        videoSpeed = 1.0;
+        previousSpeed = 1.0;
         videoVolume = 0;
 
         bgColor.r = 0;
@@ -176,6 +179,10 @@ public:
                 }
             video.setVolume(videoVolume);
             video.idleMovie();
+            if (previousSpeed != videoSpeed) {
+            video.setSpeed(videoSpeed);
+            previousSpeed = videoSpeed;
+            }
             }
 
 
@@ -271,11 +278,13 @@ public:
 	    }
 
         // TEMP STUFF - our particles
+        /*
         ofEnableAlphaBlending();
         ofSetColor(255, 120, 0, 130);
         ofFill();
         for(int i = 0; i < 40; i++)balls[i].draw();
         ofDisableAlphaBlending();
+        */
 
         // writes quad number - KEEP IT AT LAST POSITION IN draw()
         if (isSetup) {

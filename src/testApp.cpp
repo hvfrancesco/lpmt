@@ -140,6 +140,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[0].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[0].videoColorize.r);
     gui.addSlider("video sound vol", quads[0].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[0].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 1");
     gui.addTitle("quad n. 1");
@@ -163,6 +164,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[1].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[1].videoColorize.r);
     gui.addSlider("video sound vol", quads[1].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[1].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 2");
     gui.addTitle("quad n. 2");
@@ -186,6 +188,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[2].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[2].videoColorize.r);
     gui.addSlider("video sound vol", quads[2].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[2].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 3");
     gui.addTitle("quad n. 3");
@@ -209,6 +212,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[3].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[3].videoColorize.r);
     gui.addSlider("video sound vol", quads[3].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[3].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 4");
     gui.addTitle("quad n. 4");
@@ -232,6 +236,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[4].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[4].videoColorize.r);
     gui.addSlider("video sound vol", quads[4].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[4].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 5");
     gui.addTitle("quad n. 5");
@@ -255,6 +260,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[5].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[5].videoColorize.r);
     gui.addSlider("video sound vol", quads[5].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[5].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 6");
     gui.addTitle("quad n. 6");
@@ -278,6 +284,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[6].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[6].videoColorize.r);
     gui.addSlider("video sound vol", quads[6].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[6].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 7");
     gui.addTitle("quad n. 7");
@@ -301,6 +308,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[7].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[7].videoColorize.r);
     gui.addSlider("video sound vol", quads[7].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[7].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 8");
     gui.addTitle("quad n. 8");
@@ -324,6 +332,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[8].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[8].videoColorize.r);
     gui.addSlider("video sound vol", quads[8].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[8].videoSpeed, -2.0, 4.0);
 
     gui.addPage("quad 9");
     gui.addTitle("quad n. 9");
@@ -347,6 +356,7 @@ void testApp::setup()
     gui.addSlider("video mult Y", quads[9].videoMultY, 0.5, 4.0);
     gui.addColorPicker("video colorize", &quads[9].videoColorize.r);
     gui.addSlider("video sound vol", quads[9].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[9].videoSpeed, -2.0, 4.0);
 
 
     gui.setPage(activeQuad+2);
