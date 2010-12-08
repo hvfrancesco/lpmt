@@ -567,6 +567,20 @@ void testApp::keyPressed(int key)
     gui.setPage(1);
     }
 
+    if(key == 's' || key == 'S')
+    {
+    for(int i = 0; i < 16; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    if (quads[i].videoBg && quads[i].video.bLoaded) {
+                    quads[i].video.setPosition(0.0);
+                    }
+                }
+            }
+    }
+
+
 }
 
 //--------------------------------------------------------------

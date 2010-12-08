@@ -171,6 +171,7 @@ public:
                 videoWidth = video.width;
                 videoHeight = video.height;
                 video.play();
+                video.setLoopState(OF_LOOP_NORMAL);
                 loadedVideo = videoName;
                 }
             video.setVolume(videoVolume);
