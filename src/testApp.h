@@ -33,6 +33,7 @@ public:
 
     bool isSetup;
     bool bFullscreen;
+    bool bGui;
 
     // gui elements
     bool showGui;
@@ -42,7 +43,7 @@ public:
     ofTexture camTexture;
     int camWidth;
     int camHeight;
-    
+
     vector<string> imgFiles;
     vector<string> videoFiles;
 

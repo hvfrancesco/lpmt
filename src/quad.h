@@ -15,19 +15,32 @@ public:
     GLfloat matrix[16];
     ofTrueTypeFont ttf;
     ofTrueTypeFont ttf2;
+    // img and video stuff
     ofImage img;
+    ofVideoPlayer video;
+
     ball balls[80];
+
     int borderColor;
     ofColor bgColor;
+    ofColor imgColorize;
+    ofColor videoColorize;
+    ofColor camColorize;
+
     int bgAlpha;
     // camera stuff
     ofTexture camTexture;
     int camWidth;
     int camHeight;
+    int videoWidth;
+    int videoHeight;
+
     float camMultX;
     float camMultY;
     float imgMultX;
     float imgMultY;
+    float videoMultX;
+    float videoMultY;
 
     int quadNumber;
 
@@ -38,14 +51,18 @@ public:
     bool camBg;
     bool imgBg;
     bool videoBg;
-    
+    bool videoSound;
+
     int bgImg;
     int bgVideo;
+    int videoVolume;
+
     vector<string> images;
     vector<string> videos;
-    
+
     string loadedImg;
-    
+    string loadedVideo;
+
 
 
     void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles)
@@ -56,8 +73,9 @@ public:
         ttf2.loadFont("type/frabk.ttf", 14);
         //lets load a test image too
         //img.loadImage("car.jpg");
-        
+
         loadedImg = string("");
+        loadedVideo = string("");
 
         quadNumber = 0;
         //this is just for our gui / mouse handles
@@ -74,10 +92,10 @@ public:
 
         corners[3].x = x4;
         corners[3].y = y4;
-        
+
         images = imgFiles;
         videos = videoFiles;
-        
+
         borderColor = 0x666666;
 
         //lets setup some stupid particles
@@ -100,20 +118,41 @@ public:
 	    camMultX = 1;
 	    camMultY = 1;
 	    camTexture.allocate(camWidth*4,camHeight*4, GL_RGB);
-	    
+
 	    imgMultX = 1.0;
 	    imgMultY = 1.0;
+
+	    videoMultX = 1.0;
+	    videoMultY = 1.0;
+
+        videoVolume = 0;
 
         bgColor.r = 0;
 	    bgColor.g = 0;
 	    bgColor.b = 0;
 	    bgColor.a = 0;
+
+        imgColorize.r = 1;
+	    imgColorize.g = 1;
+	    imgColorize.b = 1;
+	    imgColorize.a = 1;
+
+        videoColorize.r = 1;
+	    videoColorize.g = 1;
+	    videoColorize.b = 1;
+	    videoColorize.a = 1;
+
+        camColorize.r = 1;
+	    camColorize.g = 1;
+	    camColorize.b = 1;
+	    camColorize.a = 1;
+
     }
 
     void update()
     {
         if (isOn) {
-        
+
         // loads an image if it has changed (and if its index in array is >1 as we have . and .. at the beginning)
         if (imgBg && (bgImg>1)) {
             string imgName = images[bgImg];
@@ -121,8 +160,25 @@ public:
                 img.loadImage("img/"+imgName);
                 loadedImg = imgName;
             }
-        } 
-        
+        }
+
+        // loads video
+        if (videoBg && (bgVideo>1)) {
+            string videoName = videos[bgVideo];
+            if (videoName != loadedVideo) {
+                if (video.bLoaded) { video.closeMovie(); }
+                video.loadMovie("video/"+videoName);
+                videoWidth = video.width;
+                videoHeight = video.height;
+                video.play();
+                loadedVideo = videoName;
+                }
+            video.setVolume(videoVolume);
+            video.idleMovie();
+            }
+
+
+
        // temp stuff
         for(int i = 0; i < 80; i++)
         {
@@ -189,8 +245,14 @@ public:
 
         //if an image background is chosen it draws it
         if (imgBg) {
-        ofSetColor(0xFFFFFF);
+        ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
         img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+        }
+
+        //if a video background is chosen it draws it
+        if (videoBg) {
+        ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
+        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
         }
 
         //lets draw a bounding box if we are in setup mode
@@ -203,7 +265,7 @@ public:
 
 	    // camera stuff
 	    if (camBg) {
-	    ofSetColor(0xFFFFFF);
+	    ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
 	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
 	    }
 
