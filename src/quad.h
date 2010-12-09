@@ -157,7 +157,7 @@ public:
         if (isOn) {
 
         // loads an image if it has changed (and if its index in array is >1 as we have . and .. at the beginning)
-        if (imgBg && (bgImg>1)) {
+        if (imgBg) {
             string imgName = images[bgImg];
             if (imgName != loadedImg) {
                 img.loadImage("img/"+imgName);
@@ -166,7 +166,7 @@ public:
         }
 
         // loads video
-        if (videoBg && (bgVideo>1)) {
+        if (videoBg) {
             string videoName = videos[bgVideo];
             if (videoName != loadedVideo) {
                 if (video.bLoaded) { video.closeMovie(); }
@@ -253,14 +253,18 @@ public:
 
         //if an image background is chosen it draws it
         if (imgBg) {
+        ofEnableAlphaBlending();
         ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
         img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+        ofDisableAlphaBlending();
         }
 
         //if a video background is chosen it draws it
         if (videoBg) {
+        ofEnableAlphaBlending();
         ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
         video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+        ofDisableAlphaBlending();
         }
 
         //lets draw a bounding box if we are in setup mode
@@ -273,8 +277,10 @@ public:
 
 	    // camera stuff
 	    if (camBg) {
+        ofEnableAlphaBlending();
 	    ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
 	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
+	    ofDisableAlphaBlending();
 	    }
 
         // TEMP STUFF - our particles

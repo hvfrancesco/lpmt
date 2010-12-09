@@ -118,7 +118,7 @@ void testApp::setup()
     gui.addToggle("quad 14", quads[14].isOn);
     gui.addToggle("quad 15", quads[15].isOn);
 
-    gui.addPage("quad 0");
+    gui.addPage("quad 0 - 1/2");
     gui.addTitle("quad n. 0");
     gui.addToggle("show/hide", quads[0].isOn);
     gui.addToggle("img bg on/off", quads[0].imgBg);
@@ -126,13 +126,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[0].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[0].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[0].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[0].camBg);
-    gui.addSlider("camera mult X", quads[0].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[0].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[0].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[0].colorBg);
     gui.addColorPicker("Color", &quads[0].bgColor.r);
+    gui.addPage("quad 0 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[0].videoBg);
     gui.addComboBox("video bg", quads[0].bgVideo, videoFiles.size(), videos);
@@ -141,8 +138,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[0].videoColorize.r);
     gui.addSlider("video sound vol", quads[0].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[0].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[0].camBg);
+    gui.addSlider("camera mult X", quads[0].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[0].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[0].camColorize.r);
 
-    gui.addPage("quad 1");
+    gui.addPage("quad 1 - 1/2");
     gui.addTitle("quad n. 1");
     gui.addToggle("show/hide", quads[1].isOn);
     gui.addToggle("img bg on/off", quads[1].imgBg);
@@ -150,13 +152,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[1].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[1].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[1].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[1].camBg);
-    gui.addSlider("camera mult X", quads[1].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[1].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[1].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[1].colorBg);
     gui.addColorPicker("Color", &quads[1].bgColor.r);
+    gui.addPage("quad 1 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[1].videoBg);
     gui.addComboBox("video bg", quads[1].bgVideo, videoFiles.size(), videos);
@@ -165,8 +164,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[1].videoColorize.r);
     gui.addSlider("video sound vol", quads[1].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[1].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[1].camBg);
+    gui.addSlider("camera mult X", quads[1].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[1].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[1].camColorize.r);
 
-    gui.addPage("quad 2");
+    gui.addPage("quad 2 - 1/2");
     gui.addTitle("quad n. 2");
     gui.addToggle("show/hide", quads[2].isOn);
     gui.addToggle("img bg on/off", quads[2].imgBg);
@@ -174,13 +178,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[2].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[2].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[2].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[2].camBg);
-    gui.addSlider("camera mult X", quads[2].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[2].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[2].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[2].colorBg);
     gui.addColorPicker("Color", &quads[2].bgColor.r);
+    gui.addPage("quad 2 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[2].videoBg);
     gui.addComboBox("video bg", quads[2].bgVideo, videoFiles.size(), videos);
@@ -189,8 +190,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[2].videoColorize.r);
     gui.addSlider("video sound vol", quads[2].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[2].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[2].camBg);
+    gui.addSlider("camera mult X", quads[2].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[2].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[2].camColorize.r);
 
-    gui.addPage("quad 3");
+    gui.addPage("quad 3 - 1/2");
     gui.addTitle("quad n. 3");
     gui.addToggle("show/hide", quads[3].isOn);
     gui.addToggle("img bg on/off", quads[3].imgBg);
@@ -198,13 +204,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[3].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[3].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[3].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[3].camBg);
-    gui.addSlider("camera mult X", quads[3].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[3].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[3].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[3].colorBg);
     gui.addColorPicker("Color", &quads[3].bgColor.r);
+    gui.addPage("quad 3 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[3].videoBg);
     gui.addComboBox("video bg", quads[3].bgVideo, videoFiles.size(), videos);
@@ -213,8 +216,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[3].videoColorize.r);
     gui.addSlider("video sound vol", quads[3].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[3].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[3].camBg);
+    gui.addSlider("camera mult X", quads[3].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[3].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[3].camColorize.r);
 
-    gui.addPage("quad 4");
+    gui.addPage("quad 4 - 1/2");
     gui.addTitle("quad n. 4");
     gui.addToggle("show/hide", quads[4].isOn);
     gui.addToggle("img bg on/off", quads[4].imgBg);
@@ -222,13 +230,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[4].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[4].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[4].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[4].camBg);
-    gui.addSlider("camera mult X", quads[4].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[4].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[4].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[4].colorBg);
     gui.addColorPicker("Color", &quads[4].bgColor.r);
+    gui.addPage("quad 4 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[4].videoBg);
     gui.addComboBox("video bg", quads[4].bgVideo, videoFiles.size(), videos);
@@ -237,8 +242,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[4].videoColorize.r);
     gui.addSlider("video sound vol", quads[4].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[4].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[4].camBg);
+    gui.addSlider("camera mult X", quads[4].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[4].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[4].camColorize.r);
 
-    gui.addPage("quad 5");
+    gui.addPage("quad 5 - 1/2");
     gui.addTitle("quad n. 5");
     gui.addToggle("show/hide", quads[5].isOn);
     gui.addToggle("img bg on/off", quads[5].imgBg);
@@ -246,13 +256,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[5].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[5].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[5].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[5].camBg);
-    gui.addSlider("camera mult X", quads[5].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[5].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[5].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[5].colorBg);
     gui.addColorPicker("Color", &quads[5].bgColor.r);
+    gui.addPage("quad 5 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[5].videoBg);
     gui.addComboBox("video bg", quads[5].bgVideo, videoFiles.size(), videos);
@@ -261,8 +268,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[5].videoColorize.r);
     gui.addSlider("video sound vol", quads[5].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[5].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[5].camBg);
+    gui.addSlider("camera mult X", quads[5].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[5].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[5].camColorize.r);
 
-    gui.addPage("quad 6");
+    gui.addPage("quad 6 - 1/2");
     gui.addTitle("quad n. 6");
     gui.addToggle("show/hide", quads[6].isOn);
     gui.addToggle("img bg on/off", quads[6].imgBg);
@@ -270,13 +282,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[6].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[6].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[6].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[6].camBg);
-    gui.addSlider("camera mult X", quads[6].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[6].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[6].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[6].colorBg);
     gui.addColorPicker("Color", &quads[6].bgColor.r);
+    gui.addPage("quad 6 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[6].videoBg);
     gui.addComboBox("video bg", quads[6].bgVideo, videoFiles.size(), videos);
@@ -285,8 +294,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[6].videoColorize.r);
     gui.addSlider("video sound vol", quads[6].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[6].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[6].camBg);
+    gui.addSlider("camera mult X", quads[6].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[6].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[6].camColorize.r);
 
-    gui.addPage("quad 7");
+    gui.addPage("quad 7 - 1/2");
     gui.addTitle("quad n. 7");
     gui.addToggle("show/hide", quads[7].isOn);
     gui.addToggle("img bg on/off", quads[7].imgBg);
@@ -294,13 +308,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[7].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[7].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[7].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[7].camBg);
-    gui.addSlider("camera mult X", quads[7].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[7].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[7].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[7].colorBg);
     gui.addColorPicker("Color", &quads[7].bgColor.r);
+    gui.addPage("quad 7 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[7].videoBg);
     gui.addComboBox("video bg", quads[7].bgVideo, videoFiles.size(), videos);
@@ -309,8 +320,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[7].videoColorize.r);
     gui.addSlider("video sound vol", quads[7].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[7].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[7].camBg);
+    gui.addSlider("camera mult X", quads[7].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[7].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[7].camColorize.r);
 
-    gui.addPage("quad 8");
+    gui.addPage("quad 8 - 1/2");
     gui.addTitle("quad n. 8");
     gui.addToggle("show/hide", quads[8].isOn);
     gui.addToggle("img bg on/off", quads[8].imgBg);
@@ -318,13 +334,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[8].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[8].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[8].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[8].camBg);
-    gui.addSlider("camera mult X", quads[8].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[8].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[8].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[8].colorBg);
     gui.addColorPicker("Color", &quads[8].bgColor.r);
+    gui.addPage("quad 8 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[8].videoBg);
     gui.addComboBox("video bg", quads[8].bgVideo, videoFiles.size(), videos);
@@ -333,8 +346,13 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[8].videoColorize.r);
     gui.addSlider("video sound vol", quads[8].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[8].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[8].camBg);
+    gui.addSlider("camera mult X", quads[8].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[8].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[8].camColorize.r);
 
-    gui.addPage("quad 9");
+    gui.addPage("quad 9 - 1/2");
     gui.addTitle("quad n. 9");
     gui.addToggle("show/hide", quads[9].isOn);
     gui.addToggle("img bg on/off", quads[9].imgBg);
@@ -342,13 +360,10 @@ void testApp::setup()
     gui.addSlider("img mult X", quads[9].imgMultX, 0.5, 4.0);
     gui.addSlider("img mult Y", quads[9].imgMultY, 0.5, 4.0);
     gui.addColorPicker("img colorize", &quads[9].imgColorize.r);
-    gui.addTitle("Camera and solid bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[9].camBg);
-    gui.addSlider("camera mult X", quads[9].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[9].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[9].camColorize.r);
+    gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[9].colorBg);
     gui.addColorPicker("Color", &quads[9].bgColor.r);
+    gui.addPage("quad 9 - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[9].videoBg);
     gui.addComboBox("video bg", quads[9].bgVideo, videoFiles.size(), videos);
@@ -357,9 +372,14 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[9].videoColorize.r);
     gui.addSlider("video sound vol", quads[9].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[9].videoSpeed, -2.0, 4.0);
+    gui.addTitle("Camera bg").setNewColumn(true);
+    gui.addToggle("cam on/off", quads[9].camBg);
+    gui.addSlider("camera mult X", quads[9].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[9].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[9].camColorize.r);
 
 
-    gui.setPage(activeQuad+2);
+    gui.setPage((activeQuad*2)+2);
     gui.show();
 
 }
@@ -473,7 +493,7 @@ void testApp::keyPressed(int key)
                 activeQuad = 0;
             }
         }
-    gui.setPage(activeQuad+2);
+    gui.setPage((activeQuad*2)+2);
     }
 
     // activates prev quad
@@ -487,7 +507,17 @@ void testApp::keyPressed(int key)
                 activeQuad = nOfQuads-1;
             }
         }
-    gui.setPage(activeQuad+2);
+    gui.setPage((activeQuad*2)+2);
+    }
+
+    if ( key == 'z' || key == 'Z')
+    {
+        gui.setPage((activeQuad*2)+2);
+    }
+
+        if ( key == 'x' || key == 'X')
+    {
+        gui.setPage((activeQuad*2)+3);
     }
 
     // add a new quad
@@ -502,7 +532,7 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
-		gui.setPage(activeQuad+2);
+		gui.setPage((activeQuad*2)+2);
             }
         }
     }
