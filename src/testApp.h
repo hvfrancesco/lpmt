@@ -5,6 +5,7 @@
 #include "ofAddons.h"
 #include "ball.h"
 #include "quad.h"
+#include "ofxXmlSettings.h"
 
 
 class testApp : public ofSimpleApp
@@ -46,6 +47,8 @@ public:
 
     vector<string> imgFiles;
     vector<string> videoFiles;
+
+    ofxXmlSettings XML;
 
 
 

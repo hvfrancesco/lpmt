@@ -527,7 +527,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 15)
             {
-                quad q;
+                //quad q;
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
