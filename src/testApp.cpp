@@ -464,7 +464,7 @@ void testApp::draw()
 void testApp::keyPressed(int key)
 {
     // fills window with active quad
-    if ( key =='r' || key == 'R' )
+    if ( key =='q' || key == 'Q' )
     {
         if (isSetup)
         {
@@ -607,7 +607,7 @@ void testApp::keyPressed(int key)
     gui.setPage(1);
     }
 
-    if(key == 's' || key == 'S')
+    if(key == 'r' || key == 'R')
     {
     for(int i = 0; i < 16; i++)
             {
