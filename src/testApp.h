@@ -1,5 +1,7 @@
 #ifndef _TEST_APP
 #define _TEST_APP
+#define OF_ADDON_USING_OFXXMLSETTINGS
+
 
 #include "ofMain.h"
 #include "ofAddons.h"
@@ -16,6 +18,7 @@ public:
     void setup();
     void update();
     void draw();
+
 
     void keyPressed(int key);
     void keyReleased(int key);
@@ -49,6 +52,8 @@ public:
     vector<string> videoFiles;
 
     ofxXmlSettings XML;
+    void setXml();
+    void getXml();
 
 
 

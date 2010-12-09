@@ -114,6 +114,8 @@ public:
         isOn = True;
         colorBg = False;
         camBg = False;
+        imgBg = False;
+        videoBg = False;
 
 	    camWidth = 320;
 	    camHeight = 240;
