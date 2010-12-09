@@ -16,6 +16,8 @@ CVS/
 
 /bin/projection_mapping*
 /bin/data/*.xml
+.frag
+.xml
 
 # general generated data
 *.a
