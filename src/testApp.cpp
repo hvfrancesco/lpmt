@@ -456,6 +456,29 @@ void testApp::mousePressed(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mouseReleased()
 {
+    if (whichCorner >= 0) {
+        float smallestDist = 1.0;
+        int snapQuad = -1;
+        int snapCorner = -1;
+        for (int i = 0; i < 20; i++) {
+            if ( i != activeQuad && quads[i].initialized) {
+                for(int j = 0; j < 4; j++) {
+                    float distx = quads[activeQuad].corners[whichCorner].x - quads[i].corners[j].x;
+                    float disty = quads[activeQuad].corners[whichCorner].y - quads[i].corners[j].y;
+                    float dist = sqrt( distx * distx + disty * disty);
+                    if (dist < smallestDist && dist < 0.0075) {
+                        snapQuad = i;
+                        snapCorner = j;
+                        smallestDist = dist;
+                    }
+                }
+            }
+        }
+        if (snapQuad >= 0 && snapCorner >= 0) {
+            quads[activeQuad].corners[whichCorner].x = quads[snapQuad].corners[snapCorner].x;
+            quads[activeQuad].corners[whichCorner].y = quads[snapQuad].corners[snapCorner].y;
+    }
+    }
     whichCorner = -1;
 }
 
