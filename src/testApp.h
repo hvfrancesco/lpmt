@@ -38,6 +38,7 @@ public:
     bool isSetup;
     bool bFullscreen;
     bool bGui;
+    bool snapshotOn;
 
     // gui elements
     bool showGui;
@@ -45,6 +46,8 @@ public:
     // camera grabber
     ofVideoGrabber camGrabber;
     ofTexture camTexture;
+    ofTexture snapshotTexture;
+
     int camWidth;
     int camHeight;
 

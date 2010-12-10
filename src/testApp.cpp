@@ -69,10 +69,14 @@ void testApp::setup()
     ofSetWindowShape(800, 600);
 
     // camera stuff
-    camWidth = 320;	// try to grab at this size.
-    camHeight = 240;
+    camWidth = 640;	// try to grab at this size.
+    camHeight = 480;
     camGrabber.setVerbose(true);
     camGrabber.initGrabber(camWidth,camHeight);
+
+    // texture for snapshot background
+    snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
+    snapshotOn = 0;
 
 
     // defines the first 4 default quads
@@ -114,8 +118,8 @@ void testApp::setup()
     gui.addToggle("show/hide", quads[i].isOn);
     gui.addToggle("img bg on/off", quads[i].imgBg);
     gui.addComboBox("image bg", quads[i].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[i].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[i].imgMultY, 0.5, 4.0);
+    gui.addSlider("img mult X", quads[i].imgMultX, 0.2, 4.0);
+    gui.addSlider("img mult Y", quads[i].imgMultY, 0.2, 4.0);
     gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
     gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[i].colorBg);
@@ -124,15 +128,15 @@ void testApp::setup()
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[i].videoBg);
     gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[i].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[i].videoMultY, 0.5, 4.0);
+    gui.addSlider("video mult X", quads[i].videoMultX, 0.2, 4.0);
+    gui.addSlider("video mult Y", quads[i].videoMultY, 0.2, 4.0);
     gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
     gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
     gui.addTitle("Camera bg").setNewColumn(true);
     gui.addToggle("cam on/off", quads[i].camBg);
-    gui.addSlider("camera mult X", quads[i].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[i].camMultY, 0.5, 4.0);
+    gui.addSlider("camera mult X", quads[i].camMultX, 0.2, 4.0);
+    gui.addSlider("camera mult Y", quads[i].camMultY, 0.2, 4.0);
     gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
     }
 
@@ -190,6 +194,13 @@ void testApp::draw()
     if (isSetup)
     {
         quads[activeQuad].borderColor = 0xFFFFFF;
+        // if snapshot is on draws it as window background
+        if (snapshotOn) {
+        ofEnableAlphaBlending();
+	    ofSetColor(0xFFFFFF);
+	    snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
+	    ofDisableAlphaBlending();
+        }
     }
 
     // loops through initialized quads and calls their draw function
@@ -234,6 +245,18 @@ void testApp::keyPressed(int key)
     {
     XML.loadFile("projection_settings.xml");
     getXml();
+    }
+
+    // takes a snapshot of attached camera and uses it as window background
+    if (key == 'w' || key == 'W')
+    {
+    snapshotOn = !snapshotOn;
+    if (snapshotOn == 1) {
+    camGrabber.grabFrame();
+    int totalPixels = camWidth*camHeight*3;
+    unsigned char * pixels = camGrabber.getPixels();
+    snapshotTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
+    }
     }
 
     // fills window with active quad
@@ -306,7 +329,7 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
-		gui.setPage((activeQuad*2)+2);
+                gui.setPage((activeQuad*2)+2);
             }
         }
     }
@@ -457,6 +480,7 @@ void testApp::mousePressed(int x, int y, int button)
 void testApp::mouseReleased()
 {
     if (whichCorner >= 0) {
+        // snap detection for near quads
         float smallestDist = 1.0;
         int snapQuad = -1;
         int snapCorner = -1;

@@ -117,11 +117,11 @@ public:
         imgBg = False;
         videoBg = False;
 
-	    camWidth = 320;
-	    camHeight = 240;
+	    camWidth = 640;
+	    camHeight = 480;
 	    camMultX = 1;
 	    camMultY = 1;
-	    camTexture.allocate(camWidth*4,camHeight*4, GL_RGB);
+	    camTexture.allocate(camWidth,camHeight, GL_RGB);
 
 	    imgMultX = 1.0;
 	    imgMultY = 1.0;
