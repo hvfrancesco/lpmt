@@ -29,7 +29,7 @@ public:
     int whichCorner;
     ofTrueTypeFont ttf;
 
-    quad quads[16];
+    quad quads[20];
 
     int activeQuad;
     int nOfQuads;

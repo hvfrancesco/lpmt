@@ -98,285 +98,45 @@ void testApp::setup()
     gui.config->sliderTextHeight = 24;
     gui.config->titleHeight = 20;
     gui.config->fullActiveColor = 0x6B404B;
+
     // adding controls
-    gui.addToggle("quad 0", quads[0].isOn);
-    gui.addToggle("quad 1", quads[1].isOn);
-    gui.addToggle("quad 2", quads[2].isOn);
-    gui.addToggle("quad 3", quads[3].isOn);
-    gui.addToggle("quad 4", quads[4].isOn);
-    gui.addToggle("quad 5", quads[5].isOn);
-    gui.addToggle("quad 6", quads[6].isOn);
-    gui.addToggle("quad 7", quads[7].isOn);
-    gui.addToggle("quad 8", quads[8].isOn);
-    gui.addToggle("quad 9", quads[9].isOn);
-    gui.addToggle("quad 10", quads[10].isOn);
-    gui.addToggle("quad 11", quads[11].isOn);
-    gui.addToggle("quad 12", quads[12].isOn);
-    gui.addToggle("quad 13", quads[13].isOn);
-    gui.addToggle("quad 14", quads[14].isOn);
-    gui.addToggle("quad 15", quads[15].isOn);
+    // first a general page for toggling layers on/off
+    for(int i = 0; i < 20; i++)
+    {
+    gui.addToggle("quad "+ofToString(i), quads[i].isOn);
+    }
 
-    gui.addPage("quad 0 - 1/2");
-    gui.addTitle("quad n. 0");
-    gui.addToggle("show/hide", quads[0].isOn);
-    gui.addToggle("img bg on/off", quads[0].imgBg);
-    gui.addComboBox("image bg", quads[0].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[0].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[0].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[0].imgColorize.r);
+    // then two pages of settings for each instantiable layer
+    for(int i = 0; i < 20; i++)
+    {
+    gui.addPage("quad "+ofToString(i)+" - 1/2");
+    gui.addTitle("quad n. "+ofToString(i));
+    gui.addToggle("show/hide", quads[i].isOn);
+    gui.addToggle("img bg on/off", quads[i].imgBg);
+    gui.addComboBox("image bg", quads[i].bgImg, imgFiles.size(), images);
+    gui.addSlider("img mult X", quads[i].imgMultX, 0.5, 4.0);
+    gui.addSlider("img mult Y", quads[i].imgMultY, 0.5, 4.0);
+    gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
     gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[0].colorBg);
-    gui.addColorPicker("Color", &quads[0].bgColor.r);
-    gui.addPage("quad 0 - 2/2");
+    gui.addToggle("solid bg on/off", quads[i].colorBg);
+    gui.addColorPicker("Color", &quads[i].bgColor.r);
+    gui.addPage("quad "+ofToString(i)+" - 2/2");
     gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[0].videoBg);
-    gui.addComboBox("video bg", quads[0].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[0].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[0].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[0].videoColorize.r);
-    gui.addSlider("video sound vol", quads[0].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[0].videoSpeed, -2.0, 4.0);
+    gui.addToggle("video bg on/off", quads[i].videoBg);
+    gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
+    gui.addSlider("video mult X", quads[i].videoMultX, 0.5, 4.0);
+    gui.addSlider("video mult Y", quads[i].videoMultY, 0.5, 4.0);
+    gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
+    gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
+    gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
     gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[0].camBg);
-    gui.addSlider("camera mult X", quads[0].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[0].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[0].camColorize.r);
+    gui.addToggle("cam on/off", quads[i].camBg);
+    gui.addSlider("camera mult X", quads[i].camMultX, 0.5, 4.0);
+    gui.addSlider("camera mult Y", quads[i].camMultY, 0.5, 4.0);
+    gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
+    }
 
-    gui.addPage("quad 1 - 1/2");
-    gui.addTitle("quad n. 1");
-    gui.addToggle("show/hide", quads[1].isOn);
-    gui.addToggle("img bg on/off", quads[1].imgBg);
-    gui.addComboBox("image bg", quads[1].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[1].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[1].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[1].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[1].colorBg);
-    gui.addColorPicker("Color", &quads[1].bgColor.r);
-    gui.addPage("quad 1 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[1].videoBg);
-    gui.addComboBox("video bg", quads[1].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[1].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[1].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[1].videoColorize.r);
-    gui.addSlider("video sound vol", quads[1].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[1].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[1].camBg);
-    gui.addSlider("camera mult X", quads[1].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[1].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[1].camColorize.r);
-
-    gui.addPage("quad 2 - 1/2");
-    gui.addTitle("quad n. 2");
-    gui.addToggle("show/hide", quads[2].isOn);
-    gui.addToggle("img bg on/off", quads[2].imgBg);
-    gui.addComboBox("image bg", quads[2].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[2].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[2].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[2].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[2].colorBg);
-    gui.addColorPicker("Color", &quads[2].bgColor.r);
-    gui.addPage("quad 2 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[2].videoBg);
-    gui.addComboBox("video bg", quads[2].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[2].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[2].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[2].videoColorize.r);
-    gui.addSlider("video sound vol", quads[2].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[2].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[2].camBg);
-    gui.addSlider("camera mult X", quads[2].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[2].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[2].camColorize.r);
-
-    gui.addPage("quad 3 - 1/2");
-    gui.addTitle("quad n. 3");
-    gui.addToggle("show/hide", quads[3].isOn);
-    gui.addToggle("img bg on/off", quads[3].imgBg);
-    gui.addComboBox("image bg", quads[3].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[3].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[3].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[3].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[3].colorBg);
-    gui.addColorPicker("Color", &quads[3].bgColor.r);
-    gui.addPage("quad 3 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[3].videoBg);
-    gui.addComboBox("video bg", quads[3].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[3].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[3].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[3].videoColorize.r);
-    gui.addSlider("video sound vol", quads[3].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[3].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[3].camBg);
-    gui.addSlider("camera mult X", quads[3].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[3].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[3].camColorize.r);
-
-    gui.addPage("quad 4 - 1/2");
-    gui.addTitle("quad n. 4");
-    gui.addToggle("show/hide", quads[4].isOn);
-    gui.addToggle("img bg on/off", quads[4].imgBg);
-    gui.addComboBox("image bg", quads[4].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[4].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[4].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[4].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[4].colorBg);
-    gui.addColorPicker("Color", &quads[4].bgColor.r);
-    gui.addPage("quad 4 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[4].videoBg);
-    gui.addComboBox("video bg", quads[4].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[4].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[4].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[4].videoColorize.r);
-    gui.addSlider("video sound vol", quads[4].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[4].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[4].camBg);
-    gui.addSlider("camera mult X", quads[4].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[4].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[4].camColorize.r);
-
-    gui.addPage("quad 5 - 1/2");
-    gui.addTitle("quad n. 5");
-    gui.addToggle("show/hide", quads[5].isOn);
-    gui.addToggle("img bg on/off", quads[5].imgBg);
-    gui.addComboBox("image bg", quads[5].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[5].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[5].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[5].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[5].colorBg);
-    gui.addColorPicker("Color", &quads[5].bgColor.r);
-    gui.addPage("quad 5 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[5].videoBg);
-    gui.addComboBox("video bg", quads[5].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[5].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[5].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[5].videoColorize.r);
-    gui.addSlider("video sound vol", quads[5].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[5].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[5].camBg);
-    gui.addSlider("camera mult X", quads[5].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[5].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[5].camColorize.r);
-
-    gui.addPage("quad 6 - 1/2");
-    gui.addTitle("quad n. 6");
-    gui.addToggle("show/hide", quads[6].isOn);
-    gui.addToggle("img bg on/off", quads[6].imgBg);
-    gui.addComboBox("image bg", quads[6].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[6].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[6].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[6].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[6].colorBg);
-    gui.addColorPicker("Color", &quads[6].bgColor.r);
-    gui.addPage("quad 6 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[6].videoBg);
-    gui.addComboBox("video bg", quads[6].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[6].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[6].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[6].videoColorize.r);
-    gui.addSlider("video sound vol", quads[6].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[6].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[6].camBg);
-    gui.addSlider("camera mult X", quads[6].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[6].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[6].camColorize.r);
-
-    gui.addPage("quad 7 - 1/2");
-    gui.addTitle("quad n. 7");
-    gui.addToggle("show/hide", quads[7].isOn);
-    gui.addToggle("img bg on/off", quads[7].imgBg);
-    gui.addComboBox("image bg", quads[7].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[7].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[7].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[7].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[7].colorBg);
-    gui.addColorPicker("Color", &quads[7].bgColor.r);
-    gui.addPage("quad 7 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[7].videoBg);
-    gui.addComboBox("video bg", quads[7].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[7].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[7].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[7].videoColorize.r);
-    gui.addSlider("video sound vol", quads[7].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[7].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[7].camBg);
-    gui.addSlider("camera mult X", quads[7].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[7].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[7].camColorize.r);
-
-    gui.addPage("quad 8 - 1/2");
-    gui.addTitle("quad n. 8");
-    gui.addToggle("show/hide", quads[8].isOn);
-    gui.addToggle("img bg on/off", quads[8].imgBg);
-    gui.addComboBox("image bg", quads[8].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[8].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[8].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[8].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[8].colorBg);
-    gui.addColorPicker("Color", &quads[8].bgColor.r);
-    gui.addPage("quad 8 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[8].videoBg);
-    gui.addComboBox("video bg", quads[8].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[8].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[8].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[8].videoColorize.r);
-    gui.addSlider("video sound vol", quads[8].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[8].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[8].camBg);
-    gui.addSlider("camera mult X", quads[8].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[8].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[8].camColorize.r);
-
-    gui.addPage("quad 9 - 1/2");
-    gui.addTitle("quad n. 9");
-    gui.addToggle("show/hide", quads[9].isOn);
-    gui.addToggle("img bg on/off", quads[9].imgBg);
-    gui.addComboBox("image bg", quads[9].bgImg, imgFiles.size(), images);
-    gui.addSlider("img mult X", quads[9].imgMultX, 0.5, 4.0);
-    gui.addSlider("img mult Y", quads[9].imgMultY, 0.5, 4.0);
-    gui.addColorPicker("img colorize", &quads[9].imgColorize.r);
-    gui.addTitle("Solid color").setNewColumn(true);
-    gui.addToggle("solid bg on/off", quads[9].colorBg);
-    gui.addColorPicker("Color", &quads[9].bgColor.r);
-    gui.addPage("quad 9 - 2/2");
-    gui.addTitle("Video");
-    gui.addToggle("video bg on/off", quads[9].videoBg);
-    gui.addComboBox("video bg", quads[9].bgVideo, videoFiles.size(), videos);
-    gui.addSlider("video mult X", quads[9].videoMultX, 0.5, 4.0);
-    gui.addSlider("video mult Y", quads[9].videoMultY, 0.5, 4.0);
-    gui.addColorPicker("video colorize", &quads[9].videoColorize.r);
-    gui.addSlider("video sound vol", quads[9].videoVolume, 0, 100);
-    gui.addSlider("video speed", quads[9].videoSpeed, -2.0, 4.0);
-    gui.addTitle("Camera bg").setNewColumn(true);
-    gui.addToggle("cam on/off", quads[9].camBg);
-    gui.addSlider("camera mult X", quads[9].camMultX, 0.5, 4.0);
-    gui.addSlider("camera mult Y", quads[9].camMultY, 0.5, 4.0);
-    gui.addColorPicker("cam colorize", &quads[9].camColorize.r);
-
-
+    // then we set displayed gui page to the one corresponding to active quad and show the gui
     gui.setPage((activeQuad*2)+2);
     gui.show();
 
@@ -390,7 +150,7 @@ void testApp::update()
     if (camGrabber.isFrameNew()){
 		int totalPixels = camWidth*camHeight*3;
 		unsigned char * pixels = camGrabber.getPixels();
-		for (int i = 0; i < 16; i++) {
+		for (int i = 0; i < 20; i++) {
 			if (quads[i].initialized) {
 				if (quads[i].camBg) {
 				quads[i].camTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
@@ -402,7 +162,7 @@ void testApp::update()
 	}
 
 
-    // sets default window background and fixed shape
+    // sets default window background, grey in setup mode and black in projection mode
     if (isSetup) {
     ofBackground(20, 20, 20);
     }
@@ -411,7 +171,7 @@ void testApp::update()
     }
     //ofSetWindowShape(800, 600);
     // loops through initialized quads and runs update, setting the border color as well
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 20; i++)
     {
         if (quads[i].initialized)
         {
@@ -433,7 +193,7 @@ void testApp::draw()
     }
 
     // loops through initialized quads and calls their draw function
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 20; i++)
     {
         if (quads[i].initialized)
         {
@@ -461,7 +221,7 @@ void testApp::draw()
 //--------------------------------------------------------------
 void testApp::keyPressed(int key)
 {
-
+    // saves quads settings to an xml file in data directory
     if ( key == 's' || key == 'S')
     {
         setXml();
@@ -469,14 +229,12 @@ void testApp::keyPressed(int key)
 
     }
 
-
+    // loads settings and quads from default xml file
     if (key == 'l' || key == 'L')
     {
     XML.loadFile("projection_settings.xml");
     getXml();
     }
-
-
 
     // fills window with active quad
     if ( key =='q' || key == 'Q' )
@@ -525,22 +283,24 @@ void testApp::keyPressed(int key)
     gui.setPage((activeQuad*2)+2);
     }
 
+    // goes to first page of gui for active quad
     if ( key == 'z' || key == 'Z')
     {
         gui.setPage((activeQuad*2)+2);
     }
 
+    // goes to second page of gui for active quad
         if ( key == 'x' || key == 'X')
     {
         gui.setPage((activeQuad*2)+3);
     }
 
-    // add a new quad
+    // adds a new quad in the middle of the screen
     if ( key =='a' )
     {
         if (isSetup)
         {
-            if (nOfQuads < 16)
+            if (nOfQuads < 20)
             {
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles);
                 quads[nOfQuads].quadNumber = nOfQuads;
@@ -557,7 +317,7 @@ void testApp::keyPressed(int key)
         if (isSetup)
         {
             isSetup = False;
-            for(int i = 0; i < 16; i++)
+            for(int i = 0; i < 20; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -568,7 +328,7 @@ void testApp::keyPressed(int key)
         else
         {
             isSetup = True;
-            for(int i = 0; i < 16; i++)
+            for(int i = 0; i < 20; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -616,14 +376,16 @@ void testApp::keyPressed(int key)
     gui.nextPage();
     }
 
+    // show general settings page of gui
     if(key == '1')
     {
     gui.setPage(1);
     }
 
+    // resyncs videos to start point in every quad
     if(key == 'r' || key == 'R')
     {
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 20; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -707,7 +469,7 @@ void testApp::setXml()
 XML.setValue("GENERAL:ACTIVE_QUAD",activeQuad);
 XML.setValue("GENERAL:N_OF_QUADS",nOfQuads);
 
-for(int i = 0; i < 16; i++)
+for(int i = 0; i < 20; i++)
     {
      if (quads[i].initialized)
      {
