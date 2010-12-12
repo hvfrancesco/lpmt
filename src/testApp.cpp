@@ -427,8 +427,14 @@ void testApp::keyPressed(int key)
             {
                 if (quads[i].initialized)
                 {
+                    // resets video to start ing point
                     if (quads[i].videoBg && quads[i].video.bLoaded) {
                     quads[i].video.setPosition(0.0);
+                    }
+                    // resets slideshow to first slide
+                    if (quads[i].slideshowBg) {
+                        quads[i].currentSlide = 0;
+                        quads[i].slideTimer = ofGetElapsedTimef();
                     }
                 }
             }
