@@ -53,6 +53,7 @@ public:
 
     vector<string> imgFiles;
     vector<string> videoFiles;
+    vector<string> slideshowFolders;
 
     ofxXmlSettings XML;
     void setXml();

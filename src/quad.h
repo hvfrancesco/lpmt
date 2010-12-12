@@ -1,3 +1,4 @@
+
 class quad
 {
 
@@ -43,6 +44,8 @@ public:
     float videoMultY;
     float videoSpeed;
     float previousSpeed;
+    float slideshowSpeed;
+    float slideTimer;
 
     int quadNumber;
 
@@ -54,20 +57,45 @@ public:
     bool imgBg;
     bool videoBg;
     bool videoSound;
+    bool slideshowBg;
+    bool slideFit;
+    bool slideKeepAspect;
 
     int bgImg;
     int bgVideo;
     int videoVolume;
+    int bgSlideshow;
+    int currentSlide;
 
     vector<string> images;
     vector<string> videos;
+    vector<string> slideshows;
+    vector<string> slidesnames;
+    vector<ofImage> slides;
 
     string loadedImg;
     string loadedVideo;
+    string loadedSlideshow;
+
+    // a func for reading a dir content to a vector of strings
+    int getdir (string dir, vector<string> &files)
+    {
+    DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir(dir.c_str())) == NULL) {
+        cout << "Error(" << errno << ") opening " << dir << endl;
+        return errno;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+        files.push_back(string(dirp->d_name));
+    }
+    closedir(dp);
+    return 0;
+    }
 
 
-
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles)
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles, vector<string> &slideshowFolders)
     {
 
         //loads load in some truetype fonts
@@ -78,6 +106,7 @@ public:
 
         loadedImg = string("");
         loadedVideo = string("");
+        loadedSlideshow = string("");
 
         quadNumber = 0;
         //this is just for our gui / mouse handles
@@ -97,6 +126,7 @@ public:
 
         images = imgFiles;
         videos = videoFiles;
+        slideshows = slideshowFolders;
 
         borderColor = 0x666666;
 
@@ -116,6 +146,9 @@ public:
         camBg = False;
         imgBg = False;
         videoBg = False;
+        slideshowBg = False;
+        slideFit = False;
+        slideKeepAspect = True;
 
 	    camWidth = 640;
 	    camHeight = 480;
@@ -131,6 +164,10 @@ public:
         videoSpeed = 1.0;
         previousSpeed = 1.0;
         videoVolume = 0;
+
+        currentSlide = 0;
+        slideshowSpeed = 1.0;
+        slideTimer = ofGetElapsedTimef();
 
         bgColor.r = 0;
 	    bgColor.g = 0;
@@ -186,6 +223,39 @@ public:
             previousSpeed = videoSpeed;
             }
             }
+
+        // slideshow
+        if (slideshowBg) {
+        // put it to off while loading images
+        slideshowBg = False;
+        string slideshowName = slideshows[bgSlideshow];
+        // if a different slideshow has been chosen in gui we do load its images
+        if (slideshowName != loadedSlideshow) {
+            // we exclude "." and ".." directories if present
+            if (slideshowName != "." && slideshowName != "..") {
+            // we scan the img dir for images
+            string slidesDir = string("./data/slideshow/");
+            slidesDir += slideshowName;
+            // make two arrays, one for imgs names and one for images
+            slidesnames = vector<string>();
+            slides = vector<ofImage>();
+            // read all content of show folder
+            getdir(slidesDir,slidesnames);
+            // for each name found loads the image and populates the imgs array (excluding "." an "..")
+            for (unsigned int i = 0;i < slidesnames.size();i++) {
+                if (slidesnames[i] != "." && slidesnames[i] != "..") {
+                    img.loadImage("slideshow/"+slideshowName+"/"+slidesnames[i]);
+                    slides.push_back(img);
+                }
+            }
+            loadedSlideshow = slideshowName;
+            currentSlide = 0;
+            slideTimer = ofGetElapsedTimef();
+            }
+            }
+        // turn it on again for drawing
+        slideshowBg = True;
+        }
 
 
 
@@ -284,6 +354,43 @@ public:
 	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
 	    ofDisableAlphaBlending();
 	    }
+
+        // draws slideshows
+	    if (slideshowBg) {
+        if (slides.size() > 0) {
+            if (currentSlide >= slides.size()) {
+                currentSlide = 0;
+                }
+            img = slides[currentSlide];
+            ofEnableAlphaBlending();
+            // color is set according to still img colorization combo
+            ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
+            if (slideFit) {
+                float fitX = ofGetWidth()/img.getWidth();
+                float fitY = ofGetHeight()/img.getHeight();
+                if (slideKeepAspect) {
+                    if (fitX >= fitY) {
+                        img.draw(0,0,img.getWidth()*fitY, img.getHeight()*fitY);
+                    }
+                    else {
+                        img.draw(0,0,img.getWidth()*fitX, img.getHeight()*fitX);
+                    }
+                }
+                else {
+                img.draw(0,0,img.getWidth()*fitX, img.getHeight()*fitY);
+                }
+            }
+            else {
+                img.draw(0,0,img.getWidth(), img.getHeight());
+            }
+            ofDisableAlphaBlending();
+            if (ofGetElapsedTimef() > slideTimer+slideshowSpeed ) {
+                currentSlide += 1;
+                slideTimer = ofGetElapsedTimef();
+            }
+        }
+	    }
+
 
         // TEMP STUFF - our particles
         /*

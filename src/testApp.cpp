@@ -38,7 +38,6 @@ void testApp::setup()
 
     // we scan the img dir for images
 	string imgDir = string("./data/img");
-    //vector<string> imgFiles = vector<string>();
     imgFiles = vector<string>();
     getdir(imgDir,imgFiles);
     string images[imgFiles.size()];
@@ -49,13 +48,22 @@ void testApp::setup()
 
     // we scan the video dir for videos
 	string videoDir = string("./data/video");
-    //vector<string> videoFiles = vector<string>();
     videoFiles = vector<string>();
     getdir(videoDir,videoFiles);
     string videos[videoFiles.size()];
     for (unsigned int i = 0;i < videoFiles.size();i++) {
         videos[i]= videoFiles[i];
     }
+
+    // we scan the slideshow dir for videos
+	string slideshowDir = string("./data/slideshow");
+    slideshowFolders = vector<string>();
+    getdir(slideshowDir,slideshowFolders);
+    string slideshows[slideshowFolders.size()];
+    for (unsigned int i = 0;i < slideshowFolders.size();i++) {
+        slideshows[i]= slideshowFolders[i];
+    }
+
 
     ttf.loadFont("type/frabk.ttf", 11);
     // set border color for quads in setup mode
@@ -80,13 +88,13 @@ void testApp::setup()
 
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5,imgFiles, videoFiles);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5,imgFiles, videoFiles, slideshowFolders);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5,imgFiles, videoFiles);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5,imgFiles, videoFiles, slideshowFolders);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0,imgFiles, videoFiles);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0,imgFiles, videoFiles, slideshowFolders);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0,imgFiles, videoFiles);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0,imgFiles, videoFiles, slideshowFolders);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -124,6 +132,7 @@ void testApp::setup()
     gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[i].colorBg);
     gui.addColorPicker("Color", &quads[i].bgColor.r);
+
     gui.addPage("quad "+ofToString(i)+" - 2/2");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[i].videoBg);
@@ -138,6 +147,12 @@ void testApp::setup()
     gui.addSlider("camera mult X", quads[i].camMultX, 0.2, 4.0);
     gui.addSlider("camera mult Y", quads[i].camMultY, 0.2, 4.0);
     gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
+    gui.addTitle("Slideshow").setNewColumn(true);
+    gui.addToggle("slideshow on/off", quads[i].slideshowBg);
+    gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
+    gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
+    gui.addToggle("slides to quad size", quads[i].slideFit);
+    gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
@@ -325,7 +340,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 20)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
@@ -594,7 +609,7 @@ for(int i = 0; i < nOfQuads; i++)
     float x3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:X",0.0);
     float y3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:Y",0.0);
 
-    quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, imgFiles, videoFiles);
+    quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, imgFiles, videoFiles, slideshowFolders);
     quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":QUAD_NUMBER", 0);
     quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LOADED_IMG", 0);
     quads[i].bgVideo = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LOADED_VIDEO", 0);
