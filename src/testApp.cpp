@@ -132,6 +132,9 @@ void testApp::setup()
     gui.addTitle("Solid color").setNewColumn(true);
     gui.addToggle("solid bg on/off", quads[i].colorBg);
     gui.addColorPicker("Color", &quads[i].bgColor.r);
+    gui.addToggle("transition color", quads[i].transBg);
+    gui.addColorPicker("second Color", &quads[i].secondColor.r);
+    gui.addSlider("trans duration", quads[i].transDuration, 0.2, 60.0);
 
     gui.addPage("quad "+ofToString(i)+" - 2/2");
     gui.addTitle("Video");

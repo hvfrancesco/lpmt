@@ -24,6 +24,10 @@ public:
 
     int borderColor;
     ofColor bgColor;
+    ofColor secondColor;
+    ofColor startColor;
+    ofColor endColor;
+    ofColor transColor;
     ofColor imgColorize;
     ofColor videoColorize;
     ofColor camColorize;
@@ -46,6 +50,7 @@ public:
     float previousSpeed;
     float slideshowSpeed;
     float slideTimer;
+    float transDuration;
 
     int quadNumber;
 
@@ -53,6 +58,8 @@ public:
     bool isSetup;
     bool isOn;
     bool colorBg;
+    bool transBg;
+    bool transUp;
     bool camBg;
     bool imgBg;
     bool videoBg;
@@ -66,6 +73,9 @@ public:
     int videoVolume;
     int bgSlideshow;
     int currentSlide;
+    int transStep;
+    int transCounter;
+    int fps;
 
     vector<string> images;
     vector<string> videos;
@@ -143,6 +153,8 @@ public:
         isSetup = True;
         isOn = True;
         colorBg = False;
+        transBg = False;
+        transUp = True;
         camBg = False;
         imgBg = False;
         videoBg = False;
@@ -169,10 +181,29 @@ public:
         slideshowSpeed = 1.0;
         slideTimer = ofGetElapsedTimef();
 
+        transDuration = 1.0;
+        fps = ofGetFrameRate();
+        transCounter = 0;
+
         bgColor.r = 0;
 	    bgColor.g = 0;
 	    bgColor.b = 0;
 	    bgColor.a = 0;
+
+        secondColor.r = 0;
+	    secondColor.g = 0;
+	    secondColor.b = 0;
+	    secondColor.a = 0;
+
+        startColor.r = 0;
+	    startColor.g = 0;
+	    startColor.b = 0;
+	    startColor.a = 0;
+
+        endColor.r = 0;
+	    endColor.g = 0;
+	    endColor.b = 0;
+	    endColor.a = 0;
 
         imgColorize.r = 1;
 	    imgColorize.g = 1;
@@ -202,6 +233,33 @@ public:
                 img.loadImage("img/"+imgName);
                 loadedImg = imgName;
             }
+        }
+
+        // calculates transition between two solid colors
+        if (colorBg && transBg) {
+            if (transUp) {
+            startColor = bgColor;
+            endColor = secondColor;
+            }
+            else {
+            startColor = secondColor;
+            endColor = bgColor;
+            }
+            // using fps detected at setup is suboptimal
+            // needs more work (e.g. introducing a roundup of actual framerate)
+            //transStep = (transDuration * ofGetFrameRate());
+            if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
+            transStep = (transDuration * fps);
+            transColor.r = startColor.r + (((endColor.r - startColor.r)/transStep)*transCounter);
+            transColor.g = startColor.g + (((endColor.g - startColor.g)/transStep)*transCounter);
+            transColor.b = startColor.b + (((endColor.b - startColor.b)/transStep)*transCounter);
+            transColor.a = startColor.a + (((endColor.a - startColor.a)/transStep)*transCounter);
+            transCounter += 1;
+            if (transCounter >= transStep) {
+                transCounter = 0;
+                transUp = !transUp;
+            }
+
         }
 
         // loads video
@@ -317,7 +375,12 @@ public:
         if (colorBg) {
             ofFill();
             ofEnableAlphaBlending();
-            ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
+            if (transBg) {
+                ofSetColor(transColor.r * 255, transColor.g * 255, transColor.b * 255, transColor.a * 255);
+            }
+            else {
+                ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
+            }
             ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
             ofDisableAlphaBlending();
             ofNoFill();
