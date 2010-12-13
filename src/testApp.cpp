@@ -121,7 +121,7 @@ void testApp::setup()
     // then two pages of settings for each instantiable layer
     for(int i = 0; i < 20; i++)
     {
-    gui.addPage("quad "+ofToString(i)+" - 1/2");
+    gui.addPage("quad "+ofToString(i)+" - 1/3");
     gui.addTitle("quad n. "+ofToString(i));
     gui.addToggle("show/hide", quads[i].isOn);
     gui.addToggle("img bg on/off", quads[i].imgBg);
@@ -136,7 +136,7 @@ void testApp::setup()
     gui.addColorPicker("second Color", &quads[i].secondColor.r);
     gui.addSlider("trans duration", quads[i].transDuration, 0.2, 60.0);
 
-    gui.addPage("quad "+ofToString(i)+" - 2/2");
+    gui.addPage("quad "+ofToString(i)+" - 2/3");
     gui.addTitle("Video");
     gui.addToggle("video bg on/off", quads[i].videoBg);
     gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
@@ -156,10 +156,24 @@ void testApp::setup()
     gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
     gui.addToggle("slides to quad size", quads[i].slideFit);
     gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
+
+    gui.addPage("quad "+ofToString(i)+" - 3/3");
+    gui.addTitle("Corner 0");
+    gui.addSlider("X", quads[i].corners[0].x, -1.0, 2.0);
+    gui.addSlider("Y", quads[i].corners[0].y, -1.0, 2.0);
+    gui.addTitle("Corner 3");
+    gui.addSlider("X", quads[i].corners[3].x, -1.0, 2.0);
+    gui.addSlider("Y", quads[i].corners[3].y, -1.0, 2.0);
+    gui.addTitle("Corner 1").setNewColumn(true);
+    gui.addSlider("X", quads[i].corners[1].x, -1.0, 2.0);
+    gui.addSlider("Y", quads[i].corners[1].y, -1.0, 2.0);
+    gui.addTitle("Corner 2");
+    gui.addSlider("X", quads[i].corners[2].x, -1.0, 2.0);
+    gui.addSlider("Y", quads[i].corners[2].y, -1.0, 2.0);
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
-    gui.setPage((activeQuad*2)+2);
+    gui.setPage((activeQuad*3)+2);
     gui.show();
 
 }
@@ -263,6 +277,7 @@ void testApp::keyPressed(int key)
     {
     XML.loadFile("projection_settings.xml");
     getXml();
+    gui.setPage((activeQuad*3)+2);
     }
 
     // takes a snapshot of attached camera and uses it as window background
@@ -307,7 +322,7 @@ void testApp::keyPressed(int key)
                 activeQuad = 0;
             }
         }
-    gui.setPage((activeQuad*2)+2);
+    gui.setPage((activeQuad*3)+2);
     }
 
     // activates prev quad
@@ -321,20 +336,27 @@ void testApp::keyPressed(int key)
                 activeQuad = nOfQuads-1;
             }
         }
-    gui.setPage((activeQuad*2)+2);
+    gui.setPage((activeQuad*3)+2);
     }
 
     // goes to first page of gui for active quad
     if ( key == 'z' || key == 'Z')
     {
-        gui.setPage((activeQuad*2)+2);
+        gui.setPage((activeQuad*3)+2);
     }
 
     // goes to second page of gui for active quad
         if ( key == 'x' || key == 'X')
     {
-        gui.setPage((activeQuad*2)+3);
+        gui.setPage((activeQuad*3)+3);
     }
+
+    // goes to second page of gui for active quad
+        if ( key == 'c' || key == 'C')
+    {
+        gui.setPage((activeQuad*3)+4);
+    }
+
 
     // adds a new quad in the middle of the screen
     if ( key =='a' )
@@ -347,7 +369,7 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].quadNumber = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
-                gui.setPage((activeQuad*2)+2);
+                gui.setPage((activeQuad*3)+2);
             }
         }
     }
