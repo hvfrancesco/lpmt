@@ -340,19 +340,19 @@ void testApp::keyPressed(int key)
     }
 
     // goes to first page of gui for active quad
-    if ( key == 'z' || key == 'Z')
+    if ( key == 'z' || key == 'Z' || key == OF_KEY_F1)
     {
         gui.setPage((activeQuad*3)+2);
     }
 
     // goes to second page of gui for active quad
-        if ( key == 'x' || key == 'X')
+        if ( key == 'x' || key == 'X' || key == OF_KEY_F2)
     {
         gui.setPage((activeQuad*3)+3);
     }
 
     // goes to second page of gui for active quad
-        if ( key == 'c' || key == 'C')
+        if ( key == 'c' || key == 'C' || key == OF_KEY_F3)
     {
         gui.setPage((activeQuad*3)+4);
     }
