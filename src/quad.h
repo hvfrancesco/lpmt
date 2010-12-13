@@ -246,7 +246,9 @@ public:
             endColor = bgColor;
             }
             // using fps detected at setup is suboptimal
+            // but updating it at each cycle triggers a flickering effect
             // needs more work (e.g. introducing a roundup of actual framerate)
+            // now we update fps value just if it differs more than 50fps from actual rate
             //transStep = (transDuration * ofGetFrameRate());
             if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
             transStep = (transDuration * fps);
@@ -318,11 +320,12 @@ public:
 
 
        // temp stuff
+       /*
         for(int i = 0; i < 80; i++)
         {
             balls[i].update(ofGetWidth(), ofGetHeight());
         }
-
+        */
 
         //we set matrix to the default - 0 translation
         //and 1.0 scale for x y z and w
@@ -375,9 +378,11 @@ public:
         if (colorBg) {
             ofFill();
             ofEnableAlphaBlending();
+            // if we have two colors it draws with calculated transition color
             if (transBg) {
                 ofSetColor(transColor.r * 255, transColor.g * 255, transColor.b * 255, transColor.a * 255);
             }
+            // this in case of only one color set
             else {
                 ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
             }
@@ -421,6 +426,7 @@ public:
         // draws slideshows
 	    if (slideshowBg) {
         if (slides.size() > 0) {
+            // if we reached the end of slides vector, it loops back to first slide
             if (currentSlide >= slides.size()) {
                 currentSlide = 0;
                 }
@@ -428,25 +434,33 @@ public:
             ofEnableAlphaBlending();
             // color is set according to still img colorization combo
             ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
+            // default is drawing image with its size unchanged, so we set mult factors = 1.0
+            float multX = 1.0;
+            float multY = 1.0;
             if (slideFit) {
                 float fitX = ofGetWidth()/img.getWidth();
                 float fitY = ofGetHeight()/img.getHeight();
                 if (slideKeepAspect) {
+                    // we calculate the factor for fitting the image in quad respecting img aspect ratio
                     if (fitX >= fitY) {
-                        img.draw(0,0,img.getWidth()*fitY, img.getHeight()*fitY);
+                        multX = fitY;
+                        multY = fitY;
                     }
                     else {
-                        img.draw(0,0,img.getWidth()*fitX, img.getHeight()*fitX);
+                        multX = fitX;
+                        multY = fitX;
                     }
                 }
+                // this is for stretching image to whole quad size
                 else {
-                img.draw(0,0,img.getWidth()*fitX, img.getHeight()*fitY);
+                    multX = fitX;
+                    multY = fitY;
                 }
             }
-            else {
-                img.draw(0,0,img.getWidth(), img.getHeight());
-            }
+            // at last we draw the image with appropriate size multiplier
+            img.draw(0,0,img.getWidth()*multX, img.getHeight()*multY);
             ofDisableAlphaBlending();
+            // if slide showing time has elapsed it switches to next slide
             if (ofGetElapsedTimef() > slideTimer+slideshowSpeed ) {
                 currentSlide += 1;
                 slideTimer = ofGetElapsedTimef();
@@ -464,7 +478,7 @@ public:
         ofDisableAlphaBlending();
         */
 
-        // writes quad number - KEEP IT AT LAST POSITION IN draw()
+        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
         if (isSetup) {
             ofSetColor(0x000000);
             ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
