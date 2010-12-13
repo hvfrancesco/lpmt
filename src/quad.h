@@ -18,6 +18,7 @@ public:
     ofTrueTypeFont ttf2;
     // img and video stuff
     ofImage img;
+    ofImage slide;
     ofVideoPlayer video;
 
     ball balls[80];
@@ -304,8 +305,8 @@ public:
             // for each name found loads the image and populates the imgs array (excluding "." an "..")
             for (unsigned int i = 0;i < slidesnames.size();i++) {
                 if (slidesnames[i] != "." && slidesnames[i] != "..") {
-                    img.loadImage("slideshow/"+slideshowName+"/"+slidesnames[i]);
-                    slides.push_back(img);
+                    slide.loadImage("slideshow/"+slideshowName+"/"+slidesnames[i]);
+                    slides.push_back(slide);
                 }
             }
             loadedSlideshow = slideshowName;
@@ -386,7 +387,7 @@ public:
             else {
                 ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
             }
-            ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
+            ofRect(0, 0, ofGetWidth(), ofGetHeight());
             ofDisableAlphaBlending();
             ofNoFill();
         }
@@ -407,13 +408,7 @@ public:
         ofDisableAlphaBlending();
         }
 
-        //lets draw a bounding box if we are in setup mode
-        ofNoFill();
-        if (isSetup)
-        {
-            ofSetColor(borderColor);
-            ofRect(1, 1, ofGetWidth()-2, ofGetHeight()-2);
-        }
+
 
 	    // camera stuff
 	    if (camBg) {
@@ -430,7 +425,7 @@ public:
             if (currentSlide >= slides.size()) {
                 currentSlide = 0;
                 }
-            img = slides[currentSlide];
+            slide = slides[currentSlide];
             ofEnableAlphaBlending();
             // color is set according to still img colorization combo
             ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
@@ -438,8 +433,8 @@ public:
             float multX = 1.0;
             float multY = 1.0;
             if (slideFit) {
-                float fitX = ofGetWidth()/img.getWidth();
-                float fitY = ofGetHeight()/img.getHeight();
+                float fitX = ofGetWidth()/slide.getWidth();
+                float fitY = ofGetHeight()/slide.getHeight();
                 if (slideKeepAspect) {
                     // we calculate the factor for fitting the image in quad respecting img aspect ratio
                     if (fitX >= fitY) {
@@ -458,7 +453,7 @@ public:
                 }
             }
             // at last we draw the image with appropriate size multiplier
-            img.draw(0,0,img.getWidth()*multX, img.getHeight()*multY);
+            slide.draw(0,0,slide.getWidth()*multX, slide.getHeight()*multY);
             ofDisableAlphaBlending();
             // if slide showing time has elapsed it switches to next slide
             if (ofGetElapsedTimef() > slideTimer+slideshowSpeed ) {
@@ -477,6 +472,22 @@ public:
         for(int i = 0; i < 40; i++)balls[i].draw();
         ofDisableAlphaBlending();
         */
+
+        //lets draw a bounding box if we are in setup mode
+        ofNoFill();
+        if (isSetup)
+        {
+            ofSetColor(borderColor);
+            ofRect(0, 0, ofGetWidth(), ofGetHeight());
+            if (borderColor == 0xFFFFFF) {
+                ofSetColor(0x444444);
+                ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2-10,10);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2+10,10);
+            }
+        }
+
 
         // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
         if (isSetup) {
