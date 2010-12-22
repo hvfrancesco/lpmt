@@ -113,13 +113,13 @@ void testApp::setup()
 
     // adding controls
     // first a general page for toggling layers on/off
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < 36; i++)
     {
     gui.addToggle("quad "+ofToString(i), quads[i].isOn);
     }
 
     // then two pages of settings for each instantiable layer
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < 36; i++)
     {
     gui.addPage("quad "+ofToString(i)+" - 1/3");
     gui.addTitle("quad n. "+ofToString(i));
@@ -186,7 +186,7 @@ void testApp::update()
     if (camGrabber.isFrameNew()){
 		int totalPixels = camWidth*camHeight*3;
 		unsigned char * pixels = camGrabber.getPixels();
-		for (int i = 0; i < 20; i++) {
+		for (int i = 0; i < 36; i++) {
 			if (quads[i].initialized) {
 				if (quads[i].camBg) {
 				quads[i].camTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
@@ -207,7 +207,7 @@ void testApp::update()
     }
     //ofSetWindowShape(800, 600);
     // loops through initialized quads and runs update, setting the border color as well
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < 36; i++)
     {
         if (quads[i].initialized)
         {
@@ -236,7 +236,7 @@ void testApp::draw()
     }
 
     // loops through initialized quads and calls their draw function
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < 36; i++)
     {
         if (quads[i].initialized)
         {
@@ -363,7 +363,7 @@ void testApp::keyPressed(int key)
     {
         if (isSetup)
         {
-            if (nOfQuads < 20)
+            if (nOfQuads < 36)
             {
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
@@ -380,7 +380,7 @@ void testApp::keyPressed(int key)
         if (isSetup)
         {
             isSetup = False;
-            for(int i = 0; i < 20; i++)
+            for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -391,7 +391,7 @@ void testApp::keyPressed(int key)
         else
         {
             isSetup = True;
-            for(int i = 0; i < 20; i++)
+            for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -448,7 +448,7 @@ void testApp::keyPressed(int key)
     // resyncs videos to start point in every quad
     if(key == 'r' || key == 'R')
     {
-    for(int i = 0; i < 20; i++)
+    for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -530,7 +530,7 @@ void testApp::mouseReleased()
         float smallestDist = 1.0;
         int snapQuad = -1;
         int snapCorner = -1;
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 36; i++) {
             if ( i != activeQuad && quads[i].initialized) {
                 for(int j = 0; j < 4; j++) {
                     float distx = quads[activeQuad].corners[whichCorner].x - quads[i].corners[j].x;
@@ -563,7 +563,7 @@ void testApp::setXml()
 XML.setValue("GENERAL:ACTIVE_QUAD",activeQuad);
 XML.setValue("GENERAL:N_OF_QUADS",nOfQuads);
 
-for(int i = 0; i < 20; i++)
+for(int i = 0; i < 36; i++)
     {
      if (quads[i].initialized)
      {
