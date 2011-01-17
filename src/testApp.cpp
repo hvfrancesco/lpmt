@@ -104,6 +104,9 @@ void testApp::setup()
     layers[1] = 1;
     layers[2] = 2;
     layers[3] = 3;
+    for(int i = 4; i < 36; i++) {
+    layers[i] = -1;
+    }
 
 
     // gui stuff
@@ -271,6 +274,55 @@ void testApp::draw()
 //--------------------------------------------------------------
 void testApp::keyPressed(int key)
 {
+
+    // moves active layer one position up
+    if ( key == '+')
+    {
+        int position;
+        int target;
+
+        for(int i = 0; i < 35; i++)
+        {
+        if (layers[i] == quads[activeQuad].quadNumber)
+            {
+            position = i;
+            target = i+1;
+            }
+
+        }
+    if (layers[target] != -1) {
+    int target_content = layers[target];
+    layers[target] = quads[activeQuad].quadNumber;
+    layers[position] = target_content;
+    }
+    }
+
+
+    // moves active layer one position down
+    if ( key == '-')
+    {
+        int position;
+        int target;
+
+        for(int i = 0; i < 36; i++)
+        {
+        if (layers[i] == quads[activeQuad].quadNumber)
+            {
+            position = i;
+            target = i-1;
+            }
+
+        }
+    if (target >= 0) {
+    if (layers[target] != -1) {
+    int target_content = layers[target];
+    layers[target] = quads[activeQuad].quadNumber;
+    layers[position] = target_content;
+    }
+    }
+    }
+
+
     // saves quads settings to an xml file in data directory
     if ( key == 's' || key == 'S')
     {
