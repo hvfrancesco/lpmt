@@ -30,6 +30,7 @@ public:
     ofTrueTypeFont ttf;
 
     quad quads[36];
+    int layers[36];
 
     int activeQuad;
     int nOfQuads;

@@ -100,6 +100,10 @@ void testApp::setup()
     activeQuad = 3;
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
+    layers[0] = 0;
+    layers[1] = 1;
+    layers[2] = 2;
+    layers[3] = 3;
 
 
     // gui stuff
@@ -186,7 +190,8 @@ void testApp::update()
     if (camGrabber.isFrameNew()){
 		int totalPixels = camWidth*camHeight*3;
 		unsigned char * pixels = camGrabber.getPixels();
-		for (int i = 0; i < 36; i++) {
+		for (int j = 0; j < 36; j++) {
+		    int i = layers[j];
 			if (quads[i].initialized) {
 				if (quads[i].camBg) {
 				quads[i].camTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
@@ -207,8 +212,9 @@ void testApp::update()
     }
     //ofSetWindowShape(800, 600);
     // loops through initialized quads and runs update, setting the border color as well
-    for(int i = 0; i < 36; i++)
+    for(int j = 0; j < 36; j++)
     {
+        int i = layers[j];
         if (quads[i].initialized)
         {
             quads[i].update();
@@ -236,8 +242,9 @@ void testApp::draw()
     }
 
     // loops through initialized quads and calls their draw function
-    for(int i = 0; i < 36; i++)
+    for(int j = 0; j < 36; j++)
     {
+        int i = layers[j];
         if (quads[i].initialized)
         {
             quads[i].draw();
@@ -367,6 +374,7 @@ void testApp::keyPressed(int key)
             {
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
+                layers[nOfQuads] = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
                 gui.setPage((activeQuad*3)+2);
