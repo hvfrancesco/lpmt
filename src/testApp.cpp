@@ -86,6 +86,11 @@ void testApp::setup()
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
     snapshotOn = 0;
 
+    // initializes layers array
+    for(int i = 0; i < 36; i++) {
+    layers[i] = -1;
+    }
+
 
     // defines the first 4 default quads
     quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5,imgFiles, videoFiles, slideshowFolders);
@@ -101,12 +106,14 @@ void testApp::setup()
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
     layers[0] = 0;
+    quads[0].layer = 0;
     layers[1] = 1;
+    quads[1].layer = 1;
     layers[2] = 2;
+    quads[2].layer = 2;
     layers[3] = 3;
-    for(int i = 4; i < 36; i++) {
-    layers[i] = -1;
-    }
+    quads[3].layer = 3;
+
 
 
     // gui stuff
@@ -294,6 +301,8 @@ void testApp::keyPressed(int key)
     int target_content = layers[target];
     layers[target] = quads[activeQuad].quadNumber;
     layers[position] = target_content;
+    quads[activeQuad].layer = target;
+    quads[target_content].layer = position;
     }
     }
 
@@ -318,6 +327,8 @@ void testApp::keyPressed(int key)
     int target_content = layers[target];
     layers[target] = quads[activeQuad].quadNumber;
     layers[position] = target_content;
+    quads[activeQuad].layer = target;
+    quads[target_content].layer = position;
     }
     }
     }
@@ -427,6 +438,7 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
+                quads[nOfQuads].layer = nOfQuads;
                 activeQuad = nOfQuads;
                 ++nOfQuads;
                 gui.setPage((activeQuad*3)+2);
@@ -629,6 +641,7 @@ for(int i = 0; i < 36; i++)
      {
 
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":NUMBER",quads[i].quadNumber);
+        XML.setValue("QUADS:QUAD_"+ofToString(i)+":LAYER",quads[i].layer);
 
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG",quads[i].bgImg);
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOADED_VIDEO",quads[i].bgVideo);
@@ -714,6 +727,8 @@ for(int i = 0; i < nOfQuads; i++)
 
     quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, imgFiles, videoFiles, slideshowFolders);
     quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
+    quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
+    layers[quads[i].layer] = quads[i].quadNumber;
 
     quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG", 0);
     quads[i].bgVideo = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOADED_VIDEO", 0);

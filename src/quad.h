@@ -40,6 +40,7 @@ public:
     int camHeight;
     int videoWidth;
     int videoHeight;
+    int layer;
 
     float camMultX;
     float camMultY;
