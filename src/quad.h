@@ -486,6 +486,10 @@ public:
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2-10,10);
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2+10,10);
+                ofLine(0,ofGetHeight()/4,ofGetWidth(),ofGetHeight()/4);
+                ofLine(0,ofGetHeight()/2+ofGetHeight()/4,ofGetWidth(),ofGetHeight()/2+ofGetHeight()/4);
+                ofLine(ofGetWidth()/4,0,ofGetWidth()/4,ofGetHeight());
+                ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
             }
         }
 
