@@ -22,7 +22,9 @@ int getdir (string dir, vector<string> &files)
     }
 
     while ((dirp = readdir(dp)) != NULL) {
+    if (string(dirp->d_name) != "." && string(dirp->d_name) != "..") {
         files.push_back(string(dirp->d_name));
+    }
     }
     closedir(dp);
     return 0;

@@ -480,12 +480,14 @@ public:
         {
             ofSetColor(borderColor);
             ofRect(0, 0, ofGetWidth(), ofGetHeight());
+            // draws helper grid on active quad
             if (borderColor == 0xFFFFFF) {
                 ofSetColor(0x444444);
                 ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
-                ofLine(ofGetWidth()/2,0,ofGetWidth()/2-10,10);
-                ofLine(ofGetWidth()/2,0,ofGetWidth()/2+10,10);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2-20,20);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2+20,20);
+                ofLine(ofGetWidth()/2-20,20,ofGetWidth()/2+20,20);
                 ofLine(0,ofGetHeight()/4,ofGetWidth(),ofGetHeight()/4);
                 ofLine(0,ofGetHeight()/2+ofGetHeight()/4,ofGetWidth(),ofGetHeight()/2+ofGetHeight()/4);
                 ofLine(ofGetWidth()/4,0,ofGetWidth()/4,ofGetHeight());
@@ -502,11 +504,6 @@ public:
             ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
         }
 
-        //some text
-        //ofSetColor(0x000000);
-        //ttf2.drawString("warps images nicely too!", 558, 533);
-        //ofSetColor(0xFF6600);
-        //ttf2.drawString("warps images nicely too!", 560, 530);
 
         // restore previous coordinates
         ofPopMatrix();
