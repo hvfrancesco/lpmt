@@ -376,7 +376,7 @@ public:
 
         // -- NOW LETS DRAW!!!!!!  -----
 
-        // if a solid color background is set it draws it
+        // if a solid color content or color transition is set it draws it
         if (colorBg) {
             ofFill();
             ofEnableAlphaBlending();
@@ -393,22 +393,14 @@ public:
             ofNoFill();
         }
 
-        //if an image background is chosen it draws it
-        if (imgBg) {
-        ofEnableAlphaBlending();
-        ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
-        img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
-        ofDisableAlphaBlending();
-        }
 
-        //if a video background is chosen it draws it
+        //if a video content is chosen it draws it
         if (videoBg) {
         ofEnableAlphaBlending();
         ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
         video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
         ofDisableAlphaBlending();
         }
-
 
 
 	    // camera stuff
@@ -418,6 +410,7 @@ public:
 	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
 	    ofDisableAlphaBlending();
 	    }
+
 
         // draws slideshows
 	    if (slideshowBg) {
@@ -463,6 +456,15 @@ public:
             }
         }
 	    }
+
+
+        //if an image content is chosen it draws it (maybe use it as mask as well?)
+        if (imgBg) {
+        ofEnableAlphaBlending();
+        ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
+        img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+        ofDisableAlphaBlending();
+        }
 
 
         // TEMP STUFF - our particles
