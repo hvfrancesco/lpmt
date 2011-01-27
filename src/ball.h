@@ -1,3 +1,5 @@
+#pragma once
+
 //stupid ball class
 class ball
 {
