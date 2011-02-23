@@ -71,6 +71,7 @@ public:
     bool imgBg;
     bool videoBg;
     bool videoSound;
+    bool videoLoop;
     bool slideshowBg;
     bool slideFit;
     bool slideKeepAspect;

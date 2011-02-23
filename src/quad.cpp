@@ -72,6 +72,7 @@
         camBg = False;
         imgBg = False;
         videoBg = False;
+        videoLoop = True;
         slideshowBg = False;
         slideFit = False;
         slideKeepAspect = True;
@@ -187,10 +188,15 @@
                 videoWidth = video.width;
                 videoHeight = video.height;
                 video.play();
-                video.setLoopState(OF_LOOP_NORMAL);
                 loadedVideo = videoName;
                 }
             video.setVolume(videoVolume);
+            if (videoLoop) {
+                video.setLoopState(OF_LOOP_NORMAL);
+                }
+            else {
+                video.setLoopState(OF_LOOP_NONE);
+                }
             video.idleMovie();
             if (previousSpeed != videoSpeed) {
             video.setSpeed(videoSpeed);

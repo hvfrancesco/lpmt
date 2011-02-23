@@ -161,6 +161,7 @@ void testApp::setup()
     gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
     gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
     gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
+    gui.addToggle("video loop", quads[i].videoLoop);
     gui.addTitle("Camera bg").setNewColumn(true);
     gui.addToggle("cam on/off", quads[i].camBg);
     gui.addSlider("camera mult X", quads[i].camMultX, 0.2, 4.0);
@@ -679,6 +680,7 @@ for(int i = 0; i < 36; i++)
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:MULT_Y",quads[i].videoMultY);
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:SPEED",quads[i].videoSpeed);
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:VOLUME",quads[i].videoVolume);
+        XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOOP",quads[i].videoLoop);
 
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":COLOR:R",quads[i].bgColor.r);
         XML.setValue("QUADS:QUAD_"+ofToString(i)+":COLOR:G",quads[i].bgColor.g);
@@ -760,6 +762,7 @@ for(int i = 0; i < nOfQuads; i++)
     quads[i].videoMultY = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:MULT_Y",1.0);
     quads[i].videoSpeed = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:SPEED",1.0);
     quads[i].videoVolume = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:VOLUME",0);
+    quads[i].videoLoop = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOOP",1);
 
     quads[i].bgColor.r = XML.getValue("QUADS:QUAD_"+ofToString(i)+":COLOR:R",0.0);
     quads[i].bgColor.g = XML.getValue("QUADS:QUAD_"+ofToString(i)+":COLOR:G",0.0);
