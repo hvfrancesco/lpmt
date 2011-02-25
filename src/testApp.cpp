@@ -173,6 +173,9 @@ void testApp::setup()
     gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
     gui.addToggle("slides to quad size", quads[i].slideFit);
     gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
+    gui.addTitle("video greenscreen");
+    gui.addToggle("greenscreen", quads[i].greenscreen);
+    gui.addColorPicker("greenscreen col", &quads[i].videoGreenscreen.r);
 
     gui.addPage("quad "+ofToString(i)+" - 3/3");
     gui.addTitle("Corner 0");

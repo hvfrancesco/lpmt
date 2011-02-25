@@ -73,6 +73,7 @@
         imgBg = False;
         videoBg = False;
         videoLoop = True;
+        greenscreen = False;
         slideshowBg = False;
         slideFit = False;
         slideKeepAspect = True;
@@ -135,6 +136,11 @@
 	    camColorize.b = 1;
 	    camColorize.a = 1;
 
+	    videoGreenscreen.r = 0;
+	    videoGreenscreen.g = 0;
+	    videoGreenscreen.b = 0;
+	    videoGreenscreen.a = 0;
+
     }
 
     void quad::update()
@@ -187,6 +193,9 @@
                 video.loadMovie("video/"+videoName);
                 videoWidth = video.width;
                 videoHeight = video.height;
+                if (videoTex.bAllocated()) {videoTex.clear();}
+                videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
+                videoAlphaPixels	= new unsigned char [videoWidth*videoHeight*4];
                 video.play();
                 loadedVideo = videoName;
                 }
@@ -199,6 +208,22 @@
                 video.setLoopState(OF_LOOP_NONE);
                 }
             video.idleMovie();
+            // test chroma
+            videoPixels = video.getPixels();
+            for (int i = 0; i < videoWidth*videoHeight; i++) {
+                if (greenscreen && videoPixels[i*3+0] == videoGreenscreen.r*255 && videoPixels[i*3+1] == videoGreenscreen.g*255 && videoPixels[i*3+2] == videoGreenscreen.b*255) {
+                    videoAlphaPixels[i*4+3] = 0;
+                }
+                else {videoAlphaPixels[i*4+3] = 255;}
+                // RGB data is copied
+                videoAlphaPixels[i*4+0] = videoPixels[i*3+0];
+                videoAlphaPixels[i*4+1] = videoPixels[i*3+1];
+                videoAlphaPixels[i*4+2] = videoPixels[i*3+2];
+
+                }
+            videoTex.loadData(videoAlphaPixels,videoWidth,videoHeight,GL_RGBA);
+
+
             if (previousSpeed != videoSpeed) {
             video.setSpeed(videoSpeed);
             previousSpeed = videoSpeed;
@@ -321,10 +346,14 @@
             // in no-looping mode it stops drawing video frame when video reaches the end
             // using 'getIsMovieDone()' because there are problems with getting head position under GStream
             if (!video.getIsMovieDone()) {
-                video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                //video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                 }
             }
-        else {video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
+        else {
+            //video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+            videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+        }
         ofDisableAlphaBlending();
         }
 

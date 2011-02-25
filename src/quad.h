@@ -25,6 +25,9 @@ public:
     ofImage img;
     ofImage slide;
     ofVideoPlayer video;
+    ofTexture videoTex;
+    unsigned char * videoAlphaPixels;
+    unsigned char * videoPixels;
 
     ball balls[80];
 
@@ -37,6 +40,7 @@ public:
     ofColor imgColorize;
     ofColor videoColorize;
     ofColor camColorize;
+    ofColor videoGreenscreen;
 
     int bgAlpha;
     // camera stuff
@@ -72,6 +76,7 @@ public:
     bool videoBg;
     bool videoSound;
     bool videoLoop;
+    bool greenscreen;
     bool slideshowBg;
     bool slideFit;
     bool slideKeepAspect;
