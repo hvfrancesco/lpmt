@@ -191,6 +191,7 @@
                 loadedVideo = videoName;
                 }
             video.setVolume(videoVolume);
+            // check for looping config parameter of video and sets loopstate - OF_LOOP_NORMAL = cycles / OF_LOOP_NONE = stops at the end
             if (videoLoop) {
                 video.setLoopState(OF_LOOP_NORMAL);
                 }
@@ -316,7 +317,14 @@
         if (videoBg) {
         ofEnableAlphaBlending();
         ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
-        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+        if (!videoLoop) {
+            // in no-looping mode it stops drawing video frame when video reaches the end
+            // using 'getIsMovieDone()' because there are problems with getting head position under GStream
+            if (!video.getIsMovieDone()) {
+                video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                }
+            }
+        else {video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
         ofDisableAlphaBlending();
         }
 
