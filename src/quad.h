@@ -26,6 +26,9 @@ public:
     ofImage slide;
     ofVideoPlayer video;
     ofTexture videoTex;
+
+    int videoWidth;
+    int videoHeight;
     unsigned char * videoAlphaPixels;
     unsigned char * videoPixels;
 
@@ -40,15 +43,18 @@ public:
     ofColor imgColorize;
     ofColor videoColorize;
     ofColor camColorize;
-    ofColor videoGreenscreen;
+    ofColor colorGreenscreen;
 
     int bgAlpha;
+
     // camera stuff
     ofTexture camTexture;
+    ofTexture camAlphaTexture;
     int camWidth;
     int camHeight;
-    int videoWidth;
-    int videoHeight;
+    unsigned char * camPixels;
+    unsigned char * camAlphaPixels;
+
     int layer;
 
     float camMultX;
@@ -72,11 +78,12 @@ public:
     bool transBg;
     bool transUp;
     bool camBg;
+    bool camGreenscreen;
     bool imgBg;
     bool videoBg;
     bool videoSound;
     bool videoLoop;
-    bool greenscreen;
+    bool videoGreenscreen;
     bool slideshowBg;
     bool slideFit;
     bool slideKeepAspect;
@@ -84,6 +91,7 @@ public:
     int bgImg;
     int bgVideo;
     int videoVolume;
+    int thresholdGreenscreen;
     int bgSlideshow;
     int currentSlide;
     int transStep;

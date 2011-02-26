@@ -54,14 +54,6 @@
 
         borderColor = 0x666666;
 
-        //lets setup some stupid particles
-        for(int i = 0; i < 80; i++)
-        {
-            balls[i].setup(ofRandom(10, ofGetWidth() - 10), ofRandom(10, ofGetHeight()-10), ofRandom(5, 25));
-            balls[i].vel.x = ofRandom(1.5, 2.8);
-            balls[i].vel.y = ofRandom(1.5, 2.8);
-        }
-
 	    // sets default variables
         initialized = True;
         isSetup = True;
@@ -70,10 +62,11 @@
         transBg = False;
         transUp = True;
         camBg = False;
+        camGreenscreen = False;
         imgBg = False;
         videoBg = False;
         videoLoop = True;
-        greenscreen = False;
+        videoGreenscreen = False;
         slideshowBg = False;
         slideFit = False;
         slideKeepAspect = True;
@@ -83,6 +76,9 @@
 	    camMultX = 1;
 	    camMultY = 1;
 	    camTexture.allocate(camWidth,camHeight, GL_RGB);
+	    camAlphaTexture.allocate(camWidth, camHeight, GL_RGBA);
+	    camPixels = new unsigned char [camWidth*camHeight*3];
+	    camAlphaPixels = new unsigned char [camWidth*camHeight*4];
 
 	    imgMultX = 1.0;
 	    imgMultY = 1.0;
@@ -136,10 +132,12 @@
 	    camColorize.b = 1;
 	    camColorize.a = 1;
 
-	    videoGreenscreen.r = 0;
-	    videoGreenscreen.g = 0;
-	    videoGreenscreen.b = 0;
-	    videoGreenscreen.a = 0;
+	    colorGreenscreen.r = 0;
+	    colorGreenscreen.g = 0;
+	    colorGreenscreen.b = 0;
+	    colorGreenscreen.a = 0;
+
+	    thresholdGreenscreen = 10;
 
     }
 
@@ -147,7 +145,8 @@
     {
         if (isOn) {
 
-        // loads an image if it has changed (and if its index in array is >1 as we have . and .. at the beginning)
+        // images --------------------------------------------------------------------
+        // loads an image if it has changed
         if (imgBg) {
             string imgName = images[bgImg];
             if (imgName != loadedImg) {
@@ -156,6 +155,7 @@
             }
         }
 
+        // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors
         if (colorBg && transBg) {
             if (transUp) {
@@ -185,6 +185,36 @@
 
         }
 
+
+        // live camera --------------------------------------------------------------
+        if (camBg) {
+            if (camGreenscreen) {
+            // checking for greenscreen color match
+                for (int i = 0; i < camWidth*camHeight; i++) {
+                    int deltaR = abs(camPixels[i*3+0] - colorGreenscreen.r*255);
+                    int deltaG = abs(camPixels[i*3+1] - colorGreenscreen.g*255);
+                    int deltaB = abs(camPixels[i*3+2] - colorGreenscreen.b*255);
+                    if (deltaR <= thresholdGreenscreen && deltaG <= thresholdGreenscreen && deltaB <= thresholdGreenscreen) {
+                        camAlphaPixels[i*4+3] = 0;
+                    }
+                    else {camAlphaPixels[i*4+3] = 255;}
+                    // RGB data is copied untouched
+                    camAlphaPixels[i*4+0] = camPixels[i*3+0];
+                    camAlphaPixels[i*4+1] = camPixels[i*3+1];
+                    camAlphaPixels[i*4+2] = camPixels[i*3+2];
+
+                    }
+                // loads data into texture with alpha
+                camAlphaTexture.loadData(camAlphaPixels,camWidth,camHeight,GL_RGBA);
+                }
+            else {
+                // loads camera pixels into this quad camera-texture wirh no alpha
+                camTexture.loadData(camPixels, camWidth, camHeight, GL_RGB);
+            }
+        }
+
+
+        // video --------------------------------------------------------------------
         // loads video
         if (videoBg) {
             string videoName = videos[bgVideo];
@@ -195,7 +225,7 @@
                 videoHeight = video.height;
                 if (videoTex.bAllocated()) {videoTex.clear();}
                 videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
-                videoAlphaPixels	= new unsigned char [videoWidth*videoHeight*4];
+                videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
                 video.play();
                 loadedVideo = videoName;
                 }
@@ -208,29 +238,36 @@
                 video.setLoopState(OF_LOOP_NONE);
                 }
             video.idleMovie();
-            // test chroma
+
+            // video greenscreen stuff
+            if (videoGreenscreen) {
+            // gets video frame pixels array
             videoPixels = video.getPixels();
+            // checking for greenscreen color match
             for (int i = 0; i < videoWidth*videoHeight; i++) {
-                if (greenscreen && videoPixels[i*3+0] == videoGreenscreen.r*255 && videoPixels[i*3+1] == videoGreenscreen.g*255 && videoPixels[i*3+2] == videoGreenscreen.b*255) {
+                int deltaR = abs(videoPixels[i*3+0] - colorGreenscreen.r*255);
+                int deltaG = abs(videoPixels[i*3+1] - colorGreenscreen.g*255);
+                int deltaB = abs(videoPixels[i*3+2] - colorGreenscreen.b*255);
+                if (deltaR <= thresholdGreenscreen && deltaG <= thresholdGreenscreen && deltaB <= thresholdGreenscreen) {
                     videoAlphaPixels[i*4+3] = 0;
                 }
                 else {videoAlphaPixels[i*4+3] = 255;}
-                // RGB data is copied
+                // RGB data is copied untouched
                 videoAlphaPixels[i*4+0] = videoPixels[i*3+0];
                 videoAlphaPixels[i*4+1] = videoPixels[i*3+1];
                 videoAlphaPixels[i*4+2] = videoPixels[i*3+2];
-
                 }
             videoTex.loadData(videoAlphaPixels,videoWidth,videoHeight,GL_RGBA);
+            }
 
-
+            // changevideo speed
             if (previousSpeed != videoSpeed) {
             video.setSpeed(videoSpeed);
             previousSpeed = videoSpeed;
             }
             }
 
-        // slideshow
+        // slideshow -----------------------------------------------------------------
         if (slideshowBg) {
         // put it to off while loading images
         slideshowBg = False;
@@ -263,16 +300,6 @@
         slideshowBg = True;
         }
 
-
-
-       // temp stuff
-       /*
-        for(int i = 0; i < 80; i++)
-        {
-            balls[i].update(ofGetWidth(), ofGetHeight());
-        }
-        */
-
         //we set matrix to the default - 0 translation
         //and 1.0 scale for x y z and w
         for(int i = 0; i < 16; i++)
@@ -303,6 +330,8 @@
     }
     }
 
+
+    // DRAW -----------------------------------------------------------------
     void quad::draw()
     {
     if (isOn) {
@@ -321,6 +350,8 @@
         // -- NOW LETS DRAW!!!!!!  -----
 
         // if a solid color content or color transition is set it draws it
+
+        // solid colors ----------------------------------------------------------------
         if (colorBg) {
             ofFill();
             ofEnableAlphaBlending();
@@ -337,7 +368,7 @@
             ofNoFill();
         }
 
-
+        // video ----------------------------------------------------------------------
         //if a video content is chosen it draws it
         if (videoBg) {
         ofEnableAlphaBlending();
@@ -346,23 +377,25 @@
             // in no-looping mode it stops drawing video frame when video reaches the end
             // using 'getIsMovieDone()' because there are problems with getting head position under GStream
             if (!video.getIsMovieDone()) {
-                //video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
-                videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                if (videoGreenscreen) {videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
+                else {video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
                 }
             }
         else {
-            //video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
-            videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+            if (videoGreenscreen) {videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
+            else {video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
         }
         ofDisableAlphaBlending();
         }
 
 
+        // camera ------------------------------------------------------------------------------
 	    // camera stuff
 	    if (camBg) {
         ofEnableAlphaBlending();
 	    ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
-	    camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
+	    if (camGreenscreen) { camAlphaTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY); }
+	    else { camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY); }
 	    ofDisableAlphaBlending();
 	    }
 

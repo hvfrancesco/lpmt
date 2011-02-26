@@ -118,13 +118,13 @@ void testApp::setup()
 
 
 
-    // gui stuff
+    // GUI STUFF ---------------------------------------------------
 
     gui.addTitle("show/hide quads");
     // overriding default theme
-    gui.config->toggleHeight = 20;
-    gui.config->sliderTextHeight = 24;
-    gui.config->titleHeight = 20;
+    gui.config->toggleHeight = 18;
+    gui.config->sliderTextHeight = 22;
+    gui.config->titleHeight = 18;
     gui.config->fullActiveColor = 0x6B404B;
 
     // adding controls
@@ -167,15 +167,17 @@ void testApp::setup()
     gui.addSlider("camera mult X", quads[i].camMultX, 0.2, 4.0);
     gui.addSlider("camera mult Y", quads[i].camMultY, 0.2, 4.0);
     gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
-    gui.addTitle("Slideshow").setNewColumn(true);
+    gui.addTitle("Greenscreen");
+    gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 120);
+    gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
+    gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
+    gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
+    gui.addTitle("Slideshow");
     gui.addToggle("slideshow on/off", quads[i].slideshowBg);
     gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
     gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
     gui.addToggle("slides to quad size", quads[i].slideFit);
     gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
-    gui.addTitle("video greenscreen");
-    gui.addToggle("greenscreen", quads[i].greenscreen);
-    gui.addColorPicker("greenscreen col", &quads[i].videoGreenscreen.r);
 
     gui.addPage("quad "+ofToString(i)+" - 3/3");
     gui.addTitle("Corner 0");
@@ -201,7 +203,7 @@ void testApp::setup()
 //--------------------------------------------------------------
 void testApp::update()
 {
-    // grabs video frame from camera
+    // grabs video frame from camera and passes pixels to quads
     camGrabber.grabFrame();
     if (camGrabber.isFrameNew()){
 		int totalPixels = camWidth*camHeight*3;
@@ -210,7 +212,7 @@ void testApp::update()
 		    int i = layers[j];
 			if (quads[i].initialized) {
 				if (quads[i].camBg) {
-				quads[i].camTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
+                quads[i].camPixels = pixels;
 				quads[i].camWidth = camWidth;
 				quads[i].camHeight = camHeight;
 				}
