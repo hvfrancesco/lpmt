@@ -2,7 +2,7 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="projection_mapping" />
+		<Option title="lpmt" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Option virtualFolders="addons/;src/;addons/ofxMSAInteractiveObject/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxXmlSettings/libs/;addons/ofxXmlSettings/src/;" />

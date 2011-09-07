@@ -4,7 +4,7 @@
 
 
 #include "ofMain.h"
-#include "ofAddons.h"
+
 #include "ball.h"
 #include "quad.h"
 #include "ofxXmlSettings.h"
