@@ -17,6 +17,7 @@ CVS/
 /bin/projection_mapping*
 /bin/lpmt*
 /bin/data/*.xml
+/bin/data/video/house*
 .frag
 .xml
 
