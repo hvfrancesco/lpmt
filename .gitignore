@@ -15,6 +15,7 @@ CVS/
 .svn/
 
 /bin/projection_mapping*
+/bin/lpmt*
 /bin/data/*.xml
 .frag
 .xml
