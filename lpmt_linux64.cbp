@@ -2,10 +2,10 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="lpmt" />
+		<Option title="projection_mapping" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
-		<Option virtualFolders="addons/;src/;addons/ofxMSAInteractiveObject/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxXmlSettings/libs/;addons/ofxXmlSettings/src/;" />
+		<Option virtualFolders="addons/;src/;addons/ofxMSAInteractiveObject/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxXmlSettings/libs/;addons/ofxXmlSettings/src/;addons/ofxFBOTexture/;addons/ofxFBOTexture/src/;addons/ofxShader/;addons/ofxShader/src/;" />
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/$(PROJECT_NAME)_debug" prefix_auto="1" extension_auto="1" />
@@ -21,7 +21,7 @@
 				</Compiler>
 				<Linker>
 					<Add option="-Wl,-rpath=./libs" />
-					<Add library="openFrameworksDebug" />
+					<Add library="openFrameworks" />
 				</Linker>
 			</Target>
 			<Target title="Release">
@@ -71,6 +71,13 @@
 			<Add directory="../../../addons/ofxSimpleGuiToo/src/" />
 			<Add directory="../../../addons/ofxSimpleGuiToo/src/Controls/" />
 			<Add directory="../../../addons/ofxMSAInteractiveObject/src/" />
+			<Add directory="src/addons" />
+			<Add directory="../../../libs/openFrameworks/types" />
+			<Add directory="../../../libs/openFrameworks/math" />
+			<Add directory="../../../libs/openFrameworks/3d" />
+			<Add directory="../../../libs/glew/include/GL" />
+			<Add directory="../../../libs/openFrameworks/gl" />
+			<Add directory="../../../libs/kiss/include" />
 		</Compiler>
 		<Linker>
 			<Add library="fmodex" />
@@ -79,12 +86,21 @@
 			<Add library="GLU" />
 			<Add library="Xxf86vm" />
 			<Add library="asound" />
+			<Add library="PocoNet" />
+			<Add library="PocoXML" />
+			<Add library="PocoUtil" />
 			<Add library="PocoFoundation" />
 			<Add library="freetype" />
 			<Add library="freeimage" />
 			<Add library="RtAudio" />
-			<Add library="GLee" />
-			<Add library="oFappsink" />
+			<Add library="GLEW" />
+			<Add library="gstvideo-0.10" />
+			<Add library="gstapp-0.10" />
+			<Add library="gstbase-0.10" />
+			<Add library="gstreamer-0.10" />
+			<Add library="openal" />
+			<Add library="sndfile" />
+			<Add library="../../../libs/kiss/lib/linux64/libkiss.a" />
 			<Add directory="../../../libs/freetype/lib/linux64" />
 			<Add directory="../../../libs/FreeImage/lib/linux64" />
 			<Add directory="../../../libs/rtAudio/lib/linux64" />
@@ -93,6 +109,7 @@
 			<Add directory="../../../libs/fmodex/lib/linux64" />
 			<Add directory="../../../libs/poco/lib/linux64" />
 			<Add directory="../../../libs/openFrameworksCompiled/lib/linux64" />
+			<Add directory="../../../libs/kiss/lib/linux64" />
 		</Linker>
 		<ExtraCommands>
 			<Add after="#" />
@@ -230,6 +247,12 @@
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/quad.h">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/shaderChromakey.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/shaderChromakey.h">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/testApp.cpp">
