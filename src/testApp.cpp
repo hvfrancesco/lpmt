@@ -214,6 +214,8 @@ void testApp::setup()
 void testApp::update()
 {
     // grabs video frame from camera and passes pixels to quads
+
+  if (camGrabber.getHeight() > 0){ // isLoaded check
     camGrabber.grabFrame();
     if (camGrabber.isFrameNew())
     {
@@ -232,6 +234,7 @@ void testApp::update()
                 }
             }
         }
+    }
     }
 
 
@@ -270,7 +273,7 @@ void testApp::draw()
         if (snapshotOn)
         {
             ofEnableAlphaBlending();
-            ofSetColor(0xFFFFFF);
+            ofSetHexColor(0xFFFFFF);
             snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
             ofDisableAlphaBlending();
         }
@@ -291,7 +294,7 @@ void testApp::draw()
     // in setup mode writes the number of active quad at the bottom of the window
     if (isSetup)
     {
-        ofSetColor(0xFFFFFF);
+        ofSetHexColor(0xFFFFFF);
         ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
     }
 
@@ -554,7 +557,7 @@ void testApp::keyPressed(int key)
             if (quads[i].initialized)
             {
                 // resets video to start ing point
-                if (quads[i].videoBg && quads[i].video.bLoaded)
+                if (quads[i].videoBg && quads[i].video.isLoaded())
                 {
                     quads[i].video.setPosition(0.0);
                 }

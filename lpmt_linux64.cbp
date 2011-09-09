@@ -5,7 +5,7 @@
 		<Option title="projection_mapping" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
-		<Option virtualFolders="addons/;src/;addons/ofxMSAInteractiveObject/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxXmlSettings/libs/;addons/ofxXmlSettings/src/;addons/ofxFBOTexture/;addons/ofxFBOTexture/src/;addons/ofxShader/;addons/ofxShader/src/;" />
+		<Option virtualFolders="addons/;src/;addons/ofxMSAInteractiveObject/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxXmlSettings/libs/;addons/ofxXmlSettings/src/;" />
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/$(PROJECT_NAME)_debug" prefix_auto="1" extension_auto="1" />
@@ -78,6 +78,9 @@
 			<Add directory="../../../libs/glew/include/GL" />
 			<Add directory="../../../libs/openFrameworks/gl" />
 			<Add directory="../../../libs/kiss/include" />
+			<Add directory="../../../libs/cairo/include/cairo" />
+			<Add directory="../../../libs/tess2/include" />
+			<Add directory="../../../libs/tess2/Sources" />
 		</Compiler>
 		<Linker>
 			<Add library="fmodex" />
@@ -101,6 +104,8 @@
 			<Add library="openal" />
 			<Add library="sndfile" />
 			<Add library="../../../libs/kiss/lib/linux64/libkiss.a" />
+			<Add library="cairo" />
+			<Add library="../../../libs/tess2/lib/linux64/libtess2.a" />
 			<Add directory="../../../libs/freetype/lib/linux64" />
 			<Add directory="../../../libs/FreeImage/lib/linux64" />
 			<Add directory="../../../libs/rtAudio/lib/linux64" />
@@ -247,12 +252,6 @@
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/quad.h">
-			<Option virtualFolder="src/" />
-		</Unit>
-		<Unit filename="src/shaderChromakey.cpp">
-			<Option virtualFolder="src/" />
-		</Unit>
-		<Unit filename="src/shaderChromakey.h">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/testApp.cpp">

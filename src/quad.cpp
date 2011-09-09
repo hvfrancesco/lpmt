@@ -1,5 +1,10 @@
 #include "quad.h"
 
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <vector>
+#include <string>
 
     // a func for reading a dir content to a vector of strings
     int quad::getdir (string dir, vector<string> &files)
@@ -219,7 +224,7 @@
         if (videoBg) {
             string videoName = videos[bgVideo];
             if (videoName != loadedVideo) {
-                if (video.bLoaded) { video.closeMovie(); }
+                if (video.isLoaded()) { video.closeMovie(); }
                 video.loadMovie("video/"+videoName);
                 videoWidth = video.width;
                 videoHeight = video.height;
@@ -237,7 +242,8 @@
             else {
                 video.setLoopState(OF_LOOP_NONE);
                 }
-            video.idleMovie();
+
+            if (video.isLoaded()) { video.idleMovie(); }
 
             // video greenscreen stuff
             if (videoGreenscreen) {
@@ -468,11 +474,11 @@
         ofNoFill();
         if (isSetup)
         {
-            ofSetColor(borderColor);
+            ofSetHexColor(borderColor);
             ofRect(0, 0, ofGetWidth(), ofGetHeight());
             // draws helper grid on active quad
             if (borderColor == 0xFFFFFF) {
-                ofSetColor(0x444444);
+                ofSetHexColor(0x444444);
                 ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
                 ofLine(ofGetWidth()/2,0,ofGetWidth()/2-20,20);
@@ -488,9 +494,9 @@
 
         // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
         if (isSetup) {
-            ofSetColor(0x000000);
+            ofSetHexColor(0x000000);
             ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
-            ofSetColor(0xFFFFFF);
+            ofSetHexColor(0xFFFFFF);
             ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
         }
 
