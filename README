@@ -8,6 +8,7 @@ it is developed in C++ using OpenFrameworks.
 It’s based on simple quad warping paradigm, and, though rather simple, can
 be used to achieve complex and professional projection-mapping sets.
 
+This is the up-to-date version of lpmt, based on OpenFrameworks 007
 
 DOWNLOAD:
 ----------
