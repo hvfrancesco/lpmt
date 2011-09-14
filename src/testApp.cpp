@@ -81,6 +81,8 @@ void testApp::setup()
     borderColor = 0x666666;
     // starts in quads setup mode
     isSetup = True;
+    // starts running
+    bStarted = True;
     // starts in windowed mode
     bFullscreen	= 0;
     // gui is on at start
@@ -213,97 +215,105 @@ void testApp::setup()
 //--------------------------------------------------------------
 void testApp::update()
 {
-    // grabs video frame from camera and passes pixels to quads
 
-  if (camGrabber.getHeight() > 0){ // isLoaded check
-    camGrabber.grabFrame();
-    if (camGrabber.isFrameNew())
+    if (bStarted)
     {
-        int totalPixels = camWidth*camHeight*3;
-        unsigned char * pixels = camGrabber.getPixels();
-        for (int j = 0; j < 36; j++)
+        // grabs video frame from camera and passes pixels to quads
+
+        if (camGrabber.getHeight() > 0)  // isLoaded check
+        {
+            camGrabber.grabFrame();
+            if (camGrabber.isFrameNew())
+            {
+                int totalPixels = camWidth*camHeight*3;
+                unsigned char * pixels = camGrabber.getPixels();
+                for (int j = 0; j < 36; j++)
+                {
+                    int i = layers[j];
+                    if (quads[i].initialized)
+                    {
+                        if (quads[i].camBg)
+                        {
+                            quads[i].camPixels = pixels;
+                            quads[i].camWidth = camWidth;
+                            quads[i].camHeight = camHeight;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        // sets default window background, grey in setup mode and black in projection mode
+        if (isSetup)
+        {
+            ofBackground(20, 20, 20);
+        }
+        else
+        {
+            ofBackground(0, 0, 0);
+        }
+        //ofSetWindowShape(800, 600);
+        // loops through initialized quads and runs update, setting the border color as well
+        for(int j = 0; j < 36; j++)
         {
             int i = layers[j];
             if (quads[i].initialized)
             {
-                if (quads[i].camBg)
-                {
-                    quads[i].camPixels = pixels;
-                    quads[i].camWidth = camWidth;
-                    quads[i].camHeight = camHeight;
-                }
+                quads[i].update();
+                quads[i].borderColor = borderColor;
             }
         }
-    }
-    }
 
-
-    // sets default window background, grey in setup mode and black in projection mode
-    if (isSetup)
-    {
-        ofBackground(20, 20, 20);
     }
-    else
-    {
-        ofBackground(0, 0, 0);
-    }
-    //ofSetWindowShape(800, 600);
-    // loops through initialized quads and runs update, setting the border color as well
-    for(int j = 0; j < 36; j++)
-    {
-        int i = layers[j];
-        if (quads[i].initialized)
-        {
-            quads[i].update();
-            quads[i].borderColor = borderColor;
-        }
-    }
-
 }
 
 //--------------------------------------------------------------
 void testApp::draw()
 {
-
-    // in setup mode sets active quad border to be white
-    if (isSetup)
+    if (bStarted)
     {
-        quads[activeQuad].borderColor = 0xFFFFFF;
-        // if snapshot is on draws it as window background
-        if (snapshotOn)
+
+        // in setup mode sets active quad border to be white
+        if (isSetup)
         {
-            ofEnableAlphaBlending();
+            quads[activeQuad].borderColor = 0xFFFFFF;
+            // if snapshot is on draws it as window background
+            if (snapshotOn)
+            {
+                ofEnableAlphaBlending();
+                ofSetHexColor(0xFFFFFF);
+                snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
+                ofDisableAlphaBlending();
+            }
+        }
+
+        // loops through initialized quads and calls their draw function
+        for(int j = 0; j < 36; j++)
+        {
+            int i = layers[j];
+            if (quads[i].initialized)
+            {
+                quads[i].draw();
+            }
+        }
+
+
+
+        // in setup mode writes the number of active quad at the bottom of the window
+        if (isSetup)
+        {
             ofSetHexColor(0xFFFFFF);
-            snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
-            ofDisableAlphaBlending();
+            ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
         }
-    }
 
-    // loops through initialized quads and calls their draw function
-    for(int j = 0; j < 36; j++)
-    {
-        int i = layers[j];
-        if (quads[i].initialized)
+        // draws gui
+        if (isSetup)
         {
-            quads[i].draw();
+            gui.draw();
         }
+
     }
-
-
-
-    // in setup mode writes the number of active quad at the bottom of the window
-    if (isSetup)
-    {
-        ofSetHexColor(0xFFFFFF);
-        ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
-    }
-
-    // draws gui
-    if (isSetup)
-    {
-        gui.draw();
-    }
-
 }
 
 //--------------------------------------------------------------
@@ -566,6 +576,44 @@ void testApp::keyPressed(int key)
                 {
                     quads[i].currentSlide = 0;
                     quads[i].slideTimer = ofGetElapsedTimef();
+                }
+            }
+        }
+    }
+
+
+    // starts and stops rendering
+
+    if(key == 'p')
+    {
+        bStarted = True;
+                for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isOn = True;
+                if (quads[i].videoBg && quads[i].video.isLoaded())
+                {
+                    quads[i].video.setVolume(quads[i].videoVolume);
+                    quads[i].video.play();
+                }
+            }
+        }
+
+    }
+
+    if(key == 'o')
+    {
+        bStarted = False;
+                for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isOn = False;
+                if (quads[i].videoBg && quads[i].video.isLoaded())
+                {
+                    quads[i].video.setVolume(0);
+                    quads[i].video.stop();
                 }
             }
         }

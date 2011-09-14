@@ -58,13 +58,17 @@ KEY COMMANDS:
 ‘x’ – selects second gui page for active quad settings
 ‘c’ – selects gui page for active quad corner position fine-tuning
 ‘q’ – fills window with active quad
+‘1’ – shows general settings page of gui
 
-‘spacebar’ – toggles projection/setup modes
 ‘g’ – toggles gui (for quad warping with mouse gui must be switched off)
 ‘f’ – toggles fullscreen mode
 ‘w’ – toggles cam snapshot window background
+
+‘spacebar’ – toggles projection/setup modes
 ‘r’ – resyncs all videos and slideshows in all quads to starting point
-‘1’ – shows general settings page of gui
+‘p’ – starts projection
+‘o’ – stops projection
+
 
 
 TODO:
@@ -72,6 +76,8 @@ TODO:
 
 - quad masking (needs some OpenGL-fu)
 - controlling settings via OSC messages
+- a timeline (?)
+- integration with MostPixelsEver for multiple projectors syncing
 
 
 CONTACT:

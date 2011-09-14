@@ -40,6 +40,7 @@ public:
     bool bFullscreen;
     bool bGui;
     bool snapshotOn;
+    bool bStarted;
 
     // gui elements
     bool showGui;
