@@ -38,11 +38,6 @@ int getdir (string dir, vector<string> &files)
 //--------------------------------------------------------------
 void testApp::setup()
 {
-    // MPE stuff
-    lastFrameTime = ofGetElapsedTimef();
-    client.setup("mpe_client_settings.xml", true); //false means you can use backthread
-    client.start();
-    ofxMPERegisterEvents(this);
 
     //we run at 60 fps!
     ofSetVerticalSync(true);
@@ -102,6 +97,7 @@ void testApp::setup()
     camHeight = 480;
     camGrabber.setVerbose(true);
     camGrabber.initGrabber(camWidth,camHeight);
+
 
     // texture for snapshot background
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
@@ -222,6 +218,22 @@ void testApp::setup()
 
 }
 
+
+void testApp::mpeSetup()
+{
+    bMpe = True;
+    stopProjection();
+    // MPE stuff
+    lastFrameTime = ofGetElapsedTimef();
+    client.setup("mpe_client_settings.xml", true); //false means you can use backthread
+    ofxMPERegisterEvents(this);
+    //resync();
+    startProjection();
+    client.start();
+    ofSetBackgroundAuto(false);
+}
+
+
 //--------------------------------------------------------------
 void testApp::prepare()
 {
@@ -283,7 +295,6 @@ void testApp::dostuff()
 {
     if (bStarted)
     {
-
         // loops through initialized quads and calls their draw function
         for(int j = 0; j < 36; j++)
         {
@@ -349,6 +360,10 @@ void testApp::mpeFrameEvent(ofxMPEEventArgs& event)
 {
     if (bMpe)
         {
+            if(client.getFrameCount()<5)
+            {
+                resync();
+            }
             prepare();
             dostuff();
         }
@@ -612,23 +627,7 @@ void testApp::keyPressed(int key)
     // resyncs videos to start point in every quad
     if(key == 'r' || key == 'R')
     {
-        for(int i = 0; i < 36; i++)
-        {
-            if (quads[i].initialized)
-            {
-                // resets video to start ing point
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setPosition(0.0);
-                }
-                // resets slideshow to first slide
-                if (quads[i].slideshowBg)
-                {
-                    quads[i].currentSlide = 0;
-                    quads[i].slideTimer = ofGetElapsedTimef();
-                }
-            }
-        }
+        resync();
     }
 
 
@@ -636,39 +635,18 @@ void testApp::keyPressed(int key)
 
     if(key == 'p')
     {
-        bStarted = True;
-        for(int i = 0; i < 36; i++)
-        {
-            if (quads[i].initialized)
-            {
-                quads[i].isOn = True;
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setVolume(quads[i].videoVolume);
-                    quads[i].video.play();
-                }
-            }
-        }
-
+        startProjection();
     }
 
     if(key == 'o')
     {
-        bStarted = False;
-        for(int i = 0; i < 36; i++)
-        {
-            if (quads[i].initialized)
-            {
-                quads[i].isOn = False;
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setVolume(0);
-                    quads[i].video.stop();
-                }
-            }
-        }
+        stopProjection();
     }
 
+    if(key == 'm')
+    {
+        mpeSetup();
+    }
 
 }
 
@@ -763,6 +741,64 @@ void testApp::mouseReleased()
     whichCorner = -1;
 }
 
+
+//--------------------------------------------------------------
+void testApp::resync()
+{
+    for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                // resets video to start ing point
+                if (quads[i].videoBg && quads[i].video.isLoaded())
+                {
+                    quads[i].video.setPosition(0.0);
+                }
+                // resets slideshow to first slide
+                if (quads[i].slideshowBg)
+                {
+                    quads[i].currentSlide = 0;
+                    quads[i].slideTimer = ofGetElapsedTimef();
+                }
+            }
+        }
+}
+
+//--------------------------------------------------------------
+void testApp::startProjection()
+{
+        bStarted = True;
+        for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isOn = True;
+                if (quads[i].videoBg && quads[i].video.isLoaded())
+                {
+                    quads[i].video.setVolume(quads[i].videoVolume);
+                    quads[i].video.play();
+                }
+            }
+        }
+}
+
+//--------------------------------------------------------------
+void testApp::stopProjection()
+{
+        bStarted = False;
+        for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isOn = False;
+                if (quads[i].videoBg && quads[i].video.isLoaded())
+                {
+                    quads[i].video.setVolume(0);
+                    quads[i].video.stop();
+                }
+            }
+        }
+}
 
 
 //--------------------------------------------------------------

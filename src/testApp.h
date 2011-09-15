@@ -21,6 +21,11 @@ public:
     void prepare();
     void dostuff();
 
+    void mpeSetup();
+    void resync();
+    void startProjection();
+    void stopProjection();
+
 
     void keyPressed(int key);
     void keyReleased(int key);
