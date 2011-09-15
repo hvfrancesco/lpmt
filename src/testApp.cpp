@@ -38,6 +38,12 @@ int getdir (string dir, vector<string> &files)
 //--------------------------------------------------------------
 void testApp::setup()
 {
+    // MPE stuff
+    lastFrameTime = ofGetElapsedTimef();
+    client.setup("mpe_client_settings.xml", true); //false means you can use backthread
+    client.start();
+    ofxMPERegisterEvents(this);
+
     //we run at 60 fps!
     ofSetVerticalSync(true);
 
@@ -335,6 +341,29 @@ void testApp::draw()
         }
     }
 }
+
+
+
+//--------------------------------------------------------------
+void testApp::mpeFrameEvent(ofxMPEEventArgs& event)
+{
+    if (bMpe)
+        {
+            prepare();
+            dostuff();
+        }
+}
+
+//--------------------------------------------------------------
+void testApp::mpeMessageEvent(ofxMPEEventArgs& event){
+	//received a message from the server
+}
+
+
+void testApp::mpeResetEvent(ofxMPEEventArgs& event){
+	//triggered if the server goes down, another client goes offline, or a reset was manually triggered in the server code
+}
+
 
 
 //--------------------------------------------------------------

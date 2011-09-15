@@ -8,7 +8,7 @@
 #include "ball.h"
 #include "quad.h"
 #include "ofxXmlSettings.h"
-
+#include "ofxMostPixelsEver.h"
 
 class testApp : public ofSimpleApp
 {
@@ -46,6 +46,11 @@ public:
 
     // use of MostPixelsEver
     bool bMpe;
+    mpeClientTCP client;
+    void mpeFrameEvent(ofxMPEEventArgs& event);
+    void mpeMessageEvent(ofxMPEEventArgs& event);
+    void mpeResetEvent(ofxMPEEventArgs& event);
+    float lastFrameTime;
 
     // gui elements
     bool showGui;
