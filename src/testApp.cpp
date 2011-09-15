@@ -96,7 +96,7 @@ void testApp::setup()
     camWidth = 640;	// try to grab at this size.
     camHeight = 480;
     camGrabber.setVerbose(true);
-    camGrabber.initGrabber(camWidth,camHeight);
+    //camGrabber.initGrabber(camWidth,camHeight);
 
 
     // texture for snapshot background
@@ -360,7 +360,7 @@ void testApp::mpeFrameEvent(ofxMPEEventArgs& event)
 {
     if (bMpe)
         {
-            if(client.getFrameCount()<5)
+            if(client.getFrameCount()<=1)
             {
                 resync();
             }
