@@ -18,6 +18,8 @@ public:
     void setup();
     void update();
     void draw();
+    void prepare();
+    void dostuff();
 
 
     void keyPressed(int key);
@@ -41,6 +43,9 @@ public:
     bool bGui;
     bool snapshotOn;
     bool bStarted;
+
+    // use of MostPixelsEver
+    bool bMpe;
 
     // gui elements
     bool showGui;

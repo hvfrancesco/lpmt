@@ -83,6 +83,8 @@ void testApp::setup()
     isSetup = True;
     // starts running
     bStarted = True;
+    // default is not using MostPixelsEver
+    bMpe = False;
     // starts in windowed mode
     bFullscreen	= 0;
     // gui is on at start
@@ -132,15 +134,17 @@ void testApp::setup()
 
     // GUI STUFF ---------------------------------------------------
 
-    gui.addTitle("show/hide quads");
+    // general page
+    gui.addTitle("use MostPixelsEver");
     // overriding default theme
     gui.config->toggleHeight = 18;
     gui.config->sliderTextHeight = 22;
     gui.config->titleHeight = 18;
     gui.config->fullActiveColor = 0x6B404B;
-
+    gui.addToggle("sync with server", bMpe);
     // adding controls
     // first a general page for toggling layers on/off
+    gui.addTitle("show/hide quads");
     for(int i = 0; i < 36; i++)
     {
         gui.addToggle("quad "+ofToString(i), quads[i].isOn);
@@ -213,9 +217,8 @@ void testApp::setup()
 }
 
 //--------------------------------------------------------------
-void testApp::update()
+void testApp::prepare()
 {
-
     if (bStarted)
     {
         // grabs video frame from camera and passes pixels to quads
@@ -268,25 +271,12 @@ void testApp::update()
     }
 }
 
+
 //--------------------------------------------------------------
-void testApp::draw()
+void testApp::dostuff()
 {
     if (bStarted)
     {
-
-        // in setup mode sets active quad border to be white
-        if (isSetup)
-        {
-            quads[activeQuad].borderColor = 0xFFFFFF;
-            // if snapshot is on draws it as window background
-            if (snapshotOn)
-            {
-                ofEnableAlphaBlending();
-                ofSetHexColor(0xFFFFFF);
-                snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
-                ofDisableAlphaBlending();
-            }
-        }
 
         // loops through initialized quads and calls their draw function
         for(int j = 0; j < 36; j++)
@@ -298,23 +288,54 @@ void testApp::draw()
             }
         }
 
-
-
-        // in setup mode writes the number of active quad at the bottom of the window
-        if (isSetup)
-        {
-            ofSetHexColor(0xFFFFFF);
-            ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
-        }
-
-        // draws gui
-        if (isSetup)
-        {
-            gui.draw();
-        }
-
     }
 }
+
+//--------------------------------------------------------------
+void testApp::update()
+{
+    if (!bMpe)
+    {
+        prepare();
+    }
+}
+
+//--------------------------------------------------------------
+void testApp::draw()
+{
+    // in setup mode writes the number of active quad at the bottom of the window
+    if (isSetup)
+    {
+        // in setup mode sets active quad border to be white
+        quads[activeQuad].borderColor = 0xFFFFFF;
+    }
+
+    if (!bMpe)
+    {
+        dostuff();
+    }
+
+    if (isSetup)
+    {
+
+        if (bStarted)
+        {
+            // if snapshot is on draws it as window background
+            if (snapshotOn)
+            {
+                ofEnableAlphaBlending();
+                ofSetHexColor(0xFFFFFF);
+                snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
+                ofDisableAlphaBlending();
+            }
+            ofSetHexColor(0xFFFFFF);
+            ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
+            // draws gui
+            gui.draw();
+        }
+    }
+}
+
 
 //--------------------------------------------------------------
 void testApp::keyPressed(int key)
@@ -587,7 +608,7 @@ void testApp::keyPressed(int key)
     if(key == 'p')
     {
         bStarted = True;
-                for(int i = 0; i < 36; i++)
+        for(int i = 0; i < 36; i++)
         {
             if (quads[i].initialized)
             {
@@ -605,7 +626,7 @@ void testApp::keyPressed(int key)
     if(key == 'o')
     {
         bStarted = False;
-                for(int i = 0; i < 36; i++)
+        for(int i = 0; i < 36; i++)
         {
             if (quads[i].initialized)
             {
