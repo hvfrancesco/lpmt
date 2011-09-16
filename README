@@ -69,6 +69,8 @@ KEY COMMANDS:
 ‘p’ – starts projection
 ‘o’ – stops projection
 
+‘m’ – connects to a MostPixelsEver sync server
+
 
 
 TODO:
