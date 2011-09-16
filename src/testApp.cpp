@@ -136,16 +136,15 @@ void testApp::setup()
     // GUI STUFF ---------------------------------------------------
 
     // general page
-    gui.addTitle("use MostPixelsEver");
+    gui.addTitle("show/hide quads");
     // overriding default theme
     gui.config->toggleHeight = 18;
     gui.config->sliderTextHeight = 22;
     gui.config->titleHeight = 18;
-    gui.config->fullActiveColor = 0x6B404B;
-    gui.addToggle("sync with server", bMpe);
+    //gui.config->fullActiveColor = 0x6B404B;
+    gui.config->fullActiveColor = 0x5E4D3E;
     // adding controls
     // first a general page for toggling layers on/off
-    gui.addTitle("show/hide quads");
     for(int i = 0; i < 36; i++)
     {
         gui.addToggle("quad "+ofToString(i), quads[i].isOn);
@@ -189,7 +188,7 @@ void testApp::setup()
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
         gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
-        gui.addTitle("Slideshow");
+        gui.addTitle("Slideshow").setNewColumn(true);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
         gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
