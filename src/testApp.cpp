@@ -221,8 +221,8 @@ void testApp::setup()
 
 void testApp::mpeSetup()
 {
-    bMpe = True;
     stopProjection();
+    bMpe = True;
     // MPE stuff
     lastFrameTime = ofGetElapsedTimef();
     client.setup("mpe_client_settings.xml", true); //false means you can use backthread
@@ -759,6 +759,12 @@ void testApp::resync()
                 {
                     quads[i].currentSlide = 0;
                     quads[i].slideTimer = ofGetElapsedTimef();
+                }
+                // reset trans colors
+                if (quads[i].colorBg && quads[i].transBg)
+                {
+                    quads[i].transCounter = 0;
+                    quads[i].transUp = True;
                 }
             }
         }
