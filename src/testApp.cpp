@@ -757,7 +757,7 @@ void testApp::resync()
                 if (quads[i].slideshowBg)
                 {
                     quads[i].currentSlide = 0;
-                    quads[i].slideTimer = ofGetElapsedTimef();
+                    quads[i].slideTimer = 0;
                 }
                 // reset trans colors
                 if (quads[i].colorBg && quads[i].transBg)

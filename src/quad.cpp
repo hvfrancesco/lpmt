@@ -299,10 +299,13 @@
             }
             loadedSlideshow = slideshowName;
             currentSlide = 0;
-            slideTimer = ofGetElapsedTimef();
+            slideTimer = 0;
             }
             }
         // turn it on again for drawing
+        // update fps
+        if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
+        slideFramesDuration = (slideshowSpeed * fps);
         slideshowBg = True;
         }
 
@@ -443,11 +446,13 @@
             // at last we draw the image with appropriate size multiplier
             slide.draw(0,0,slide.getWidth()*multX, slide.getHeight()*multY);
             ofDisableAlphaBlending();
+
             // if slide showing time has elapsed it switches to next slide
-            if (ofGetElapsedTimef() > slideTimer+slideshowSpeed ) {
+            if (slideTimer > slideFramesDuration ) {
                 currentSlide += 1;
-                slideTimer = ofGetElapsedTimef();
+                slideTimer = 0;
             }
+            slideTimer += 1;
         }
 	    }
 
@@ -460,15 +465,6 @@
         ofDisableAlphaBlending();
         }
 
-
-        // TEMP STUFF - our particles
-        /*
-        ofEnableAlphaBlending();
-        ofSetColor(255, 120, 0, 130);
-        ofFill();
-        for(int i = 0; i < 40; i++)balls[i].draw();
-        ofDisableAlphaBlending();
-        */
 
         //lets draw a bounding box if we are in setup mode
         ofNoFill();

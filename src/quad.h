@@ -67,7 +67,6 @@ public:
     float videoSpeed;
     float previousSpeed;
     float slideshowSpeed;
-    float slideTimer;
     float transDuration;
 
     int quadNumber;
@@ -98,6 +97,9 @@ public:
     int transStep;
     int transCounter;
     int fps;
+    int slideFramesDuration;
+    int slideTimer;
+
 
     vector<string> images;
     vector<string> videos;
