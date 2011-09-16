@@ -96,8 +96,7 @@ void testApp::setup()
     camWidth = 640;	// try to grab at this size.
     camHeight = 480;
     camGrabber.setVerbose(true);
-    //camGrabber.initGrabber(camWidth,camHeight);
-
+    camGrabber.initGrabber(camWidth,camHeight);
 
     // texture for snapshot background
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
