@@ -59,6 +59,8 @@ public:
 
     // gui elements
     bool showGui;
+    void openImageFile();
+    bool bImageLoad;
 
     // camera grabber
     ofVideoGrabber camGrabber;

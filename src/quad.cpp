@@ -152,13 +152,13 @@
 
         // images --------------------------------------------------------------------
         // loads an image if it has changed
-        if (imgBg) {
-            string imgName = images[bgImg];
-            if (imgName != loadedImg) {
-                img.loadImage("img/"+imgName);
-                loadedImg = imgName;
-            }
-        }
+       // if (imgBg) {
+       //     string imgName = images[bgImg];
+       //     if (imgName != loadedImg) {
+       //         img.loadImage("img/"+imgName);
+       //         loadedImg = imgName;
+       //     }
+       // }
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors

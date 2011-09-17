@@ -140,6 +140,7 @@ void testApp::setup()
     // overriding default theme
     //gui.bDrawHeader = false;
     gui.config->toggleHeight = 18;
+    gui.config->buttonHeight = 18;
     gui.config->sliderTextHeight = 22;
     gui.config->titleHeight = 18;
     //gui.config->fullActiveColor = 0x6B404B;
@@ -158,7 +159,8 @@ void testApp::setup()
         gui.addTitle("quad n. "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
         gui.addToggle("img bg on/off", quads[i].imgBg);
-        gui.addComboBox("image bg", quads[i].bgImg, imgFiles.size(), images);
+        //gui.addComboBox("image bg", quads[i].bgImg, imgFiles.size(), images);
+        gui.addButton("image bg", bImageLoad);
         gui.addSlider("img mult X", quads[i].imgMultX, 0.2, 4.0);
         gui.addSlider("img mult Y", quads[i].imgMultY, 0.2, 4.0);
         gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
@@ -218,6 +220,19 @@ void testApp::setup()
 }
 
 
+void testApp::openImageFile()
+{
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image", false);
+    if(dialog_result.bSuccess)
+        {
+            ofFile image(dialog_result.getPath());
+            quads[activeQuad].imgBg = true;
+            quads[activeQuad].img.loadImage(image);
+            quads[activeQuad].loadedImg = dialog_result.getName();
+        }
+}
+
+
 void testApp::mpeSetup()
 {
     stopProjection();
@@ -238,6 +253,12 @@ void testApp::prepare()
 {
     if (bStarted)
     {
+
+        if(bImageLoad) {
+		bImageLoad = false;
+		openImageFile();
+        }
+
         // grabs video frame from camera and passes pixels to quads
 
         if (camGrabber.getHeight() > 0)  // isLoaded check
