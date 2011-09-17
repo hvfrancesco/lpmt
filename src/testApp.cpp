@@ -138,6 +138,7 @@ void testApp::setup()
     // general page
     gui.addTitle("show/hide quads");
     // overriding default theme
+    //gui.bDrawHeader = false;
     gui.config->toggleHeight = 18;
     gui.config->sliderTextHeight = 22;
     gui.config->titleHeight = 18;
