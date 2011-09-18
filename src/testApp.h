@@ -48,6 +48,10 @@ public:
     bool bGui;
     bool snapshotOn;
     bool bStarted;
+    bool bSplash;
+
+    ofImage splashImg;
+    float splashTime;
 
     // use of MostPixelsEver
     bool bMpe;

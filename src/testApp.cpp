@@ -43,6 +43,10 @@ void testApp::setup()
     //we run at 60 fps!
     ofSetVerticalSync(true);
 
+    // splash image
+    bSplash = true;
+    splashImg.loadImage("lpmt_splash.png");
+    splashTime = ofGetElapsedTimef();
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -317,8 +321,12 @@ void testApp::dostuff()
 //--------------------------------------------------------------
 void testApp::update()
 {
+
     if (!bMpe)
     {
+        if (bSplash) {
+            if (abs(splashTime - ofGetElapsedTimef()) > 8.0) { bSplash = ! bSplash;}
+        }
         prepare();
     }
 }
@@ -356,6 +364,13 @@ void testApp::draw()
             // draws gui
             gui.draw();
         }
+    }
+
+    if (bSplash)
+    {
+        ofEnableAlphaBlending();
+        splashImg.draw(((ofGetWidth()/2)-165),((ofGetHeight()/2)-125));
+        ofDisableAlphaBlending();
     }
 }
 
@@ -699,6 +714,9 @@ void testApp::mouseDragged(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mousePressed(int x, int y, int button)
 {
+
+    if(bSplash) {bSplash = !bSplash;}
+
     if (isSetup && !bGui)
     {
         float smallestDist = 1.0;
