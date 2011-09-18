@@ -12,6 +12,7 @@
 
 using namespace std;
 
+
 int getdir (string dir, vector<string> &files)
 {
     DIR *dp;
@@ -920,15 +921,11 @@ void testApp::getXml()
         layers[quads[i].layer] = quads[i].quadNumber;
 
         quads[i].imgBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:ACTIVE",0);
-        quads[i].loadedImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG", 0);
-        quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG_PATH", 0);
+        quads[i].loadedImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG", "", 0);
+        quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG_PATH", "", 0);
         if ((quads[i].imgBg) && (quads[i].bgImg != ""))
         {
-            cout<<i<<endl;
-            cout<<quads[i].loadedImg<<endl;
-            cout<<quads[i].bgImg<<endl;
-            cout<<endl;
-            //quads[i].loadImageFromFile(quads[i].loadedImg, quads[i].bgImg);
+            quads[i].loadImageFromFile(quads[i].loadedImg, quads[i].bgImg);
         }
         quads[i].bgVideo = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOADED_VIDEO", 0);
         quads[i].bgSlideshow = XML.getValue("QUADS:QUAD_"+ofToString(i)+":SLIDESHOW:LOADED_SLIDESHOW", 0);
