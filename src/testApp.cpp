@@ -42,17 +42,6 @@ void testApp::setup()
     //we run at 60 fps!
     ofSetVerticalSync(true);
 
-    // we scan the img dir for images
-    //string imgDir = string("./data/img");
-    string imgDir = ofToDataPath("img",true);
-    imgFiles = vector<string>();
-    getdir(imgDir,imgFiles);
-    string images[imgFiles.size()];
-    for (unsigned int i = 0; i < imgFiles.size(); i++)
-    {
-        images[i]= imgFiles[i];
-    }
-
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -110,13 +99,13 @@ void testApp::setup()
 
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5,imgFiles, videoFiles, slideshowFolders);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, videoFiles, slideshowFolders);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5,imgFiles, videoFiles, slideshowFolders);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, videoFiles, slideshowFolders);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0,imgFiles, videoFiles, slideshowFolders);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, videoFiles, slideshowFolders);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0,imgFiles, videoFiles, slideshowFolders);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, videoFiles, slideshowFolders);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -159,7 +148,6 @@ void testApp::setup()
         gui.addTitle("quad n. "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
         gui.addToggle("img bg on/off", quads[i].imgBg);
-        //gui.addComboBox("image bg", quads[i].bgImg, imgFiles.size(), images);
         gui.addButton("image bg", bImageLoad);
         gui.addSlider("img mult X", quads[i].imgMultX, 0.2, 4.0);
         gui.addSlider("img mult Y", quads[i].imgMultY, 0.2, 4.0);
@@ -225,10 +213,7 @@ void testApp::openImageFile()
     ofFileDialogResult dialog_result = ofSystemLoadDialog("load image", false);
     if(dialog_result.bSuccess)
         {
-            ofFile image(dialog_result.getPath());
-            quads[activeQuad].imgBg = true;
-            quads[activeQuad].img.loadImage(image);
-            quads[activeQuad].loadedImg = dialog_result.getName();
+            quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
         }
 }
 
@@ -464,15 +449,17 @@ void testApp::keyPressed(int key)
     if ( key == 's' || key == 'S')
     {
         setXml();
-        XML.saveFile("projection_settings.xml");
+        XML.saveFile("_lpmt_settings.xml");
+        cout<<"saved settings to data/_lpmt_settings.xml"<<endl;
 
     }
 
     // loads settings and quads from default xml file
     if (key == 'l' || key == 'L')
     {
-        XML.loadFile("projection_settings.xml");
+        XML.loadFile("_lpmt_settings.xml");
         getXml();
+        cout<<"loaded settings from data/_lpmt_settings.xml"<<endl;
         gui.setPage((activeQuad*3)+2);
     }
 
@@ -562,7 +549,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, imgFiles, videoFiles, slideshowFolders);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, videoFiles, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -843,7 +830,8 @@ void testApp::setXml()
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":NUMBER",quads[i].quadNumber);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":LAYER",quads[i].layer);
 
-            XML.setValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG",quads[i].bgImg);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG",quads[i].loadedImg);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG_PATH",quads[i].bgImg);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOADED_VIDEO",quads[i].bgVideo);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":SLIDESHOW:LOADED_SLIDESHOW",quads[i].bgSlideshow);
 
@@ -926,16 +914,25 @@ void testApp::getXml()
         float x3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:X",0.0);
         float y3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:Y",0.0);
 
-        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, imgFiles, videoFiles, slideshowFolders);
+        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, videoFiles, slideshowFolders);
         quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
         quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
         layers[quads[i].layer] = quads[i].quadNumber;
 
-        quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG", 0);
+        quads[i].imgBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:ACTIVE",0);
+        quads[i].loadedImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG", 0);
+        quads[i].bgImg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:LOADED_IMG_PATH", 0);
+        if ((quads[i].imgBg) && (quads[i].bgImg != ""))
+        {
+            cout<<i<<endl;
+            cout<<quads[i].loadedImg<<endl;
+            cout<<quads[i].bgImg<<endl;
+            cout<<endl;
+            //quads[i].loadImageFromFile(quads[i].loadedImg, quads[i].bgImg);
+        }
         quads[i].bgVideo = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:LOADED_VIDEO", 0);
         quads[i].bgSlideshow = XML.getValue("QUADS:QUAD_"+ofToString(i)+":SLIDESHOW:LOADED_SLIDESHOW", 0);
 
-        quads[i].isOn = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IS_ON",0);
         quads[i].colorBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":COLOR:ACTIVE",0);
 
         quads[i].transBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":COLOR:TRANS:ACTIVE",0);
@@ -947,7 +944,6 @@ void testApp::getXml()
 
 
         quads[i].camBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:ACTIVE",0);
-        quads[i].imgBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IMG:ACTIVE",0);
         quads[i].videoBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:ACTIVE",0);
         quads[i].camWidth = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:WIDTH",0);
         quads[i].camHeight = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:HEIGHT",0);
@@ -985,6 +981,8 @@ void testApp::getXml()
         quads[i].camColorize.g = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:COLORIZE:G",1.0);
         quads[i].camColorize.b = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:COLORIZE:B",1.0);
         quads[i].camColorize.a = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CAM:COLORIZE:A",1.0);
+
+        quads[i].isOn = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IS_ON",0);
 
     }
 }

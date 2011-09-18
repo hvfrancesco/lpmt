@@ -24,15 +24,14 @@
     }
 
 
-    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles, vector<string> &slideshowFolders)
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &videoFiles, vector<string> &slideshowFolders)
     {
 
         //loads load in some truetype fonts
         ttf.loadFont("type/frabk.ttf", 22);
         ttf2.loadFont("type/frabk.ttf", 14);
-        //lets load a test image too
-        //img.loadImage("car.jpg");
 
+        bgImg = string("");
         loadedImg = string("");
         loadedVideo = string("");
         loadedSlideshow = string("");
@@ -53,7 +52,6 @@
         corners[3].x = x4;
         corners[3].y = y4;
 
-        images = imgFiles;
         videos = videoFiles;
         slideshows = slideshowFolders;
 
@@ -146,19 +144,21 @@
 
     }
 
+
+    void quad::loadImageFromFile(string imgName, string imgPath)
+    {
+        ofFile image(imgPath);
+        imgBg = true;
+        img.loadImage(image);
+        bgImg = imgPath;
+        loadedImg = imgName;
+    }
+
+
+
     void quad::update()
     {
         if (isOn) {
-
-        // images --------------------------------------------------------------------
-        // loads an image if it has changed
-       // if (imgBg) {
-       //     string imgName = images[bgImg];
-       //     if (imgName != loadedImg) {
-       //         img.loadImage("img/"+imgName);
-       //         loadedImg = imgName;
-       //     }
-       // }
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors

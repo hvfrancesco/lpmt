@@ -88,7 +88,6 @@ public:
     bool slideFit;
     bool slideKeepAspect;
 
-    int bgImg;
     int bgVideo;
     int videoVolume;
     int thresholdGreenscreen;
@@ -100,13 +99,12 @@ public:
     int slideFramesDuration;
     int slideTimer;
 
-
-    vector<string> images;
     vector<string> videos;
     vector<string> slideshows;
     vector<string> slidesnames;
     vector<ofImage> slides;
 
+    string bgImg;
     string loadedImg;
     string loadedVideo;
     string loadedSlideshow;
@@ -115,7 +113,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &imgFiles, vector<string> &videoFiles, vector<string> &slideshowFolders);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &videoFiles, vector<string> &slideshowFolders);
 
     void update();
 
@@ -124,6 +122,8 @@ public:
     void gaussian_elimination(float *input, int n);
 
     void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
+
+    void loadImageFromFile(string imgName, string imgPath);
 
 };
 
