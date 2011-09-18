@@ -656,6 +656,13 @@ void testApp::keyPressed(int key)
         mpeSetup();
     }
 
+    // displays help in system dialog
+    if(key == 'h')
+    {
+        ofBuffer buf = ofBufferFromFile("help_keys.txt");
+        ofSystemAlertDialog(buf);
+    }
+
 }
 
 //--------------------------------------------------------------
