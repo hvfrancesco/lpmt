@@ -176,7 +176,7 @@
             // needs more work (e.g. introducing a roundup of actual framerate)
             // now we update fps value just if it differs more than 50fps from actual rate
             //transStep = (transDuration * ofGetFrameRate());
-            if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
+            //if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
             transStep = (transDuration * fps);
             transColor.r = startColor.r + (((endColor.r - startColor.r)/transStep)*transCounter);
             transColor.g = startColor.g + (((endColor.g - startColor.g)/transStep)*transCounter);
@@ -304,7 +304,7 @@
             }
         // turn it on again for drawing
         // update fps
-        if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
+        //if (abs(fps-ofGetFrameRate()) > 50) {fps = ofGetFrameRate();}
         slideFramesDuration = (slideshowSpeed * fps);
         slideshowBg = True;
         }
