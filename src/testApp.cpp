@@ -88,7 +88,7 @@ void testApp::setup()
     bFullscreen	= 0;
     // gui is on at start
     bGui = 1;
-    ofSetWindowShape(800, 600);
+    ofSetWindowShape(WINDOW_W, WINDOW_H);
 
     // camera stuff
     camWidth = 640;	// try to grab at this size.
@@ -245,15 +245,14 @@ void testApp::mpeSetup()
 //--------------------------------------------------------------
 void testApp::prepare()
 {
+    // check for waiting OSC messages
+    while( receiver.hasWaitingMessages() )
+    {
+        parseOsc();
+    }
+
     if (bStarted)
     {
-
-        // check for waiting OSC messages
-        while( receiver.hasWaitingMessages() )
-        {
-            parseOsc();
-        }
-
         // check if image load button on GUI is pressed
         if(bImageLoad) {
 		bImageLoad = false;
@@ -424,12 +423,84 @@ void testApp::parseOsc()
         }
     }
 
-    // check for mouse button message
-    else if ( m.getAddress() == "/mouse/button" )
+    // resync
+    else if ( m.getAddress() == "/resync" )
     {
-        // the single argument is a string
-
+        resync();
     }
+
+    // stop
+    else if ( m.getAddress() == "/stop" )
+    {
+        stopProjection();
+    }
+
+    // start
+    else if ( m.getAddress() == "/start" )
+    {
+        startProjection();
+    }
+
+    // toggle fullscreen
+    else if ( m.getAddress() == "/fullscreen" )
+    {
+        bFullscreen = !bFullscreen;
+
+        if(!bFullscreen)
+        {
+            ofSetWindowShape(WINDOW_W, WINDOW_H);
+            ofSetFullscreen(false);
+            // figure out how to put the window in the center:
+            int screenW = ofGetScreenWidth();
+            int screenH = ofGetScreenHeight();
+            ofSetWindowPosition(screenW/2-WINDOW_W/2, screenH/2-WINDOW_H/2);
+        }
+        else if(bFullscreen == 1)
+        {
+            ofSetFullscreen(true);
+        }
+    }
+
+    // toggle gui
+    else if ( m.getAddress() == "/gui" )
+    {
+        gui.toggleDraw();
+        bGui = !bGui;
+    }
+
+    // toggle setup
+    else if ( m.getAddress() == "/setup" )
+    {
+        if (isSetup)
+        {
+            isSetup = False;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isSetup = False;
+                }
+            }
+        }
+        else
+        {
+            isSetup = True;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isSetup = True;
+                }
+            }
+        }
+    }
+
+    // connects to mpe server
+    else if ( m.getAddress() == "/mpe" )
+    {
+        mpeSetup();
+    }
+
     else
     {
         // unrecognized message: display on the bottom of the screen
@@ -697,12 +768,12 @@ void testApp::keyPressed(int key)
 
         if(!bFullscreen)
         {
-            ofSetWindowShape(800, 600);
+            ofSetWindowShape(WINDOW_W, WINDOW_H);
             ofSetFullscreen(false);
             // figure out how to put the window in the center:
             int screenW = ofGetScreenWidth();
             int screenH = ofGetScreenHeight();
-            ofSetWindowPosition(screenW/2-800/2, screenH/2-600/2);
+            ofSetWindowPosition(screenW/2-WINDOW_W/2, screenH/2-WINDOW_H/2);
         }
         else if(bFullscreen == 1)
         {

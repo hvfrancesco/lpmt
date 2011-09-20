@@ -2,6 +2,9 @@
 #define _TEST_APP
 #define OF_ADDON_USING_OFXXMLSETTINGS
 
+#define WINDOW_W 1024
+#define WINDOW_H 768
+
 // OSC stuff - listen on port 12345
 #define PORT 12345
 #define NUM_MSG_STRINGS 20
