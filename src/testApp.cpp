@@ -583,6 +583,54 @@ void testApp::parseOsc()
         quads[activeQuad].transDuration = trans_duration;
     }
 
+    // img stuff on active quad
+    else if ( m.getAddress() == "/video" )
+    {
+        quads[activeQuad].videoBg = !quads[activeQuad].videoBg;
+    }
+
+    else if ( m.getAddress() == "/video/color" )
+    {
+        // arguments are ffff
+        float video_color_r = m.getArgAsFloat( 0 );
+        float video_color_g = m.getArgAsFloat( 1 );
+        float video_color_b = m.getArgAsFloat( 2 );
+        float video_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].videoColorize.r = video_color_r;
+        quads[activeQuad].videoColorize.g = video_color_g;
+        quads[activeQuad].videoColorize.b = video_color_b;
+        quads[activeQuad].videoColorize.a = video_color_a;
+    }
+
+    else if ( m.getAddress() == "/video/mult/x" )
+    {
+        // arguments are f
+        float video_mult_x = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoMultX = video_mult_x;
+    }
+
+    else if ( m.getAddress() == "/video/mult/y" )
+    {
+        // arguments are f
+        float video_mult_y = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoMultY = video_mult_y;
+    }
+
+    else if ( m.getAddress() == "/video/speed" )
+    {
+        // arguments are f
+        float video_speed = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoSpeed = video_speed;
+    }
+
+    else if ( m.getAddress() == "/video/volume" )
+    {
+        // arguments are i
+        int video_volume = m.getArgAsInt32( 0 );
+        quads[activeQuad].videoVolume = video_volume;
+    }
+
+
     else
     {
         // unrecognized message: display on the bottom of the screen
