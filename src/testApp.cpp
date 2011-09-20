@@ -48,6 +48,10 @@ void testApp::setup()
     splashImg.loadImage("lpmt_splash.png");
     splashTime = ofGetElapsedTimef();
 
+    // OSC setup
+    receiver.setup( PORT );
+	current_msg_string = 0;
+
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
     string videoDir =  ofToDataPath("video",true);
@@ -244,6 +248,13 @@ void testApp::prepare()
     if (bStarted)
     {
 
+        // check for waiting OSC messages
+        while( receiver.hasWaitingMessages() )
+        {
+            parseOsc();
+        }
+
+        // check if image load button on GUI is pressed
         if(bImageLoad) {
 		bImageLoad = false;
 		openImageFile();
@@ -371,6 +382,81 @@ void testApp::draw()
         ofEnableAlphaBlending();
         splashImg.draw(((ofGetWidth()/2)-165),((ofGetHeight()/2)-125));
         ofDisableAlphaBlending();
+    }
+}
+
+
+//--------------------------------------------------------------
+void testApp::parseOsc()
+{
+    // get the next message
+    ofxOscMessage m;
+    receiver.getNextMessage( &m );
+
+    // check for quads corner x movements
+    if ( m.getAddress() == "/corners/x" )
+    {
+        // arguments are iif
+        int osc_quad = m.getArgAsInt32( 0 );
+        int osc_corner = m.getArgAsInt32( 1 );
+        float osc_coord = m.getArgAsFloat( 2 );
+        quads[osc_quad].corners[osc_corner].x = osc_coord;
+    }
+    // check for quads corner y movements
+    else if ( m.getAddress() == "/corners/y" )
+    {
+        // arguments are iif
+        int osc_quad = m.getArgAsInt32( 0 );
+        int osc_corner = m.getArgAsInt32( 1 );
+        float osc_coord = m.getArgAsFloat( 2 );
+        quads[osc_quad].corners[osc_corner].y = osc_coord;
+    }
+
+    // change active quad
+    else if ( m.getAddress() == "/active" )
+    {
+        // argument is int32
+        int osc_activequad = m.getArgAsInt32( 0 );
+        if (osc_activequad <= nOfQuads-1)
+        {
+            activeQuad = osc_activequad;
+            gui.setPage((activeQuad*3)+2);
+        }
+    }
+
+    // check for mouse button message
+    else if ( m.getAddress() == "/mouse/button" )
+    {
+        // the single argument is a string
+
+    }
+    else
+    {
+        // unrecognized message: display on the bottom of the screen
+        string msg_string;
+        msg_string = m.getAddress();
+        msg_string += ": ";
+        for ( int i=0; i<m.getNumArgs(); i++ )
+        {
+            // get the argument type
+            msg_string += m.getArgTypeName( i );
+            msg_string += ":";
+            // display the argument - make sure we get the right type
+            if( m.getArgType( i ) == OFXOSC_TYPE_INT32 )
+                msg_string += ofToString( m.getArgAsInt32( i ) );
+            else if( m.getArgType( i ) == OFXOSC_TYPE_FLOAT )
+                msg_string += ofToString( m.getArgAsFloat( i ) );
+            else if( m.getArgType( i ) == OFXOSC_TYPE_STRING )
+                msg_string += m.getArgAsString( i );
+            else
+                msg_string += "unknown";
+        }
+        // add to the list of strings to display
+        msg_strings[current_msg_string] = msg_string;
+        timers[current_msg_string] = ofGetElapsedTimef() + 5.0f;
+        current_msg_string = ( current_msg_string + 1 ) % NUM_MSG_STRINGS;
+        // clear the next line
+        msg_strings[current_msg_string] = "";
     }
 }
 

@@ -4,3 +4,4 @@ ofxNetwork
 ofxMostPixelsEver
 ofxMSAInteractiveObject
 ofxSimpleGuiToo
+ofxOsc

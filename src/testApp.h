@@ -2,13 +2,16 @@
 #define _TEST_APP
 #define OF_ADDON_USING_OFXXMLSETTINGS
 
+// OSC stuff - listen on port 12345
+#define PORT 12345
+#define NUM_MSG_STRINGS 20
 
 #include "ofMain.h"
 
-#include "ball.h"
 #include "quad.h"
 #include "ofxXmlSettings.h"
 #include "ofxMostPixelsEver.h"
+#include "ofxOsc.h"
 
 class testApp : public ofSimpleApp
 {
@@ -60,6 +63,13 @@ public:
     void mpeMessageEvent(ofxMPEEventArgs& event);
     void mpeResetEvent(ofxMPEEventArgs& event);
     float lastFrameTime;
+
+    // OSC stuff
+    ofxOscReceiver	receiver;
+    int				current_msg_string;
+    string		msg_strings[NUM_MSG_STRINGS];
+    float			timers[NUM_MSG_STRINGS];
+    void parseOsc();
 
     // gui elements
     bool showGui;
