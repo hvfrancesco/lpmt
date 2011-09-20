@@ -50,7 +50,7 @@ void testApp::setup()
 
     // OSC setup
     receiver.setup( PORT );
-	current_msg_string = 0;
+    current_msg_string = 0;
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -221,9 +221,9 @@ void testApp::openImageFile()
 {
     ofFileDialogResult dialog_result = ofSystemLoadDialog("load image", false);
     if(dialog_result.bSuccess)
-        {
-            quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
-        }
+    {
+        quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
+    }
 }
 
 
@@ -254,9 +254,10 @@ void testApp::prepare()
     if (bStarted)
     {
         // check if image load button on GUI is pressed
-        if(bImageLoad) {
-		bImageLoad = false;
-		openImageFile();
+        if(bImageLoad)
+        {
+            bImageLoad = false;
+            openImageFile();
         }
 
         // grabs video frame from camera and passes pixels to quads
@@ -334,8 +335,12 @@ void testApp::update()
 
     if (!bMpe)
     {
-        if (bSplash) {
-            if (abs(splashTime - ofGetElapsedTimef()) > 8.0) { bSplash = ! bSplash;}
+        if (bSplash)
+        {
+            if (abs(splashTime - ofGetElapsedTimef()) > 8.0)
+            {
+                bSplash = ! bSplash;
+            }
         }
         prepare();
     }
@@ -501,6 +506,83 @@ void testApp::parseOsc()
         mpeSetup();
     }
 
+    // img stuff on active quad
+    else if ( m.getAddress() == "/img" )
+    {
+        quads[activeQuad].imgBg = !quads[activeQuad].imgBg;
+    }
+
+    else if ( m.getAddress() == "/img/color" )
+    {
+        // arguments are ffff
+        float img_color_r = m.getArgAsFloat( 0 );
+        float img_color_g = m.getArgAsFloat( 1 );
+        float img_color_b = m.getArgAsFloat( 2 );
+        float img_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].imgColorize.r = img_color_r;
+        quads[activeQuad].imgColorize.g = img_color_g;
+        quads[activeQuad].imgColorize.b = img_color_b;
+        quads[activeQuad].imgColorize.a = img_color_a;
+    }
+
+    else if ( m.getAddress() == "/img/mult/x" )
+    {
+        // arguments are f
+        float img_mult_x = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgMultX = img_mult_x;
+    }
+
+    else if ( m.getAddress() == "/img/mult/y" )
+    {
+        // arguments are f
+        float img_mult_y = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgMultY = img_mult_y;
+    }
+
+    // solid color stuff
+    else if ( m.getAddress() == "/solid" )
+    {
+        quads[activeQuad].colorBg = !quads[activeQuad].colorBg;
+    }
+
+    else if ( m.getAddress() == "/solid/color" )
+    {
+        // arguments are ffff
+        float solid_color_r = m.getArgAsFloat( 0 );
+        float solid_color_g = m.getArgAsFloat( 1 );
+        float solid_color_b = m.getArgAsFloat( 2 );
+        float solid_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].bgColor.r = solid_color_r;
+        quads[activeQuad].bgColor.g = solid_color_g;
+        quads[activeQuad].bgColor.b = solid_color_b;
+        quads[activeQuad].bgColor.a = solid_color_a;
+    }
+
+    else if ( m.getAddress() == "/solid/trans" )
+    {
+        quads[activeQuad].transBg = !quads[activeQuad].transBg;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/color" )
+    {
+        // arguments are ffff
+        float trans_color_r = m.getArgAsFloat( 0 );
+        float trans_color_g = m.getArgAsFloat( 1 );
+        float trans_color_b = m.getArgAsFloat( 2 );
+        float trans_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].secondColor.r = trans_color_r;
+        quads[activeQuad].secondColor.g = trans_color_g;
+        quads[activeQuad].secondColor.b = trans_color_b;
+        quads[activeQuad].secondColor.a = trans_color_a;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/duration" )
+    {
+        // arguments are f
+        float trans_duration = m.getArgAsFloat( 0 );
+        quads[activeQuad].transDuration = trans_duration;
+    }
+
     else
     {
         // unrecognized message: display on the bottom of the screen
@@ -537,24 +619,26 @@ void testApp::parseOsc()
 void testApp::mpeFrameEvent(ofxMPEEventArgs& event)
 {
     if (bMpe)
+    {
+        if(client.getFrameCount()<=1)
         {
-            if(client.getFrameCount()<=1)
-            {
-                resync();
-            }
-            prepare();
-            dostuff();
+            resync();
         }
+        prepare();
+        dostuff();
+    }
 }
 
 //--------------------------------------------------------------
-void testApp::mpeMessageEvent(ofxMPEEventArgs& event){
-	//received a message from the server
+void testApp::mpeMessageEvent(ofxMPEEventArgs& event)
+{
+    //received a message from the server
 }
 
 
-void testApp::mpeResetEvent(ofxMPEEventArgs& event){
-	//triggered if the server goes down, another client goes offline, or a reset was manually triggered in the server code
+void testApp::mpeResetEvent(ofxMPEEventArgs& event)
+{
+    //triggered if the server goes down, another client goes offline, or a reset was manually triggered in the server code
 }
 
 
@@ -872,7 +956,10 @@ void testApp::mouseDragged(int x, int y, int button)
 void testApp::mousePressed(int x, int y, int button)
 {
 
-    if(bSplash) {bSplash = !bSplash;}
+    if(bSplash)
+    {
+        bSplash = !bSplash;
+    }
 
     if (isSetup && !bGui)
     {
@@ -936,64 +1023,64 @@ void testApp::mouseReleased()
 void testApp::resync()
 {
     for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
         {
-            if (quads[i].initialized)
+            // resets video to start ing point
+            if (quads[i].videoBg && quads[i].video.isLoaded())
             {
-                // resets video to start ing point
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setPosition(0.0);
-                }
-                // resets slideshow to first slide
-                if (quads[i].slideshowBg)
-                {
-                    quads[i].currentSlide = 0;
-                    quads[i].slideTimer = 0;
-                }
-                // reset trans colors
-                if (quads[i].colorBg && quads[i].transBg)
-                {
-                    quads[i].transCounter = 0;
-                    quads[i].transUp = True;
-                }
+                quads[i].video.setPosition(0.0);
+            }
+            // resets slideshow to first slide
+            if (quads[i].slideshowBg)
+            {
+                quads[i].currentSlide = 0;
+                quads[i].slideTimer = 0;
+            }
+            // reset trans colors
+            if (quads[i].colorBg && quads[i].transBg)
+            {
+                quads[i].transCounter = 0;
+                quads[i].transUp = True;
             }
         }
+    }
 }
 
 //--------------------------------------------------------------
 void testApp::startProjection()
 {
-        bStarted = True;
-        for(int i = 0; i < 36; i++)
+    bStarted = True;
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
         {
-            if (quads[i].initialized)
+            quads[i].isOn = True;
+            if (quads[i].videoBg && quads[i].video.isLoaded())
             {
-                quads[i].isOn = True;
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setVolume(quads[i].videoVolume);
-                    quads[i].video.play();
-                }
+                quads[i].video.setVolume(quads[i].videoVolume);
+                quads[i].video.play();
             }
         }
+    }
 }
 
 //--------------------------------------------------------------
 void testApp::stopProjection()
 {
-        bStarted = False;
-        for(int i = 0; i < 36; i++)
+    bStarted = False;
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
         {
-            if (quads[i].initialized)
+            quads[i].isOn = False;
+            if (quads[i].videoBg && quads[i].video.isLoaded())
             {
-                quads[i].isOn = False;
-                if (quads[i].videoBg && quads[i].video.isLoaded())
-                {
-                    quads[i].video.setVolume(0);
-                    quads[i].video.stop();
-                }
+                quads[i].video.setVolume(0);
+                quads[i].video.stop();
             }
         }
+    }
 }
 
 
