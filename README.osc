@@ -1,0 +1,133 @@
+LPMT can be remotely controlled through OSC messages.
+A rich set of messages has been implementing, allowing to control almost every aspect of
+LPMT.
+
+Here you can find a list of the currently implemented messages in the following form:
+
+<osc address>	<arguments number and types>	<description and limits>
+
+LPMT listens for incoming osc messages by default on port 12345,
+the server port is, at present, hard encoded.
+To change the port you must change source code.
+
+In LPMT data folder you can find a PureData patch as an example, and a TouchOsc layout to interact with LPMT
+
+
+
+    Generic quad, vertices coordinates
+    -----------------------------------
+    /corners/x		iif	quad n., quad corner (0-3), x coordinate (0 - 1.0)
+    /corners/y		iif	quad n., quad corner (0-3), y coordinate (0 - 1.0)	
+
+    Set active quad
+    ----------------------------------
+    /active		int32	quad n.
+
+
+    Projection control
+    ----------------------------------
+
+    Resync videos, slideshows and color transitions
+    /resync
+
+    Stop projection
+    /stop
+
+    Start projection
+    /start
+
+    Toggle fullscreen
+    /fullscreen
+
+    Toggle gui
+    /gui
+
+    Toggle setup
+    /setup
+
+    Connects to mpe server
+    /mpe
+
+
+    Active quad setup (following messages will always be applied to active quad)
+    ---------------------------------
+
+    Active quad, vertices coordinates
+    ---   
+    /corners/active/0	ff	vertex 0 coordinate x, 	vertex 0 coordinate y (0 - 1.0)
+    /corners/active/1	ff	vertex 1 coordinate x, 	vertex 1 coordinate y (0 - 1.0)
+    /corners/active/2	ff	vertex 2 coordinate x, 	vertex 2 coordinate y (0 - 1.0)
+    /corners/active/3	ff	vertex 3 coordinate x, 	vertex 3 coordinate y (0 - 1.0)
+
+    Image stuff on active quad
+    ---
+    Toggle img on/off
+    /img
+
+    Sets img hue (all components at once, taking 4 arguments for r,g,b,alpha)
+    /img/color		ffff	r,g,b,alpha (0 - 1.0)
+
+    Sets img hue single channels
+    /img/color/1	f	red component (0 - 1.0)
+    /img/color/2	f	green component (0 - 1.0)
+    /img/color/3	f	blue component (0 - 1.0)
+    /img/color/4	f	alpha component (0 - 1.0)
+    
+    Image dimension multiplier on x and y axis
+    /img/mult/x		f	img x multiplier (0 - 5.0)
+    /img/mult/y		f	img y multiplier (0 - 5.0)
+    
+    Solid color stuff on active quad
+    ---
+    Toggle solid color on/off
+    /solid
+
+    Sets first solid color (all components at once, taking 4 arguments for r,g,b,alpha)v
+    /solid/color	ffff	r,g,b,alpha (0 - 1.0)
+
+    Sets first solid color single channels
+    /solid/color/1	f	red component (0 - 1.0)
+    /solid/color/2	f	green component (0 - 1.0)
+    /solid/color/3	f	blue component (0 - 1.0)
+    /solid/color/4	f	alpha component (0 - 1.0)
+
+    Toggle second color on/off
+    /solid/trans
+ 
+    Sets second color (all components at once, taking 4 arguments for r,g,b,alpha)v
+    /solid/trans/color	ffff	r,g,b,alpha (0 - 1.0)
+
+    Sets second color single channels
+    /solid/trans/color/1	f	red component (0 - 1.0)
+    /solid/trans/color/2	f	green component (0 - 1.0)
+    /solid/trans/color/3	f	blue component (0 - 1.0)
+    /solid/trans/color/4	f	alpha component (0 - 1.0)
+
+    Color transition duration	
+    /solid/trans/duration	f	duration of transition (0 - 60.0)
+
+    Video on active quad
+    ---
+    Toggle video on/off
+    /video
+    
+    Sets video hue (all components at once, taking 4 arguments for r,g,b,alpha)
+    /video/color		ffff	r,g,b,alpha (0 - 1.0)
+
+    Sets video hue single channels
+    /video/color/1	f	red component (0 - 1.0)
+    /video/color/2	f	green component (0 - 1.0)
+    /video/color/3	f	blue component (0 - 1.0)
+    /video/color/4	f	alpha component (0 - 1.0)
+
+    Video dimension multiplier on x and y axis
+    /video/mult/x	f	video x multiplier (0 - 5.0)
+    /video/mult/y	f	video y multiplier (0 - 5.0)
+
+    Video speed
+    /video/speed	f	video speed (-2.0 - 2.0)
+
+    Video sound volume
+    /video/volume	int32	video volume (0-60)
+
+
