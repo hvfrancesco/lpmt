@@ -416,6 +416,43 @@ void testApp::parseOsc()
         quads[osc_quad].corners[osc_corner].y = osc_coord;
     }
 
+    // check for active quad corner x movements
+    if ( m.getAddress() == "/corners/active/0" )
+    {
+        // arguments are ff
+        float osc_coord_x = m.getArgAsFloat( 0 );
+	float osc_coord_y = m.getArgAsFloat( 1 );
+        quads[activeQuad].corners[0].x = osc_coord_x;
+	quads[activeQuad].corners[0].y = osc_coord_y;
+    }
+
+    if ( m.getAddress() == "/corners/active/1" )
+    {
+        // arguments are ff
+        float osc_coord_x = m.getArgAsFloat( 0 );
+	float osc_coord_y = m.getArgAsFloat( 1 );
+        quads[activeQuad].corners[1].x = osc_coord_x;
+	quads[activeQuad].corners[1].y = osc_coord_y;
+    }
+
+    if ( m.getAddress() == "/corners/active/2" )
+    {
+        // arguments are ff
+        float osc_coord_x = m.getArgAsFloat( 0 );
+	float osc_coord_y = m.getArgAsFloat( 1 );
+        quads[activeQuad].corners[2].x = osc_coord_x;
+	quads[activeQuad].corners[2].y = osc_coord_y;
+    }
+
+    if ( m.getAddress() == "/corners/active/3" )
+    {
+        // arguments are ff
+        float osc_coord_x = m.getArgAsFloat( 0 );
+	float osc_coord_y = m.getArgAsFloat( 1 );
+        quads[activeQuad].corners[3].x = osc_coord_x;
+	quads[activeQuad].corners[3].y = osc_coord_y;
+    }
+
     // change active quad
     else if ( m.getAddress() == "/active" )
     {
