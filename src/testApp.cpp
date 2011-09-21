@@ -562,6 +562,34 @@ void testApp::parseOsc()
         quads[activeQuad].imgColorize.a = img_color_a;
     }
 
+    else if ( m.getAddress() == "/img/color/1" )
+    {
+        // arguments are f
+        float img_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgColorize.r = img_color_r;
+    }
+
+    else if ( m.getAddress() == "/img/color/2" )
+    {
+        // arguments are f
+        float img_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgColorize.g = img_color_g;
+    }
+
+    else if ( m.getAddress() == "/img/color/3" )
+    {
+        // arguments are f
+        float img_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgColorize.b = img_color_b;
+    }
+
+    else if ( m.getAddress() == "/img/color/4" )
+    {
+        // arguments are f
+        float img_color_a = m.getArgAsFloat( 0 );
+        quads[activeQuad].imgColorize.a = img_color_a;
+    }
+
     else if ( m.getAddress() == "/img/mult/x" )
     {
         // arguments are f
@@ -595,6 +623,34 @@ void testApp::parseOsc()
         quads[activeQuad].bgColor.a = solid_color_a;
     }
 
+    else if ( m.getAddress() == "/solid/color/1" )
+    {
+        // arguments are f
+        float solid_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].bgColor.r = solid_color_r;
+    }
+
+    else if ( m.getAddress() == "/solid/color/2" )
+    {
+        // arguments are f
+        float solid_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].bgColor.g = solid_color_g;
+    }
+
+    else if ( m.getAddress() == "/solid/color/3" )
+    {
+        // arguments are f
+        float solid_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].bgColor.b = solid_color_b;
+    }
+
+    else if ( m.getAddress() == "/solid/color/4" )
+    {
+        // arguments are f
+        float solid_color_a = m.getArgAsFloat( 0 );
+        quads[activeQuad].bgColor.a = solid_color_a;
+    }
+
     else if ( m.getAddress() == "/solid/trans" )
     {
         quads[activeQuad].transBg = !quads[activeQuad].transBg;
@@ -610,6 +666,34 @@ void testApp::parseOsc()
         quads[activeQuad].secondColor.r = trans_color_r;
         quads[activeQuad].secondColor.g = trans_color_g;
         quads[activeQuad].secondColor.b = trans_color_b;
+        quads[activeQuad].secondColor.a = trans_color_a;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/color/1" )
+    {
+        // arguments are f
+        float trans_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].secondColor.r = trans_color_r;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/color/2" )
+    {
+        // arguments are f
+        float trans_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].secondColor.g = trans_color_g;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/color/3" )
+    {
+        // arguments are f
+        float trans_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].secondColor.b = trans_color_b;
+    }
+
+    else if ( m.getAddress() == "/solid/trans/color/4" )
+    {
+        // arguments are f
+        float trans_color_a = m.getArgAsFloat( 0 );
         quads[activeQuad].secondColor.a = trans_color_a;
     }
 
@@ -636,6 +720,34 @@ void testApp::parseOsc()
         quads[activeQuad].videoColorize.r = video_color_r;
         quads[activeQuad].videoColorize.g = video_color_g;
         quads[activeQuad].videoColorize.b = video_color_b;
+        quads[activeQuad].videoColorize.a = video_color_a;
+    }
+
+    else if ( m.getAddress() == "/video/color/1" )
+    {
+        // arguments are f
+        float video_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoColorize.r = video_color_r;
+    }
+
+    else if ( m.getAddress() == "/video/color/2" )
+    {
+        // arguments are f
+        float video_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoColorize.g = video_color_g;
+    }
+
+    else if ( m.getAddress() == "/video/color/3" )
+    {
+        // arguments are f
+        float video_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].videoColorize.b = video_color_b;
+    }
+
+    else if ( m.getAddress() == "/video/color/4" )
+    {
+        // arguments are f
+        float video_color_a = m.getArgAsFloat( 0 );
         quads[activeQuad].videoColorize.a = video_color_a;
     }
 
