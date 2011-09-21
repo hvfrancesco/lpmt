@@ -1,9 +1,9 @@
-#N canvas 458 24 1257 710 10;
+#N canvas 270 63 1257 867 10;
 #X obj -136 545 sendOSC;
 #X floatatom -136 574 5 0 0 0 - - -;
 #X msg -173 639 disconnect;
 #X msg -142 452 typetags 1;
-#X msg -51 482 typetags 0;
+#X msg -141 480 typetags 0;
 #X msg 115 620 [;
 #X msg 115 649 ];
 #X floatatom -82 572 5 0 0 0 - - -;
@@ -11,17 +11,17 @@
 #X text -77 626 switch usage of typetags;
 #X text -77 652 on/off.;
 #X text -77 678 default: on;
-#X msg 43 536 connect localhost 12345;
+#X msg 51 521 connect localhost 12345;
 #X text -91 -242 QUAD 0;
 #X text -13 -242 QUAD 1;
 #X obj -190 492 r osc;
 #X obj -90 -165 cnv 15 300 350 empty empty image_in_active_quad 20
-12 0 14 -233017 -66577 0;
+12 0 10 -233017 -66577 0;
 #X obj -71 151 s osc;
-#X msg -72 -113 send /img;
-#X obj -72 -134 bng 15 250 50 0 empty empty empty 17 7 0 10 -258113
+#X msg -72 -88 send /img;
+#X obj -72 -121 bng 15 250 50 0 empty empty toggle_img 0 -12 0 8 -258113
 -1 -1;
-#X obj -4 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -258113
+#X obj -4 -132 vsl 15 128 0 1 0 0 empty empty color 0 -9 0 8 -258113
 -1 -1 12700 1;
 #X obj -74 8 float;
 #X obj 18 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
@@ -31,133 +31,168 @@
 -1 -1 12700 1;
 #X obj -36 9 float;
 #X obj 62 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -191407
--1 -1 6400 1;
+-1 -1 12700 1;
 #X obj -36 30 float;
 #X msg -70 75 send /img/color \$1 \$2 \$3 \$4;
 #X obj -69 50 pack f f f f;
 #X obj -74 -19 trigger;
-#X obj 108 -132 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 10 -203904
--1 -1 2500 1;
+#X obj 108 -132 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 8 -203904
+-1 -1 6000 1;
 #X obj 108 81 float;
 #X msg -70 102 send /img/mult/x \$1;
 #X msg -71 125 send /img/mult/y \$1;
-#X obj 160 -132 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 10 -232576
--1 -1 2300 1;
+#X obj 160 -132 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 8 -232576
+-1 -1 4800 1;
 #X obj 159 80 float;
-#N canvas 512 24 571 628 quad_0 0;
+#N canvas 539 105 571 628 quad_0 0;
 #X obj 1 -72 float;
 #X msg 3 -45 send /corners/x 0 0 \$1;
-#X obj 111 -72 float;
 #X msg 2 -19 send /corners/y 0 0 \$1;
 #X obj 162 -71 float;
-#X obj 270 -72 float;
 #X msg 168 -45 send /corners/x 0 1 \$1;
 #X msg 167 -21 send /corners/y 0 1 \$1;
 #X obj 158 196 float;
-#X obj 268 194 float;
 #X msg 159 223 send /corners/x 0 2 \$1;
 #X msg 157 250 send /corners/y 0 2 \$1;
 #X obj -3 195 float;
-#X obj 108 196 float;
 #X msg 4 224 send /corners/x 0 3 \$1;
 #X msg 2 250 send /corners/y 0 3 \$1;
 #X text 1 -251 QUAD 0;
 #X obj -3 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-152 -191;
+38 -195;
 #X text 18 152 comment;
 #X text 189 152 comment;
 #X obj 158 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-193 -142;
+266 -204;
 #X obj 156 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-202 109;
-#X obj -7 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 77
-99;
+258 126;
+#X obj -7 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 52
+143;
 #X obj -16 10 s osc;
 #X obj 157 8 s osc;
 #X obj 156 277 s osc;
 #X obj 3 275 s osc;
+#X floatatom 44 -72 5 0 0 0 - - -;
+#X obj 119 -73 +;
+#X obj 86 -74 abs;
+#X floatatom 206 -72 5 0 0 0 - - -;
+#X obj 282 -72 +;
+#X obj 249 -73 abs;
+#X floatatom 46 200 5 0 0 0 - - -;
+#X obj 121 199 +;
+#X obj 88 198 abs;
+#X floatatom 208 196 5 0 0 0 - - -;
+#X obj 283 195 +;
+#X obj 250 194 abs;
 #X connect 0 0 1 0;
-#X connect 1 0 23 0;
-#X connect 2 0 3 0;
-#X connect 3 0 23 0;
-#X connect 4 0 6 0;
-#X connect 5 0 7 0;
-#X connect 6 0 24 0;
-#X connect 7 0 24 0;
-#X connect 8 0 10 0;
-#X connect 9 0 11 0;
-#X connect 10 0 25 0;
-#X connect 11 0 25 0;
-#X connect 12 0 14 0;
-#X connect 13 0 15 0;
-#X connect 14 0 26 0;
-#X connect 15 0 26 0;
-#X connect 17 0 0 0;
-#X connect 17 1 2 0;
-#X connect 20 0 4 0;
-#X connect 20 1 5 0;
-#X connect 21 0 8 0;
-#X connect 21 1 9 0;
-#X connect 22 0 12 0;
-#X connect 22 1 13 0;
+#X connect 1 0 19 0;
+#X connect 2 0 19 0;
+#X connect 3 0 4 0;
+#X connect 4 0 20 0;
+#X connect 5 0 20 0;
+#X connect 6 0 7 0;
+#X connect 7 0 21 0;
+#X connect 8 0 21 0;
+#X connect 9 0 10 0;
+#X connect 10 0 22 0;
+#X connect 11 0 22 0;
+#X connect 13 0 0 0;
+#X connect 13 1 24 0;
+#X connect 16 0 3 0;
+#X connect 16 1 27 0;
+#X connect 17 0 6 0;
+#X connect 17 1 33 0;
+#X connect 18 0 9 0;
+#X connect 18 1 30 0;
+#X connect 23 0 24 1;
+#X connect 24 0 25 0;
+#X connect 25 0 2 0;
+#X connect 26 0 27 1;
+#X connect 27 0 28 0;
+#X connect 28 0 5 0;
+#X connect 29 0 30 1;
+#X connect 30 0 31 0;
+#X connect 31 0 11 0;
+#X connect 32 0 33 1;
+#X connect 33 0 34 0;
+#X connect 34 0 8 0;
 #X restore -90 -223 pd quad_0;
-#N canvas 484 24 450 668 quad_1 0;
-#X obj 32 -54 float;
-#X obj 142 -53 float;
-#X obj 192 -53 float;
-#X obj 307 -53 float;
-#X obj 193 211 float;
-#X obj 303 213 float;
-#X obj 27 212 float;
-#X obj 135 211 float;
+#N canvas 485 51 450 668 quad_1 0;
 #X text 28 -235 QUAD 1;
-#X msg 33 -26 send /corners/x 1 0 \$1;
-#X msg 32 -5 send /corners/y 1 0 \$1;
-#X msg 192 -26 send /corners/x 1 1 \$1;
-#X msg 192 -3 send /corners/y 1 1 \$1;
-#X msg 192 236 send /corners/x 1 2 \$1;
-#X msg 193 261 send /corners/y 1 2 \$1;
-#X msg 27 239 send /corners/x 1 3 \$1;
-#X msg 27 264 send /corners/y 1 3 \$1;
-#X obj 29 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-171 -57;
-#X obj 14 23 s osc;
-#X obj 190 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-357 -239;
-#X obj 192 23 s osc;
-#X obj 25 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 134
-98;
-#X obj 191 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-167 108;
-#X obj 192 288 s osc;
-#X obj 25 291 s osc;
-#X connect 0 0 9 0;
-#X connect 1 0 10 0;
-#X connect 2 0 11 0;
-#X connect 3 0 12 0;
-#X connect 4 0 13 0;
-#X connect 5 0 14 0;
-#X connect 6 0 15 0;
-#X connect 7 0 16 0;
-#X connect 9 0 18 0;
-#X connect 10 0 18 0;
-#X connect 11 0 20 0;
-#X connect 12 0 20 0;
-#X connect 13 0 23 0;
-#X connect 14 0 23 0;
-#X connect 15 0 24 0;
-#X connect 16 0 24 0;
-#X connect 17 0 0 0;
-#X connect 17 1 1 0;
-#X connect 19 0 2 0;
-#X connect 19 1 3 0;
-#X connect 21 0 6 0;
-#X connect 21 1 7 0;
-#X connect 22 0 4 0;
-#X connect 22 1 5 0;
+#X obj 28 -53 float;
+#X obj 189 -52 float;
+#X obj 185 215 float;
+#X obj 24 214 float;
+#X obj 24 -214 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+96 -132;
+#X text 45 171 comment;
+#X text 216 171 comment;
+#X obj 185 -214 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+253 -102;
+#X obj 183 52 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+272 133;
+#X obj 20 52 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 114
+162;
+#X obj 11 29 s osc;
+#X obj 184 27 s osc;
+#X obj 183 296 s osc;
+#X obj 30 294 s osc;
+#X floatatom 71 -53 5 0 0 0 - - -;
+#X obj 146 -54 +;
+#X obj 113 -55 abs;
+#X floatatom 233 -53 5 0 0 0 - - -;
+#X obj 309 -53 +;
+#X obj 276 -54 abs;
+#X floatatom 73 219 5 0 0 0 - - -;
+#X obj 148 218 +;
+#X obj 115 217 abs;
+#X floatatom 235 215 5 0 0 0 - - -;
+#X obj 310 214 +;
+#X obj 277 213 abs;
+#X text 28 -232;
+#X msg 30 -26 send /corners/x 1 0 \$1;
+#X msg 195 -26 send /corners/x 1 1 \$1;
+#X msg 29 0 send /corners/y 1 0 \$1;
+#X msg 194 -2 send /corners/y 1 1 \$1;
+#X msg 31 243 send /corners/x 1 3 \$1;
+#X msg 186 242 send /corners/x 1 2 \$1;
+#X msg 29 269 send /corners/y 1 3 \$1;
+#X msg 184 269 send /corners/y 1 2 \$1;
+#X connect 1 0 28 0;
+#X connect 2 0 29 0;
+#X connect 3 0 33 0;
+#X connect 4 0 32 0;
+#X connect 5 0 1 0;
+#X connect 5 1 16 0;
+#X connect 8 0 2 0;
+#X connect 8 1 19 0;
+#X connect 9 0 3 0;
+#X connect 9 1 25 0;
+#X connect 10 0 4 0;
+#X connect 10 1 22 0;
+#X connect 15 0 16 1;
+#X connect 16 0 17 0;
+#X connect 17 0 30 0;
+#X connect 18 0 19 1;
+#X connect 19 0 20 0;
+#X connect 20 0 31 0;
+#X connect 21 0 22 1;
+#X connect 22 0 23 0;
+#X connect 23 0 34 0;
+#X connect 24 0 25 1;
+#X connect 25 0 26 0;
+#X connect 26 0 35 0;
+#X connect 28 0 11 0;
+#X connect 29 0 12 0;
+#X connect 30 0 11 0;
+#X connect 31 0 12 0;
+#X connect 32 0 14 0;
+#X connect 33 0 13 0;
+#X connect 34 0 14 0;
+#X connect 35 0 13 0;
 #X restore -12 -222 pd quad_1;
 #X obj -90 191 cnv 15 300 120 empty empty general_controls 20 12 0
-14 -191407 -66577 0;
+10 -191407 -66577 0;
 #X obj -83 226 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
 -1 -1;
 #X msg -83 248 send /resync;
@@ -171,7 +206,7 @@
 #X msg 0 248 send /stop;
 #X msg 70 248 send /start;
 #X obj -83 288 s osc;
-#X obj -90 317 cnv 15 300 120 empty empty appearance 20 12 0 14 -162280
+#X obj -90 317 cnv 15 300 120 empty empty appearance 20 12 0 10 -162280
 -66577 0;
 #X obj -81 409 s osc;
 #X obj 88 348 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
@@ -183,141 +218,179 @@
 #X obj -3 345 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
 -1;
 #X msg -3 376 send /setup;
-#N canvas 607 24 450 668 quad_2 0;
-#X obj 32 -54 float;
-#X obj 142 -53 float;
-#X obj 192 -53 float;
-#X obj 307 -53 float;
-#X obj 193 211 float;
-#X obj 303 213 float;
-#X obj 27 212 float;
-#X obj 135 211 float;
-#X obj 29 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-122 -125;
-#X obj 14 23 s osc;
-#X obj 190 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-267 -130;
-#X obj 192 23 s osc;
-#X obj 25 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 85
-132;
-#X obj 191 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-250 116;
-#X obj 192 288 s osc;
-#X obj 25 291 s osc;
-#X msg 33 -26 send /corners/x 2 0 \$1;
-#X msg 32 -5 send /corners/y 2 0 \$1;
-#X msg 192 -26 send /corners/x 2 1 \$1;
-#X msg 192 -3 send /corners/y 2 1 \$1;
-#X msg 27 239 send /corners/x 2 3 \$1;
-#X msg 27 264 send /corners/y 2 3 \$1;
-#X msg 192 236 send /corners/x 2 2 \$1;
-#X msg 193 261 send /corners/y 2 2 \$1;
+#N canvas 608 51 450 668 quad_2 0;
 #X text 28 -235 QUAD 2;
-#X connect 0 0 16 0;
-#X connect 1 0 17 0;
-#X connect 2 0 18 0;
-#X connect 3 0 19 0;
-#X connect 4 0 22 0;
-#X connect 5 0 23 0;
-#X connect 6 0 20 0;
-#X connect 7 0 21 0;
-#X connect 8 0 0 0;
-#X connect 8 1 1 0;
-#X connect 10 0 2 0;
-#X connect 10 1 3 0;
-#X connect 12 0 6 0;
-#X connect 12 1 7 0;
-#X connect 13 0 4 0;
-#X connect 13 1 5 0;
-#X connect 16 0 9 0;
-#X connect 17 0 9 0;
-#X connect 18 0 11 0;
-#X connect 19 0 11 0;
-#X connect 20 0 15 0;
-#X connect 21 0 15 0;
-#X connect 22 0 14 0;
-#X connect 23 0 14 0;
+#X obj 28 -54 float;
+#X obj 189 -53 float;
+#X obj 185 214 float;
+#X obj 24 213 float;
+#X obj 24 -215 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+94 -144;
+#X text 45 170 comment;
+#X text 216 170 comment;
+#X obj 185 -215 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+253 -103;
+#X obj 183 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+272 132;
+#X obj 20 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 114
+161;
+#X obj 11 28 s osc;
+#X obj 184 26 s osc;
+#X obj 183 295 s osc;
+#X obj 30 293 s osc;
+#X floatatom 71 -54 5 0 0 0 - - -;
+#X obj 146 -55 +;
+#X obj 113 -56 abs;
+#X floatatom 233 -54 5 0 0 0 - - -;
+#X obj 309 -54 +;
+#X obj 276 -55 abs;
+#X floatatom 73 218 5 0 0 0 - - -;
+#X obj 148 217 +;
+#X obj 115 216 abs;
+#X floatatom 235 214 5 0 0 0 - - -;
+#X obj 310 213 +;
+#X obj 277 212 abs;
+#X text 28 -233;
+#X msg 30 -27 send /corners/x 2 0 \$1;
+#X msg 29 -1 send /corners/y 2 0 \$1;
+#X msg 195 -27 send /corners/x 2 1 \$1;
+#X msg 194 -3 send /corners/y 2 1 \$1;
+#X msg 31 242 send /corners/x 2 3 \$1;
+#X msg 29 268 send /corners/y 2 3 \$1;
+#X msg 186 241 send /corners/x 2 2 \$1;
+#X msg 184 268 send /corners/y 2 2 \$1;
+#X connect 1 0 28 0;
+#X connect 2 0 30 0;
+#X connect 3 0 34 0;
+#X connect 4 0 32 0;
+#X connect 5 0 1 0;
+#X connect 5 1 16 0;
+#X connect 8 0 2 0;
+#X connect 8 1 19 0;
+#X connect 9 0 3 0;
+#X connect 9 1 25 0;
+#X connect 10 0 4 0;
+#X connect 10 1 22 0;
+#X connect 15 0 16 1;
+#X connect 16 0 17 0;
+#X connect 17 0 29 0;
+#X connect 18 0 19 1;
+#X connect 19 0 20 0;
+#X connect 20 0 31 0;
+#X connect 21 0 22 1;
+#X connect 22 0 23 0;
+#X connect 23 0 33 0;
+#X connect 24 0 25 1;
+#X connect 25 0 26 0;
+#X connect 26 0 35 0;
+#X connect 28 0 11 0;
+#X connect 29 0 11 0;
+#X connect 30 0 12 0;
+#X connect 31 0 12 0;
+#X connect 32 0 14 0;
+#X connect 33 0 14 0;
+#X connect 34 0 13 0;
+#X connect 35 0 13 0;
 #X restore -90 -188 pd quad_2;
 #X text -91 -205 QUAD 2;
 #X text -15 -205 QUAD 3;
-#N canvas 805 24 450 668 quad_3 0;
-#X obj 32 -54 float;
-#X obj 142 -53 float;
-#X obj 192 -53 float;
-#X obj 307 -53 float;
-#X obj 193 211 float;
-#X obj 303 213 float;
-#X obj 27 212 float;
-#X obj 135 211 float;
-#X obj 29 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-49 -119;
-#X obj 14 23 s osc;
-#X obj 190 -217 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-317 -91;
-#X obj 192 23 s osc;
-#X obj 25 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 38
-78;
-#X obj 191 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-287 95;
-#X obj 192 288 s osc;
-#X obj 25 291 s osc;
+#N canvas 808 105 450 668 quad_3 0;
 #X text 28 -235 QUAD 3;
-#X msg 33 -26 send /corners/x 3 0 \$1;
-#X msg 32 -5 send /corners/y 3 0 \$1;
-#X msg 192 -26 send /corners/x 3 1 \$1;
-#X msg 192 -3 send /corners/y 3 1 \$1;
-#X msg 27 239 send /corners/x 3 3 \$1;
-#X msg 27 264 send /corners/y 3 3 \$1;
-#X msg 192 236 send /corners/x 3 2 \$1;
-#X msg 193 261 send /corners/y 3 2 \$1;
-#X connect 0 0 17 0;
-#X connect 1 0 18 0;
-#X connect 2 0 19 0;
-#X connect 3 0 20 0;
-#X connect 4 0 23 0;
-#X connect 5 0 24 0;
-#X connect 6 0 21 0;
-#X connect 7 0 22 0;
-#X connect 8 0 0 0;
-#X connect 8 1 1 0;
-#X connect 10 0 2 0;
-#X connect 10 1 3 0;
-#X connect 12 0 6 0;
-#X connect 12 1 7 0;
-#X connect 13 0 4 0;
-#X connect 13 1 5 0;
-#X connect 17 0 9 0;
-#X connect 18 0 9 0;
-#X connect 19 0 11 0;
-#X connect 20 0 11 0;
-#X connect 21 0 15 0;
-#X connect 22 0 15 0;
-#X connect 23 0 14 0;
-#X connect 24 0 14 0;
+#X obj 29 -52 float;
+#X obj 190 -51 float;
+#X obj 186 216 float;
+#X obj 25 215 float;
+#X obj 25 -213 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+66 -175;
+#X text 46 172 comment;
+#X text 217 172 comment;
+#X obj 186 -213 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+294 -183;
+#X obj 184 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+296 108;
+#X obj 21 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 26
+115;
+#X obj 12 30 s osc;
+#X obj 185 28 s osc;
+#X obj 184 297 s osc;
+#X obj 31 295 s osc;
+#X floatatom 72 -52 5 0 0 0 - - -;
+#X obj 147 -53 +;
+#X obj 114 -54 abs;
+#X floatatom 234 -52 5 0 0 0 - - -;
+#X obj 310 -52 +;
+#X obj 277 -53 abs;
+#X floatatom 74 220 5 0 0 0 - - -;
+#X obj 149 219 +;
+#X obj 116 218 abs;
+#X floatatom 236 216 5 0 0 0 - - -;
+#X obj 311 215 +;
+#X obj 278 214 abs;
+#X text 29 -232;
+#X msg 31 -25 send /corners/x 3 0 \$1;
+#X msg 30 1 send /corners/y 3 0 \$1;
+#X msg 197 -25 send /corners/x 3 1 \$1;
+#X msg 194 -2 send /corners/y 3 1 \$1;
+#X msg 32 243 send /corners/x 3 3 \$1;
+#X msg 30 270 send /corners/y 3 3 \$1;
+#X msg 187 243 send /corners/x 3 2 \$1;
+#X msg 185 270 send /corners/y 3 2 \$1;
+#X connect 1 0 28 0;
+#X connect 2 0 30 0;
+#X connect 3 0 34 0;
+#X connect 4 0 32 0;
+#X connect 5 0 1 0;
+#X connect 5 1 16 0;
+#X connect 8 0 2 0;
+#X connect 8 1 19 0;
+#X connect 9 0 3 0;
+#X connect 9 1 25 0;
+#X connect 10 0 4 0;
+#X connect 10 1 22 0;
+#X connect 15 0 16 1;
+#X connect 16 0 17 0;
+#X connect 17 0 29 0;
+#X connect 18 0 19 1;
+#X connect 19 0 20 0;
+#X connect 20 0 31 0;
+#X connect 21 0 22 1;
+#X connect 22 0 23 0;
+#X connect 23 0 33 0;
+#X connect 24 0 25 1;
+#X connect 25 0 26 0;
+#X connect 26 0 35 0;
+#X connect 28 0 11 0;
+#X connect 29 0 11 0;
+#X connect 30 0 12 0;
+#X connect 31 0 12 0;
+#X connect 32 0 14 0;
+#X connect 33 0 14 0;
+#X connect 34 0 13 0;
+#X connect 35 0 13 0;
 #X restore -14 -188 pd quad_3;
-#X obj 218 -166 cnv 15 420 350 empty empty solid_color 20 12 0 14 -228856
+#X obj 218 -166 cnv 15 420 350 empty empty solid_color 20 12 0 10 -228856
 -66577 0;
-#X obj 240 -131 vsl 15 128 0 1 0 0 empty empty first_color 0 -9 0 10
--258113 -1 -1 6200 1;
+#X obj 240 -131 vsl 15 128 0 1 0 0 empty empty first_color 0 -9 0 8
+-258113 -1 -1 8100 1;
 #X obj 227 7 float;
 #X obj 261 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 7600 1;
+-1 -1 2200 1;
 #X obj 265 7 float;
 #X obj 284 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
--1 -1 0 1;
+-1 -1 2300 1;
 #X obj 228 28 float;
 #X obj 306 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -162280
--1 -1 10200 1;
+-1 -1 12700 1;
 #X obj 266 29 float;
 #X obj 230 51 pack f f f f;
 #X obj 303 7 trigger;
 #X msg 231 75 send /solid/color \$1 \$2 \$3 \$4;
 #X obj 231 154 s osc;
 #X obj 386 -131 vsl 15 128 0 1 0 0 empty empty second_color 0 -9 0
-10 -258113 -1 -1 12600 1;
+8 -258113 -1 -1 6900 1;
 #X obj 385 8 float;
 #X obj 410 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 6300 1;
+-1 -1 9000 1;
 #X obj 423 8 float;
 #X obj 433 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
 -1 -1 0 1;
@@ -329,53 +402,53 @@
 #X obj 333 30 trigger;
 #X msg 225 98 send /solid/trans/color \$1 \$2 \$3 \$4;
 #X obj 492 118 bng 15 250 50 0 empty empty toggle_solid_color 0 -12
-0 10 -258113 -1 -1;
+0 8 -258113 -1 -1;
 #X msg 276 154 send /solid;
 #X obj 492 153 bng 15 250 50 0 empty empty toggle_transition_color
-0 -12 0 10 -258113 -1 -1;
+0 -12 0 8 -258113 -1 -1;
 #X msg 359 153 send /solid/trans;
 #X obj 511 -133 vsl 15 200 0.25 60 1 0 empty empty transition_duration
-0 -9 0 10 -232576 -1 -1 2600 1;
+0 -9 0 8 -232576 -1 -1 12000 1;
 #X obj 506 75 float;
 #X msg 226 121 send /solid/trans/duration \$1;
-#X obj 217 189 cnv 15 420 350 empty empty video 20 12 0 14 -228856
+#X obj 217 189 cnv 15 420 350 empty empty video 20 12 0 10 -228856
 -66577 0;
-#X obj 435 487 bng 15 250 50 0 empty empty video_on/off 0 -12 0 10
--258113 -1 -1;
-#X msg 427 517 send /video;
-#X obj 532 217 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 10 -203904
--1 -1 10800 1;
-#X obj 445 268 float;
-#X obj 584 219 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 10 -232576
--1 -1 12400 1;
-#X obj 350 267 float;
-#X msg 348 291 send /video/mult/x \$1;
-#X msg 363 319 send /video/mult/y \$1;
-#X obj 237 226 vsl 15 128 0 1 0 0 empty empty video_color 0 -9 0 10
--258113 -1 -1 12700 1;
+#X obj 439 288 bng 15 250 50 0 empty empty video_on/off 0 -12 0 8 -258113
+-1 -1;
+#X msg 416 350 send /video;
+#X obj 528 210 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 8 -203904
+-1 -1 7600 1;
+#X obj 528 450 float;
+#X obj 584 210 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 8 -232576
+-1 -1 7600 1;
+#X obj 582 451 float;
+#X msg 355 382 send /video/mult/x \$1;
+#X msg 355 402 send /video/mult/y \$1;
+#X obj 237 226 vsl 15 128 0 1 0 0 empty empty video_color 0 -9 0 8
+-258113 -1 -1 8700 1;
 #X obj 237 364 float;
 #X obj 259 226 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 0 1;
+-1 -1 6500 1;
 #X obj 275 364 float;
 #X obj 281 225 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
 -1 -1 0 1;
 #X obj 239 382 float;
-#X obj 311 224 vsl 15 128 0 1 0 0 empty empty video_alpha 0 -9 0 10
+#X obj 311 224 vsl 15 128 0 1 0 0 empty empty video_alpha 0 -9 0 8
 -191407 -1 -1 12700 1;
 #X obj 275 383 float;
 #X obj 237 403 pack f f f f;
 #X obj 315 363 trigger;
 #X msg 237 428 send /video/color \$1 \$2 \$3 \$4;
-#X msg 278 516 send /video/volume \$1;
-#X obj 294 488 nbx 5 14 0 100 0 0 empty empty video_volume 0 -8 0 10
--260097 -1 -1 5 256;
-#X obj 496 443 hsl 128 15 -2 2 0 0 empty empty video_speed -2 -8 0
-10 -159808 -262144 -1 9525 1;
-#X obj 430 430 float;
-#X msg 226 456 send /video/speed \$1;
-#X msg 451 355 1;
-#X msg 452 404 -1;
-#X msg 452 379 0;
+#X msg 345 321 send /video/volume \$1;
+#X obj 353 286 nbx 5 14 0 100 0 0 empty empty video_volume 0 -8 0 8
+-260097 -1 -1 0 256;
+#X obj 496 501 hsl 128 15 -2 2 0 0 empty empty video_speed -2 -8 0
+8 -159808 -262144 -1 8550 1;
+#X obj 364 514 float;
+#X msg 236 456 send /video/speed \$1;
+#X msg 446 490 1;
+#X msg 445 441 -1;
+#X msg 445 464 0;
 #X obj 226 513 s osc;
 #X msg 76 -222 0;
 #X msg 110 -222 1;
@@ -397,6 +470,315 @@
 #X msg 541 -192 send /active \$1;
 #X text 77 -244 set active quad;
 #X obj 75 -189 s osc;
+#X obj 31 454 cnv 15 100 60 empty empty empty 20 12 0 14 -233017 -66577
+0;
+#X obj 51 481 bng 25 250 50 0 empty empty CONNECT 0 -12 0 10 -258113
+-1 -1;
+#X obj 51 544 s osc;
+#X floatatom 473 53 4 0 0 0 - - -;
+#X floatatom 65 47 4 0 0 0 - - -;
+#X floatatom 129 46 4 0 0 0 - - -;
+#X floatatom 583 429 4 0 0 0 - - -;
+#X floatatom 527 428 4 0 0 0 - - -;
+#X text 667 -170 QUAD 4;
+#X text 746 -170 QUAD 5;
+#X text 667 -133 QUAD 6;
+#X text 742 -133 QUAD 7;
+#N canvas 542 186 571 628 quad_4 0;
+#X obj 1 -72 float;
+#X obj 162 -71 float;
+#X obj 158 196 float;
+#X obj -3 195 float;
+#X obj -3 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+82 -188;
+#X text 18 152 comment;
+#X text 189 152 comment;
+#X obj 158 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+266 -204;
+#X obj 156 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+258 126;
+#X obj -7 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 52
+143;
+#X obj -16 10 s osc;
+#X obj 157 8 s osc;
+#X obj 156 277 s osc;
+#X obj 3 275 s osc;
+#X floatatom 44 -72 5 0 0 0 - - -;
+#X obj 119 -73 +;
+#X obj 86 -74 abs;
+#X floatatom 206 -72 5 0 0 0 - - -;
+#X obj 282 -72 +;
+#X obj 249 -73 abs;
+#X floatatom 46 200 5 0 0 0 - - -;
+#X obj 121 199 +;
+#X obj 88 198 abs;
+#X floatatom 208 196 5 0 0 0 - - -;
+#X obj 283 195 +;
+#X obj 250 194 abs;
+#X text 1 -251 QUAD 4;
+#X msg 3 -45 send /corners/x 4 0 \$1;
+#X msg 168 -45 send /corners/x 4 1 \$1;
+#X msg 2 -19 send /corners/y 4 0 \$1;
+#X msg 168 -21 send /corners/y 4 1 \$1;
+#X msg 4 224 send /corners/x 4 3 \$1;
+#X msg 2 250 send /corners/y 4 3 \$1;
+#X msg 159 223 send /corners/x 4 2 \$1;
+#X msg 157 250 send /corners/y 4 2 \$1;
+#X connect 0 0 27 0;
+#X connect 1 0 28 0;
+#X connect 2 0 33 0;
+#X connect 3 0 31 0;
+#X connect 4 0 0 0;
+#X connect 4 1 15 0;
+#X connect 7 0 1 0;
+#X connect 7 1 18 0;
+#X connect 8 0 2 0;
+#X connect 8 1 24 0;
+#X connect 9 0 3 0;
+#X connect 9 1 21 0;
+#X connect 14 0 15 1;
+#X connect 15 0 16 0;
+#X connect 16 0 29 0;
+#X connect 17 0 18 1;
+#X connect 18 0 19 0;
+#X connect 19 0 30 0;
+#X connect 20 0 21 1;
+#X connect 21 0 22 0;
+#X connect 22 0 32 0;
+#X connect 23 0 24 1;
+#X connect 24 0 25 0;
+#X connect 25 0 34 0;
+#X connect 27 0 10 0;
+#X connect 28 0 11 0;
+#X connect 29 0 10 0;
+#X connect 30 0 11 0;
+#X connect 31 0 13 0;
+#X connect 32 0 13 0;
+#X connect 33 0 12 0;
+#X connect 34 0 12 0;
+#X restore 668 -152 pd quad_4;
+#N canvas 487 105 450 668 quad_5 0;
+#X obj 28 -53 float;
+#X obj 189 -52 float;
+#X obj 185 215 float;
+#X obj 24 214 float;
+#X obj 24 -214 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+96 -132;
+#X text 45 171 comment;
+#X text 216 171 comment;
+#X obj 185 -214 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+253 -102;
+#X obj 183 52 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+272 133;
+#X obj 20 52 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 114
+162;
+#X obj 11 29 s osc;
+#X obj 184 27 s osc;
+#X obj 183 296 s osc;
+#X obj 30 294 s osc;
+#X floatatom 71 -53 5 0 0 0 - - -;
+#X obj 146 -54 +;
+#X obj 113 -55 abs;
+#X floatatom 233 -53 5 0 0 0 - - -;
+#X obj 309 -53 +;
+#X obj 276 -54 abs;
+#X floatatom 73 219 5 0 0 0 - - -;
+#X obj 148 218 +;
+#X obj 115 217 abs;
+#X floatatom 235 215 5 0 0 0 - - -;
+#X obj 310 214 +;
+#X obj 277 213 abs;
+#X text 28 -232;
+#X text 28 -235 QUAD 5;
+#X msg 30 -26 send /corners/x 5 0 \$1;
+#X msg 29 0 send /corners/y 5 0 \$1;
+#X msg 195 -26 send /corners/x 5 1 \$1;
+#X msg 194 -2 send /corners/y 5 1 \$1;
+#X msg 31 243 send /corners/x 5 3 \$1;
+#X msg 29 269 send /corners/y 5 3 \$1;
+#X msg 186 242 send /corners/x 5 2 \$1;
+#X msg 184 269 send /corners/y 5 2 \$1;
+#X connect 0 0 28 0;
+#X connect 1 0 30 0;
+#X connect 2 0 34 0;
+#X connect 3 0 32 0;
+#X connect 4 0 0 0;
+#X connect 4 1 15 0;
+#X connect 7 0 1 0;
+#X connect 7 1 18 0;
+#X connect 8 0 2 0;
+#X connect 8 1 24 0;
+#X connect 9 0 3 0;
+#X connect 9 1 21 0;
+#X connect 14 0 15 1;
+#X connect 15 0 16 0;
+#X connect 16 0 29 0;
+#X connect 17 0 18 1;
+#X connect 18 0 19 0;
+#X connect 19 0 31 0;
+#X connect 20 0 21 1;
+#X connect 21 0 22 0;
+#X connect 22 0 33 0;
+#X connect 23 0 24 1;
+#X connect 24 0 25 0;
+#X connect 25 0 35 0;
+#X connect 28 0 10 0;
+#X connect 29 0 10 0;
+#X connect 30 0 11 0;
+#X connect 31 0 11 0;
+#X connect 32 0 13 0;
+#X connect 33 0 13 0;
+#X connect 34 0 12 0;
+#X connect 35 0 12 0;
+#X restore 746 -150 pd quad_5;
+#N canvas 610 105 450 668 quad_6 0;
+#X obj 28 -54 float;
+#X obj 189 -53 float;
+#X obj 185 214 float;
+#X obj 24 213 float;
+#X obj 24 -215 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+94 -144;
+#X text 45 170 comment;
+#X text 216 170 comment;
+#X obj 185 -215 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+253 -103;
+#X obj 183 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+272 132;
+#X obj 20 51 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 114
+161;
+#X obj 11 28 s osc;
+#X obj 184 26 s osc;
+#X obj 183 295 s osc;
+#X obj 30 293 s osc;
+#X floatatom 71 -54 5 0 0 0 - - -;
+#X obj 146 -55 +;
+#X obj 113 -56 abs;
+#X floatatom 233 -54 5 0 0 0 - - -;
+#X obj 309 -54 +;
+#X obj 276 -55 abs;
+#X floatatom 73 218 5 0 0 0 - - -;
+#X obj 148 217 +;
+#X obj 115 216 abs;
+#X floatatom 235 214 5 0 0 0 - - -;
+#X obj 310 213 +;
+#X obj 277 212 abs;
+#X text 28 -233;
+#X text 28 -235 QUAD 6;
+#X msg 31 -27 send /corners/x 6 0 \$1;
+#X msg 195 -27 send /corners/x 6 1 \$1;
+#X msg 29 -1 send /corners/y 6 0 \$1;
+#X msg 194 -3 send /corners/y 6 1 \$1;
+#X msg 31 242 send /corners/x 6 3 \$1;
+#X msg 29 268 send /corners/y 6 3 \$1;
+#X msg 186 241 send /corners/x 6 2 \$1;
+#X msg 184 267 send /corners/y 6 2 \$1;
+#X connect 0 0 28 0;
+#X connect 1 0 29 0;
+#X connect 2 0 34 0;
+#X connect 3 0 32 0;
+#X connect 4 0 0 0;
+#X connect 4 1 15 0;
+#X connect 7 0 1 0;
+#X connect 7 1 18 0;
+#X connect 8 0 2 0;
+#X connect 8 1 24 0;
+#X connect 9 0 3 0;
+#X connect 9 1 21 0;
+#X connect 14 0 15 1;
+#X connect 15 0 16 0;
+#X connect 16 0 30 0;
+#X connect 17 0 18 1;
+#X connect 18 0 19 0;
+#X connect 19 0 31 0;
+#X connect 20 0 21 1;
+#X connect 21 0 22 0;
+#X connect 22 0 33 0;
+#X connect 23 0 24 1;
+#X connect 24 0 25 0;
+#X connect 25 0 35 0;
+#X connect 28 0 10 0;
+#X connect 29 0 11 0;
+#X connect 30 0 10 0;
+#X connect 31 0 11 0;
+#X connect 32 0 13 0;
+#X connect 33 0 13 0;
+#X connect 34 0 12 0;
+#X connect 35 0 12 0;
+#X restore 668 -116 pd quad_6;
+#N canvas 810 159 450 668 quad_7 0;
+#X obj 29 -52 float;
+#X obj 190 -51 float;
+#X obj 186 216 float;
+#X obj 25 215 float;
+#X obj 25 -213 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+66 -175;
+#X text 46 172 comment;
+#X text 217 172 comment;
+#X obj 186 -213 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+294 -183;
+#X obj 184 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
+296 108 ;
+#X obj 21 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 26
+115;
+#X obj 12 30 s osc;
+#X obj 185 28 s osc;
+#X obj 184 297 s osc;
+#X obj 31 295 s osc;
+#X floatatom 72 -52 5 0 0 0 - - -;
+#X obj 147 -53 +;
+#X obj 114 -54 abs;
+#X floatatom 234 -52 5 0 0 0 - - -;
+#X obj 310 -52 +;
+#X obj 277 -53 abs;
+#X floatatom 74 220 5 0 0 0 - - -;
+#X obj 149 219 +;
+#X obj 116 218 abs;
+#X floatatom 236 216 5 0 0 0 - - -;
+#X obj 311 215 +;
+#X obj 278 214 abs;
+#X text 29 -232;
+#X text 28 -235 QUAD 7;
+#X msg 31 -25 send /corners/x 7 0 \$1;
+#X msg 197 -25 send /corners/x 7 1 \$1;
+#X msg 30 1 send /corners/y 7 0 \$1;
+#X msg 194 -2 send /corners/y 7 1 \$1;
+#X msg 32 243 send /corners/x 7 3 \$1;
+#X msg 30 270 send /corners/y 7 3 \$1;
+#X msg 187 243 send /corners/x 7 2 \$1;
+#X msg 185 270 send /corners/y 7 2 \$1;
+#X connect 0 0 28 0;
+#X connect 1 0 29 0;
+#X connect 2 0 34 0;
+#X connect 3 0 32 0;
+#X connect 4 0 0 0;
+#X connect 4 1 15 0;
+#X connect 7 0 1 0;
+#X connect 7 1 18 0;
+#X connect 8 0 2 0;
+#X connect 8 1 24 0;
+#X connect 9 0 3 0;
+#X connect 9 1 21 0;
+#X connect 14 0 15 1;
+#X connect 15 0 16 0;
+#X connect 16 0 30 0;
+#X connect 17 0 18 1;
+#X connect 18 0 19 0;
+#X connect 19 0 31 0;
+#X connect 20 0 21 1;
+#X connect 21 0 22 0;
+#X connect 22 0 33 0;
+#X connect 23 0 24 1;
+#X connect 24 0 25 0;
+#X connect 25 0 35 0;
+#X connect 28 0 10 0;
+#X connect 29 0 11 0;
+#X connect 30 0 10 0;
+#X connect 31 0 11 0;
+#X connect 32 0 13 0;
+#X connect 33 0 13 0;
+#X connect 34 0 12 0;
+#X connect 35 0 12 0;
+#X restore 744 -116 pd quad_7;
 #X connect 0 0 1 0;
 #X connect 0 1 7 0;
 #X connect 2 0 0 0;
@@ -404,7 +786,7 @@
 #X connect 4 0 0 0;
 #X connect 5 0 0 0;
 #X connect 6 0 0 0;
-#X connect 12 0 0 0;
+#X connect 12 0 143 0;
 #X connect 15 0 0 0;
 #X connect 18 0 17 0;
 #X connect 19 0 18 0;
@@ -423,10 +805,12 @@
 #X connect 29 0 28 0;
 #X connect 30 0 29 0;
 #X connect 31 0 32 0;
+#X connect 31 0 145 0;
 #X connect 32 0 33 0;
 #X connect 33 0 17 0;
 #X connect 34 0 17 0;
 #X connect 35 0 36 0;
+#X connect 35 0 146 0;
 #X connect 36 0 34 0;
 #X connect 40 0 41 0;
 #X connect 41 0 48 0;
@@ -475,13 +859,16 @@
 #X connect 87 0 88 0;
 #X connect 88 0 73 0;
 #X connect 89 0 90 0;
+#X connect 89 0 144 0;
 #X connect 90 0 91 0;
 #X connect 91 0 73 0;
 #X connect 93 0 94 0;
 #X connect 94 0 120 0;
 #X connect 95 0 96 0;
+#X connect 95 0 148 0;
 #X connect 96 0 99 0;
 #X connect 97 0 98 0;
+#X connect 97 0 147 0;
 #X connect 98 0 100 0;
 #X connect 99 0 120 0;
 #X connect 100 0 120 0;
@@ -504,11 +891,8 @@
 #X connect 114 0 115 0;
 #X connect 115 0 116 0;
 #X connect 116 0 120 0;
-#X connect 117 0 115 0;
 #X connect 117 0 114 0;
-#X connect 118 0 115 0;
 #X connect 118 0 114 0;
-#X connect 119 0 115 0;
 #X connect 119 0 114 0;
 #X connect 121 0 138 0;
 #X connect 122 0 138 0;
@@ -528,3 +912,9 @@
 #X connect 136 0 138 0;
 #X connect 137 0 138 0;
 #X connect 138 0 140 0;
+#X connect 142 0 12 0;
+#X connect 144 0 90 0;
+#X connect 145 0 32 0;
+#X connect 146 0 36 0;
+#X connect 147 0 98 0;
+#X connect 148 0 96 0;
