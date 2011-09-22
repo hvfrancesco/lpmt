@@ -1,4 +1,4 @@
-#N canvas 270 63 1257 867 10;
+#N canvas 642 90 1257 867 10;
 #X obj -136 545 sendOSC;
 #X floatatom -136 574 5 0 0 0 - - -;
 #X msg -173 639 disconnect;
@@ -18,33 +18,29 @@
 #X obj -90 -165 cnv 15 300 350 empty empty image_in_active_quad 20
 12 0 10 -233017 -66577 0;
 #X obj -71 151 s osc;
-#X msg -72 -88 send /img;
 #X obj -72 -121 bng 15 250 50 0 empty empty toggle_img 0 -12 0 8 -258113
 -1 -1;
-#X obj -4 -132 vsl 15 128 0 1 0 0 empty empty color 0 -9 0 8 -258113
--1 -1 12700 1;
+#X obj 32 -134 vsl 15 128 0 1 0 0 empty empty color 0 -9 0 8 -258113
+-1 -1 0 1;
 #X obj -74 8 float;
-#X obj 18 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 12700 1;
+#X obj 54 -134 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
+-1 -1 0 1;
 #X obj -73 29 float;
-#X obj 39 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
--1 -1 12700 1;
+#X obj 75 -134 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
+-1 -1 0 1;
 #X obj -36 9 float;
-#X obj 62 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -191407
--1 -1 12700 1;
+#X obj 98 -134 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -191407
+-1 -1 0 1;
 #X obj -36 30 float;
-#X msg -70 75 send /img/color \$1 \$2 \$3 \$4;
 #X obj -69 50 pack f f f f;
 #X obj -74 -19 trigger;
-#X obj 108 -132 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 8 -203904
--1 -1 6000 1;
-#X obj 108 81 float;
-#X msg -70 102 send /img/mult/x \$1;
-#X msg -71 125 send /img/mult/y \$1;
-#X obj 160 -132 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 8 -232576
--1 -1 4800 1;
-#X obj 159 80 float;
-#N canvas 539 105 571 628 quad_0 0;
+#X obj 122 -133 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 8 -203904
+-1 -1 0 1;
+#X obj 109 100 float;
+#X obj 170 -132 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 8 -232576
+-1 -1 0 1;
+#X obj 158 99 float;
+#N canvas 779 165 571 628 quad_0 0;
 #X obj 1 -72 float;
 #X msg 3 -45 send /corners/x 0 0 \$1;
 #X msg 2 -19 send /corners/y 0 0 \$1;
@@ -59,15 +55,15 @@
 #X msg 2 250 send /corners/y 0 3 \$1;
 #X text 1 -251 QUAD 0;
 #X obj -3 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-38 -195;
+53 -184;
 #X text 18 152 comment;
 #X text 189 152 comment;
 #X obj 158 -233 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-266 -204;
+245 -144;
 #X obj 156 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-258 126;
-#X obj -7 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 52
-143;
+228 95;
+#X obj -7 33 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 56
+107;
 #X obj -16 10 s osc;
 #X obj 157 8 s osc;
 #X obj 156 277 s osc;
@@ -149,7 +145,7 @@
 #X floatatom 235 215 5 0 0 0 - - -;
 #X obj 310 214 +;
 #X obj 277 213 abs;
-#X text 28 -232;
+#X text 28 -232 comment;
 #X msg 30 -26 send /corners/x 1 0 \$1;
 #X msg 195 -26 send /corners/x 1 1 \$1;
 #X msg 29 0 send /corners/y 1 0 \$1;
@@ -195,23 +191,18 @@
 10 -191407 -66577 0;
 #X obj -83 226 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
 -1 -1;
-#X msg -83 248 send /resync;
 #X obj 0 225 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
 -1;
 #X obj 73 225 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
 -1;
 #X obj 147 224 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
 -1 -1;
-#X msg 147 249 send /mpe;
-#X msg 0 248 send /stop;
-#X msg 70 248 send /start;
 #X obj -83 288 s osc;
 #X obj -90 317 cnv 15 300 120 empty empty appearance 20 12 0 10 -162280
 -66577 0;
 #X obj -81 409 s osc;
 #X obj 88 348 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144 -1
 -1;
-#X msg 88 377 send /fullscreen;
 #X obj -79 345 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
 -1 -1;
 #X msg -79 377 send /gui;
@@ -250,7 +241,7 @@
 #X floatatom 235 214 5 0 0 0 - - -;
 #X obj 310 213 +;
 #X obj 277 212 abs;
-#X text 28 -233;
+#X text 28 -233 comment;
 #X msg 30 -27 send /corners/x 2 0 \$1;
 #X msg 29 -1 send /corners/y 2 0 \$1;
 #X msg 195 -27 send /corners/x 2 1 \$1;
@@ -326,7 +317,7 @@
 #X floatatom 236 216 5 0 0 0 - - -;
 #X obj 311 215 +;
 #X obj 278 214 abs;
-#X text 29 -232;
+#X text 29 -232 comment;
 #X msg 31 -25 send /corners/x 3 0 \$1;
 #X msg 30 1 send /corners/y 3 0 \$1;
 #X msg 197 -25 send /corners/x 3 1 \$1;
@@ -371,84 +362,73 @@
 #X obj 218 -166 cnv 15 420 350 empty empty solid_color 20 12 0 10 -228856
 -66577 0;
 #X obj 240 -131 vsl 15 128 0 1 0 0 empty empty first_color 0 -9 0 8
--258113 -1 -1 8100 1;
+-258113 -1 -1 4800 1;
 #X obj 227 7 float;
 #X obj 261 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 2200 1;
+-1 -1 0 1;
 #X obj 265 7 float;
 #X obj 284 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
--1 -1 2300 1;
+-1 -1 0 1;
 #X obj 228 28 float;
 #X obj 306 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -162280
--1 -1 12700 1;
+-1 -1 11200 1;
 #X obj 266 29 float;
 #X obj 230 51 pack f f f f;
 #X obj 303 7 trigger;
-#X msg 231 75 send /solid/color \$1 \$2 \$3 \$4;
 #X obj 231 154 s osc;
 #X obj 386 -131 vsl 15 128 0 1 0 0 empty empty second_color 0 -9 0
-8 -258113 -1 -1 6900 1;
+8 -258113 -1 -1 2200 1;
 #X obj 385 8 float;
 #X obj 410 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 9000 1;
+-1 -1 0 1;
 #X obj 423 8 float;
 #X obj 433 -131 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
--1 -1 0 1;
+-1 -1 9700 1;
 #X obj 385 29 float;
 #X obj 458 -132 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -162280
 -1 -1 12700 1;
 #X obj 426 30 float;
 #X obj 386 51 pack f f f f;
 #X obj 333 30 trigger;
-#X msg 225 98 send /solid/trans/color \$1 \$2 \$3 \$4;
 #X obj 492 118 bng 15 250 50 0 empty empty toggle_solid_color 0 -12
 0 8 -258113 -1 -1;
-#X msg 276 154 send /solid;
 #X obj 492 153 bng 15 250 50 0 empty empty toggle_transition_color
 0 -12 0 8 -258113 -1 -1;
-#X msg 359 153 send /solid/trans;
 #X obj 511 -133 vsl 15 200 0.25 60 1 0 empty empty transition_duration
-0 -9 0 8 -232576 -1 -1 12000 1;
+0 -9 0 8 -232576 -1 -1 8900 1;
 #X obj 506 75 float;
-#X msg 226 121 send /solid/trans/duration \$1;
 #X obj 217 189 cnv 15 420 350 empty empty video 20 12 0 10 -228856
 -66577 0;
 #X obj 439 288 bng 15 250 50 0 empty empty video_on/off 0 -12 0 8 -258113
 -1 -1;
-#X msg 416 350 send /video;
 #X obj 528 210 vsl 15 200 0 5 0 0 empty empty mult_X 0 -9 0 8 -203904
--1 -1 7600 1;
+-1 -1 4500 1;
 #X obj 528 450 float;
 #X obj 584 210 vsl 15 200 0 5 0 0 empty empty mult_Y 0 -9 0 8 -232576
--1 -1 7600 1;
+-1 -1 5100 1;
 #X obj 582 451 float;
-#X msg 355 382 send /video/mult/x \$1;
-#X msg 355 402 send /video/mult/y \$1;
 #X obj 237 226 vsl 15 128 0 1 0 0 empty empty video_color 0 -9 0 8
--258113 -1 -1 8700 1;
+-258113 -1 -1 9500 1;
 #X obj 237 364 float;
 #X obj 259 226 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4034
--1 -1 6500 1;
+-1 -1 5600 1;
 #X obj 275 364 float;
 #X obj 281 225 vsl 15 128 0 1 0 0 empty empty empty 0 -9 0 10 -4160
--1 -1 0 1;
+-1 -1 6600 1;
 #X obj 239 382 float;
 #X obj 311 224 vsl 15 128 0 1 0 0 empty empty video_alpha 0 -9 0 8
 -191407 -1 -1 12700 1;
 #X obj 275 383 float;
 #X obj 237 403 pack f f f f;
 #X obj 315 363 trigger;
-#X msg 237 428 send /video/color \$1 \$2 \$3 \$4;
-#X msg 345 321 send /video/volume \$1;
 #X obj 353 286 nbx 5 14 0 100 0 0 empty empty video_volume 0 -8 0 8
 -260097 -1 -1 0 256;
 #X obj 496 501 hsl 128 15 -2 2 0 0 empty empty video_speed -2 -8 0
-8 -159808 -262144 -1 8550 1;
+8 -159808 -262144 -1 9525 1;
 #X obj 364 514 float;
-#X msg 236 456 send /video/speed \$1;
 #X msg 446 490 1;
-#X msg 445 441 -1;
-#X msg 445 464 0;
+#X msg 446 447 -1;
+#X msg 446 468 0;
 #X obj 226 513 s osc;
 #X msg 76 -222 0;
 #X msg 110 -222 1;
@@ -467,7 +447,6 @@
 #X msg 551 -222 14;
 #X msg 584 -222 15;
 #X msg 619 -222 16;
-#X msg 541 -192 send /active \$1;
 #X text 77 -244 set active quad;
 #X obj 75 -189 s osc;
 #X obj 31 454 cnv 15 100 60 empty empty empty 20 12 0 14 -233017 -66577
@@ -476,15 +455,15 @@
 -1 -1;
 #X obj 51 544 s osc;
 #X floatatom 473 53 4 0 0 0 - - -;
-#X floatatom 65 47 4 0 0 0 - - -;
-#X floatatom 129 46 4 0 0 0 - - -;
+#X floatatom 81 45 4 0 0 0 - - -;
+#X floatatom 141 44 4 0 0 0 - - -;
 #X floatatom 583 429 4 0 0 0 - - -;
 #X floatatom 527 428 4 0 0 0 - - -;
 #X text 667 -170 QUAD 4;
 #X text 746 -170 QUAD 5;
 #X text 667 -133 QUAD 6;
 #X text 742 -133 QUAD 7;
-#N canvas 542 186 571 628 quad_4 0;
+#N canvas 543 213 571 628 quad_4 0;
 #X obj 1 -72 float;
 #X obj 162 -71 float;
 #X obj 158 196 float;
@@ -588,7 +567,7 @@
 #X floatatom 235 215 5 0 0 0 - - -;
 #X obj 310 214 +;
 #X obj 277 213 abs;
-#X text 28 -232;
+#X text 28 -232 comment;
 #X text 28 -235 QUAD 5;
 #X msg 30 -26 send /corners/x 5 0 \$1;
 #X msg 29 0 send /corners/y 5 0 \$1;
@@ -662,7 +641,7 @@
 #X floatatom 235 214 5 0 0 0 - - -;
 #X obj 310 213 +;
 #X obj 277 212 abs;
-#X text 28 -233;
+#X text 28 -233 comment;
 #X text 28 -235 QUAD 6;
 #X msg 31 -27 send /corners/x 6 0 \$1;
 #X msg 195 -27 send /corners/x 6 1 \$1;
@@ -717,7 +696,7 @@
 #X obj 186 -213 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
 294 -183;
 #X obj 184 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10
-296 108 ;
+296 108;
 #X obj 21 53 grid quad0_corner0 150 0 1 150 0 1 0 0.01 0.01 10 10 26
 115;
 #X obj 12 30 s osc;
@@ -736,7 +715,7 @@
 #X floatatom 236 216 5 0 0 0 - - -;
 #X obj 311 215 +;
 #X obj 278 214 abs;
-#X text 29 -232;
+#X text 29 -232 comment;
 #X text 28 -235 QUAD 7;
 #X msg 31 -25 send /corners/x 7 0 \$1;
 #X msg 197 -25 send /corners/x 7 1 \$1;
@@ -779,6 +758,27 @@
 #X connect 34 0 12 0;
 #X connect 35 0 12 0;
 #X restore 744 -116 pd quad_7;
+#X msg 541 -192 send /active/set \$1;
+#X msg -79 -79 send /active/img;
+#X msg -70 75 send /active/img/color \$1 \$2 \$3 \$4;
+#X msg -70 102 send /active/img/mult/x \$1;
+#X msg -71 125 send /active/img/mult/y \$1;
+#X msg 231 75 send /active/solid/color \$1 \$2 \$3 \$4;
+#X msg 225 98 send /active/solid/trans/color \$1 \$2 \$3 \$4;
+#X msg 226 122 send /active/solid/trans/duration \$1;
+#X msg 272 142 send /active/solid;
+#X msg 272 162 send /active/solid/trans;
+#X msg -83 248 send /projection/resync;
+#X msg 70 248 send /projection/start;
+#X msg -22 268 send /projection/stop;
+#X msg 59 289 send /projection/mpe;
+#X msg 31 406 send /projection/fullscreen;
+#X msg 237 425 send /active/video/color \$1 \$2 \$3 \$4;
+#X msg 336 384 send /active/video/mult/x \$1;
+#X msg 337 404 send /active/video/mult/y \$1;
+#X msg 345 321 send /active/video/volume \$1;
+#X msg 384 352 send /active/video;
+#X msg 235 456 send /active/video/speed \$1;
 #X connect 0 0 1 0;
 #X connect 0 1 7 0;
 #X connect 2 0 0 0;
@@ -786,135 +786,135 @@
 #X connect 4 0 0 0;
 #X connect 5 0 0 0;
 #X connect 6 0 0 0;
-#X connect 12 0 143 0;
+#X connect 12 0 122 0;
 #X connect 15 0 0 0;
-#X connect 18 0 17 0;
-#X connect 19 0 18 0;
-#X connect 20 0 21 0;
-#X connect 21 0 29 0;
-#X connect 22 0 23 0;
-#X connect 23 0 30 0;
-#X connect 23 0 29 1;
-#X connect 24 0 25 0;
-#X connect 25 0 30 0;
-#X connect 25 0 29 2;
-#X connect 26 0 27 0;
-#X connect 27 0 30 0;
-#X connect 27 0 29 3;
-#X connect 28 0 17 0;
-#X connect 29 0 28 0;
-#X connect 30 0 29 0;
+#X connect 18 0 137 0;
+#X connect 19 0 20 0;
+#X connect 20 0 27 0;
+#X connect 21 0 22 0;
+#X connect 22 0 28 0;
+#X connect 22 0 27 1;
+#X connect 23 0 24 0;
+#X connect 24 0 28 0;
+#X connect 24 0 27 2;
+#X connect 25 0 26 0;
+#X connect 26 0 28 0;
+#X connect 26 0 27 3;
+#X connect 27 0 138 0;
+#X connect 28 0 27 0;
+#X connect 29 0 30 0;
+#X connect 29 0 124 0;
+#X connect 30 0 139 0;
 #X connect 31 0 32 0;
-#X connect 31 0 145 0;
-#X connect 32 0 33 0;
-#X connect 33 0 17 0;
-#X connect 34 0 17 0;
-#X connect 35 0 36 0;
-#X connect 35 0 146 0;
-#X connect 36 0 34 0;
-#X connect 40 0 41 0;
-#X connect 41 0 48 0;
-#X connect 42 0 46 0;
-#X connect 43 0 47 0;
+#X connect 31 0 125 0;
+#X connect 32 0 140 0;
+#X connect 36 0 146 0;
+#X connect 37 0 148 0;
+#X connect 38 0 147 0;
+#X connect 39 0 149 0;
+#X connect 43 0 150 0;
 #X connect 44 0 45 0;
-#X connect 45 0 48 0;
-#X connect 46 0 48 0;
-#X connect 47 0 48 0;
-#X connect 51 0 52 0;
-#X connect 52 0 50 0;
+#X connect 45 0 42 0;
+#X connect 46 0 47 0;
+#X connect 47 0 42 0;
 #X connect 53 0 54 0;
-#X connect 54 0 50 0;
+#X connect 54 0 61 0;
 #X connect 55 0 56 0;
-#X connect 56 0 50 0;
-#X connect 62 0 63 0;
-#X connect 63 0 70 0;
+#X connect 56 0 62 0;
+#X connect 56 0 61 1;
+#X connect 57 0 58 0;
+#X connect 58 0 62 0;
+#X connect 58 0 61 2;
+#X connect 59 0 60 0;
+#X connect 60 0 62 0;
+#X connect 60 0 61 3;
+#X connect 61 0 141 0;
+#X connect 62 0 61 0;
 #X connect 64 0 65 0;
-#X connect 65 0 71 0;
-#X connect 65 0 70 1;
+#X connect 65 0 72 0;
 #X connect 66 0 67 0;
-#X connect 67 0 71 0;
-#X connect 67 0 70 2;
+#X connect 67 0 73 0;
+#X connect 67 0 72 1;
 #X connect 68 0 69 0;
-#X connect 69 0 71 0;
-#X connect 69 0 70 3;
-#X connect 70 0 72 0;
-#X connect 71 0 70 0;
-#X connect 72 0 73 0;
-#X connect 74 0 75 0;
-#X connect 75 0 82 0;
+#X connect 69 0 73 0;
+#X connect 69 0 72 2;
+#X connect 70 0 71 0;
+#X connect 71 0 73 0;
+#X connect 71 0 72 3;
+#X connect 72 0 142 0;
+#X connect 73 0 72 0;
+#X connect 74 0 144 0;
+#X connect 75 0 145 0;
 #X connect 76 0 77 0;
-#X connect 77 0 83 0;
-#X connect 77 0 82 1;
-#X connect 78 0 79 0;
-#X connect 79 0 83 0;
-#X connect 79 0 82 2;
+#X connect 76 0 123 0;
+#X connect 77 0 143 0;
+#X connect 79 0 155 0;
 #X connect 80 0 81 0;
-#X connect 81 0 83 0;
-#X connect 81 0 82 3;
-#X connect 82 0 84 0;
-#X connect 83 0 82 0;
-#X connect 84 0 73 0;
-#X connect 85 0 86 0;
-#X connect 86 0 73 0;
-#X connect 87 0 88 0;
-#X connect 88 0 73 0;
-#X connect 89 0 90 0;
-#X connect 89 0 144 0;
+#X connect 80 0 127 0;
+#X connect 81 0 152 0;
+#X connect 82 0 83 0;
+#X connect 82 0 126 0;
+#X connect 83 0 153 0;
+#X connect 84 0 85 0;
+#X connect 85 0 92 0;
+#X connect 86 0 87 0;
+#X connect 87 0 93 0;
+#X connect 87 0 92 1;
+#X connect 88 0 89 0;
+#X connect 89 0 93 0;
+#X connect 89 0 92 2;
 #X connect 90 0 91 0;
-#X connect 91 0 73 0;
-#X connect 93 0 94 0;
-#X connect 94 0 120 0;
+#X connect 91 0 93 0;
+#X connect 91 0 92 3;
+#X connect 92 0 151 0;
+#X connect 93 0 92 0;
+#X connect 94 0 154 0;
 #X connect 95 0 96 0;
-#X connect 95 0 148 0;
-#X connect 96 0 99 0;
-#X connect 97 0 98 0;
-#X connect 97 0 147 0;
-#X connect 98 0 100 0;
-#X connect 99 0 120 0;
-#X connect 100 0 120 0;
-#X connect 101 0 102 0;
-#X connect 102 0 109 0;
-#X connect 103 0 104 0;
-#X connect 104 0 110 0;
-#X connect 104 0 109 1;
-#X connect 105 0 106 0;
-#X connect 106 0 110 0;
-#X connect 106 0 109 2;
-#X connect 107 0 108 0;
-#X connect 108 0 110 0;
-#X connect 108 0 109 3;
-#X connect 109 0 111 0;
-#X connect 110 0 109 0;
-#X connect 111 0 120 0;
-#X connect 112 0 120 0;
-#X connect 113 0 112 0;
-#X connect 114 0 115 0;
-#X connect 115 0 116 0;
-#X connect 116 0 120 0;
-#X connect 117 0 114 0;
-#X connect 118 0 114 0;
-#X connect 119 0 114 0;
-#X connect 121 0 138 0;
-#X connect 122 0 138 0;
-#X connect 123 0 138 0;
-#X connect 124 0 138 0;
-#X connect 125 0 138 0;
-#X connect 126 0 138 0;
-#X connect 127 0 138 0;
-#X connect 128 0 138 0;
-#X connect 129 0 138 0;
-#X connect 130 0 138 0;
-#X connect 131 0 138 0;
-#X connect 132 0 138 0;
-#X connect 133 0 138 0;
-#X connect 134 0 138 0;
-#X connect 135 0 138 0;
-#X connect 136 0 138 0;
-#X connect 137 0 138 0;
-#X connect 138 0 140 0;
-#X connect 142 0 12 0;
-#X connect 144 0 90 0;
-#X connect 145 0 32 0;
-#X connect 146 0 36 0;
-#X connect 147 0 98 0;
-#X connect 148 0 96 0;
+#X connect 96 0 156 0;
+#X connect 97 0 95 0;
+#X connect 98 0 95 0;
+#X connect 99 0 95 0;
+#X connect 101 0 136 0;
+#X connect 102 0 136 0;
+#X connect 103 0 136 0;
+#X connect 104 0 136 0;
+#X connect 105 0 136 0;
+#X connect 106 0 136 0;
+#X connect 107 0 136 0;
+#X connect 108 0 136 0;
+#X connect 109 0 136 0;
+#X connect 110 0 136 0;
+#X connect 111 0 136 0;
+#X connect 112 0 136 0;
+#X connect 113 0 136 0;
+#X connect 114 0 136 0;
+#X connect 115 0 136 0;
+#X connect 116 0 136 0;
+#X connect 117 0 136 0;
+#X connect 121 0 12 0;
+#X connect 123 0 77 0;
+#X connect 124 0 30 0;
+#X connect 125 0 32 0;
+#X connect 126 0 83 0;
+#X connect 127 0 81 0;
+#X connect 136 0 119 0;
+#X connect 137 0 17 0;
+#X connect 138 0 17 0;
+#X connect 139 0 17 0;
+#X connect 140 0 17 0;
+#X connect 141 0 63 0;
+#X connect 142 0 63 0;
+#X connect 143 0 63 0;
+#X connect 144 0 63 0;
+#X connect 145 0 63 0;
+#X connect 146 0 40 0;
+#X connect 147 0 40 0;
+#X connect 148 0 40 0;
+#X connect 149 0 40 0;
+#X connect 150 0 42 0;
+#X connect 151 0 100 0;
+#X connect 152 0 100 0;
+#X connect 153 0 100 0;
+#X connect 154 0 100 0;
+#X connect 155 0 100 0;
+#X connect 156 0 100 0;

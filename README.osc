@@ -21,23 +21,23 @@ In LPMT data folder you can find a PureData patch as an example, and a TouchOsc 
 
     Set active quad
     ----------------------------------
-    /active		int32	quad n.
+    /active/set		int32	quad n.
 
 
     Projection control
     ----------------------------------
 
     Resync videos, slideshows and color transitions
-    /resync
+    /projection/resync
 
     Stop projection
-    /stop
+    /projection/stop
 
     Start projection
-    /start
+    /projection/start
 
     Toggle fullscreen
-    /fullscreen
+    /projection/fullscreen
 
     Toggle gui
     /gui
@@ -46,88 +46,93 @@ In LPMT data folder you can find a PureData patch as an example, and a TouchOsc 
     /setup
 
     Connects to mpe server
-    /mpe
+    /projection/mpe
 
+    Saves setup to xml file
+    /projection/save
+
+    Loads setup from xml file
+    /projection/load
 
     Active quad setup (following messages will always be applied to active quad)
     ---------------------------------
 
     Active quad, vertices coordinates
     ---   
-    /corners/active/0	ff	vertex 0 coordinate x, 	vertex 0 coordinate y (0 - 1.0)
-    /corners/active/1	ff	vertex 1 coordinate x, 	vertex 1 coordinate y (0 - 1.0)
-    /corners/active/2	ff	vertex 2 coordinate x, 	vertex 2 coordinate y (0 - 1.0)
-    /corners/active/3	ff	vertex 3 coordinate x, 	vertex 3 coordinate y (0 - 1.0)
+    /active/corners/0	ff	vertex 0 coordinate x, 	vertex 0 coordinate y (0 - 1.0)
+    /active/corners/1	ff	vertex 1 coordinate x, 	vertex 1 coordinate y (0 - 1.0)
+    /active/corners/2	ff	vertex 2 coordinate x, 	vertex 2 coordinate y (0 - 1.0)
+    /active/corners/3	ff	vertex 3 coordinate x, 	vertex 3 coordinate y (0 - 1.0)
 
     Image stuff on active quad
     ---
     Toggle img on/off
-    /img
+    /active/img
 
     Sets img hue (all components at once, taking 4 arguments for r,g,b,alpha)
-    /img/color		ffff	r,g,b,alpha (0 - 1.0)
+    /active/img/color		ffff	r,g,b,alpha (0 - 1.0)
 
     Sets img hue single channels
-    /img/color/1	f	red component (0 - 1.0)
-    /img/color/2	f	green component (0 - 1.0)
-    /img/color/3	f	blue component (0 - 1.0)
-    /img/color/4	f	alpha component (0 - 1.0)
+    /active/img/color/1		f	red component (0 - 1.0)
+    /active/img/color/2		f	green component (0 - 1.0)
+    /active/img/color/3		f	blue component (0 - 1.0)
+    /active/img/color/4		f	alpha component (0 - 1.0)
     
     Image dimension multiplier on x and y axis
-    /img/mult/x		f	img x multiplier (0 - 5.0)
-    /img/mult/y		f	img y multiplier (0 - 5.0)
+    /active/img/mult/x		f	img x multiplier (0 - 5.0)
+    /active/img/mult/y		f	img y multiplier (0 - 5.0)
     
     Solid color stuff on active quad
     ---
     Toggle solid color on/off
-    /solid
+    /active/solid
 
     Sets first solid color (all components at once, taking 4 arguments for r,g,b,alpha)v
-    /solid/color	ffff	r,g,b,alpha (0 - 1.0)
+    /active/solid/color		ffff	r,g,b,alpha (0 - 1.0)
 
     Sets first solid color single channels
-    /solid/color/1	f	red component (0 - 1.0)
-    /solid/color/2	f	green component (0 - 1.0)
-    /solid/color/3	f	blue component (0 - 1.0)
-    /solid/color/4	f	alpha component (0 - 1.0)
+    /active/solid/color/1	f	red component (0 - 1.0)
+    /active/solid/color/2	f	green component (0 - 1.0)
+    /active/solid/color/3	f	blue component (0 - 1.0)
+    /active/solid/color/4	f	alpha component (0 - 1.0)
 
     Toggle second color on/off
-    /solid/trans
+    /active/solid/trans
  
     Sets second color (all components at once, taking 4 arguments for r,g,b,alpha)v
-    /solid/trans/color	ffff	r,g,b,alpha (0 - 1.0)
+    /active/solid/trans/color	ffff	r,g,b,alpha (0 - 1.0)
 
     Sets second color single channels
-    /solid/trans/color/1	f	red component (0 - 1.0)
-    /solid/trans/color/2	f	green component (0 - 1.0)
-    /solid/trans/color/3	f	blue component (0 - 1.0)
-    /solid/trans/color/4	f	alpha component (0 - 1.0)
+    /active/solid/trans/color/1		f	red component (0 - 1.0)
+    /active/solid/trans/color/2		f	green component (0 - 1.0)
+    /active/solid/trans/color/3		f	blue component (0 - 1.0)
+    /active/solid/trans/color/4		f	alpha component (0 - 1.0)
 
     Color transition duration	
-    /solid/trans/duration	f	duration of transition (0 - 60.0)
+    /active/solid/trans/duration	f	duration of transition (0 - 60.0)
 
     Video on active quad
     ---
     Toggle video on/off
-    /video
+    /active/video
     
     Sets video hue (all components at once, taking 4 arguments for r,g,b,alpha)
-    /video/color		ffff	r,g,b,alpha (0 - 1.0)
+    /active/video/color		ffff	r,g,b,alpha (0 - 1.0)
 
     Sets video hue single channels
-    /video/color/1	f	red component (0 - 1.0)
-    /video/color/2	f	green component (0 - 1.0)
-    /video/color/3	f	blue component (0 - 1.0)
-    /video/color/4	f	alpha component (0 - 1.0)
+    /active/video/color/1	f	red component (0 - 1.0)
+    /active/video/color/2	f	green component (0 - 1.0)
+    /active/video/color/3	f	blue component (0 - 1.0)
+    /active/video/color/4	f	alpha component (0 - 1.0)
 
     Video dimension multiplier on x and y axis
-    /video/mult/x	f	video x multiplier (0 - 5.0)
-    /video/mult/y	f	video y multiplier (0 - 5.0)
+    /active/video/mult/x	f	video x multiplier (0 - 5.0)
+    /active/video/mult/y	f	video y multiplier (0 - 5.0)
 
     Video speed
-    /video/speed	f	video speed (-2.0 - 2.0)
+    /active/video/speed	f	video speed (-2.0 - 2.0)
 
     Video sound volume
-    /video/volume	int32	video volume (0-60)
+    /active/video/volume	int32	video volume (0-60)
 
 
