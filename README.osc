@@ -1,8 +1,8 @@
 LPMT can be remotely controlled through OSC messages.
-A rich set of messages has been implementing, allowing to control almost every aspect of
+A rich set of messages has been implemented, allowing to control almost every aspect of
 LPMT.
 
-Here you can find a list of the currently implemented messages in the following form:
+Here you can find a list of the currently available messages in the following form:
 
 <osc address>	<arguments number and types>	<description and limits>
 
