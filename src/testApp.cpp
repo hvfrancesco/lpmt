@@ -56,14 +56,14 @@ void testApp::setup()
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
-    string videoDir =  ofToDataPath("video",true);
-    videoFiles = vector<string>();
-    getdir(videoDir,videoFiles);
-    string videos[videoFiles.size()];
-    for (unsigned int i = 0; i < videoFiles.size(); i++)
-    {
-        videos[i]= videoFiles[i];
-    }
+    //string videoDir =  ofToDataPath("video",true);
+    //videoFiles = vector<string>();
+    //getdir(videoDir,videoFiles);
+    //string videos[videoFiles.size()];
+    //for (unsigned int i = 0; i < videoFiles.size(); i++)
+    //{
+    //    videos[i]= videoFiles[i];
+    //}
 
     // we scan the slideshow dir for videos
     //string slideshowDir = string("./data/slideshow");
@@ -110,13 +110,13 @@ void testApp::setup()
 
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, videoFiles, slideshowFolders);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, videoFiles, slideshowFolders);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, videoFiles, slideshowFolders);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, videoFiles, slideshowFolders);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -158,35 +158,36 @@ void testApp::setup()
         gui.addPage("quad "+ofToString(i)+" - 1/3");
         gui.addTitle("quad n. "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
-        gui.addToggle("img bg on/off", quads[i].imgBg);
-        gui.addButton("image bg", bImageLoad);
-        gui.addSlider("img mult X", quads[i].imgMultX, 0.2, 4.0);
-        gui.addSlider("img mult Y", quads[i].imgMultY, 0.2, 4.0);
+        gui.addToggle("image on/off", quads[i].imgBg);
+        gui.addButton("load image", bImageLoad);
+        gui.addSlider("img mult X", quads[i].imgMultX, 0.1, 5.0);
+        gui.addSlider("img mult Y", quads[i].imgMultY, 0.1, 5.0);
         gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
         gui.addTitle("Solid color").setNewColumn(true);
         gui.addToggle("solid bg on/off", quads[i].colorBg);
         gui.addColorPicker("Color", &quads[i].bgColor.r);
         gui.addToggle("transition color", quads[i].transBg);
         gui.addColorPicker("second Color", &quads[i].secondColor.r);
-        gui.addSlider("trans duration", quads[i].transDuration, 0.2, 60.0);
+        gui.addSlider("trans duration", quads[i].transDuration, 0.1, 60.0);
 
         gui.addPage("quad "+ofToString(i)+" - 2/3");
         gui.addTitle("Video");
-        gui.addToggle("video bg on/off", quads[i].videoBg);
-        gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
-        gui.addSlider("video mult X", quads[i].videoMultX, 0.2, 4.0);
-        gui.addSlider("video mult Y", quads[i].videoMultY, 0.2, 4.0);
+        gui.addToggle("video on/off", quads[i].videoBg);
+        //gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
+        gui.addButton("load video", bVideoLoad);
+        gui.addSlider("video mult X", quads[i].videoMultX, 0.1, 5.0);
+        gui.addSlider("video mult Y", quads[i].videoMultY, 0.1, 5.0);
         gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
         gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addTitle("Camera bg").setNewColumn(true);
         gui.addToggle("cam on/off", quads[i].camBg);
-        gui.addSlider("camera mult X", quads[i].camMultX, 0.2, 4.0);
-        gui.addSlider("camera mult Y", quads[i].camMultY, 0.2, 4.0);
+        gui.addSlider("camera mult X", quads[i].camMultX, 0.1, 5.0);
+        gui.addSlider("camera mult Y", quads[i].camMultY, 0.1, 5.0);
         gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
         gui.addTitle("Greenscreen");
-        gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 120);
+        gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 128);
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
         gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
@@ -221,13 +222,21 @@ void testApp::setup()
 
 void testApp::openImageFile()
 {
-    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image", false);
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image file", false);
     if(dialog_result.bSuccess)
     {
         quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
     }
 }
 
+void testApp::openVideoFile()
+{
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load video file", false);
+    if(dialog_result.bSuccess)
+    {
+        quads[activeQuad].loadVideoFromFile(dialog_result.getName(), dialog_result.getPath());
+    }
+}
 
 void testApp::mpeSetup()
 {
@@ -261,6 +270,14 @@ void testApp::prepare()
             bImageLoad = false;
             openImageFile();
         }
+
+        // check if image load button on GUI is pressed
+        if(bVideoLoad)
+        {
+            bVideoLoad = false;
+            openVideoFile();
+        }
+
 
         // grabs video frame from camera and passes pixels to quads
 
@@ -587,7 +604,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, videoFiles, slideshowFolders);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -965,7 +982,7 @@ void testApp::getXml()
         float x3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:X",0.0);
         float y3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:Y",0.0);
 
-        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, videoFiles, slideshowFolders);
+        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, slideshowFolders);
         quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
         quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
         layers[quads[i].layer] = quads[i].quadNumber;

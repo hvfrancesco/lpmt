@@ -88,7 +88,6 @@ public:
     bool slideFit;
     bool slideKeepAspect;
 
-    int bgVideo;
     int videoVolume;
     int thresholdGreenscreen;
     int bgSlideshow;
@@ -105,6 +104,7 @@ public:
     vector<ofImage> slides;
 
     string bgImg;
+    string bgVideo;
     string loadedImg;
     string loadedVideo;
     string loadedSlideshow;
@@ -113,7 +113,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &videoFiles, vector<string> &slideshowFolders);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders);
 
     void update();
 
@@ -124,6 +124,8 @@ public:
     void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
 
     void loadImageFromFile(string imgName, string imgPath);
+
+    void loadVideoFromFile(string videoName, string videoPath);
 
 };
 

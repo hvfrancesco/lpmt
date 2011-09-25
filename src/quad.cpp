@@ -24,7 +24,7 @@
     }
 
 
-    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &videoFiles, vector<string> &slideshowFolders)
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders)
     {
 
         //loads load in some truetype fonts
@@ -52,7 +52,7 @@
         corners[3].x = x4;
         corners[3].y = y4;
 
-        videos = videoFiles;
+        //videos = videoFiles;
         slideshows = slideshowFolders;
 
         borderColor = 0x666666;
@@ -154,7 +154,22 @@
         loadedImg = imgName;
     }
 
-
+    void quad::loadVideoFromFile(string videoName, string videoPath)
+    {
+        //ofFile movie(videoPath);
+        videoBg = true;
+        bgVideo = videoPath;
+        loadedVideo = videoName;
+        if (video.isLoaded()) { video.closeMovie(); }
+        video.loadMovie(videoPath);
+        videoWidth = video.width;
+        videoHeight = video.height;
+        if (videoTex.bAllocated()) {videoTex.clear();}
+        videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
+        videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
+        video.play();
+        loadedVideo = videoName;
+    }
 
     void quad::update()
     {
@@ -222,18 +237,6 @@
         // video --------------------------------------------------------------------
         // loads video
         if (videoBg) {
-            string videoName = videos[bgVideo];
-            if (videoName != loadedVideo) {
-                if (video.isLoaded()) { video.closeMovie(); }
-                video.loadMovie("video/"+videoName);
-                videoWidth = video.width;
-                videoHeight = video.height;
-                if (videoTex.bAllocated()) {videoTex.clear();}
-                videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
-                videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
-                video.play();
-                loadedVideo = videoName;
-                }
             video.setVolume(videoVolume);
             // check for looping config parameter of video and sets loopstate - OF_LOOP_NORMAL = cycles / OF_LOOP_NONE = stops at the end
             if (videoLoop) {

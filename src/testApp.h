@@ -77,7 +77,9 @@ public:
     // gui elements
     bool showGui;
     void openImageFile();
+    void openVideoFile();
     bool bImageLoad;
+    bool bVideoLoad;
 
     // camera grabber
     ofVideoGrabber camGrabber;
