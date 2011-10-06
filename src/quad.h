@@ -4,6 +4,13 @@
 #include "ofGraphics.h"
 #include "ball.h"
 
+#ifndef True
+#define True true
+#endif
+
+#ifndef False
+#define False false
+#endif
 
 class quad
 {
