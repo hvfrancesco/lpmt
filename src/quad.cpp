@@ -74,20 +74,27 @@
         slideFit = False;
         slideKeepAspect = True;
 
-	    camWidth = 640;
-	    camHeight = 480;
-	    camMultX = 1;
-	    camMultY = 1;
-	    camTexture.allocate(camWidth,camHeight, GL_RGB);
-	    camAlphaTexture.allocate(camWidth, camHeight, GL_RGBA);
-	    camPixels = new unsigned char [camWidth*camHeight*3];
-	    camAlphaPixels = new unsigned char [camWidth*camHeight*4];
+	videoHFlip = False;
+	imgHFlip = False;
+	camHFlip = False;
+	videoVFlip = False;
+	imgVFlip = False;
+	camVFlip = False;
 
-	    imgMultX = 1.0;
-	    imgMultY = 1.0;
+	camWidth = 640;
+	camHeight = 480;
+	camMultX = 1;
+	camMultY = 1;
+	camTexture.allocate(camWidth,camHeight, GL_RGB);
+	camAlphaTexture.allocate(camWidth, camHeight, GL_RGBA);
+	camPixels = new unsigned char [camWidth*camHeight*3];
+	camAlphaPixels = new unsigned char [camWidth*camHeight*4];
 
-	    videoMultX = 1.0;
-	    videoMultY = 1.0;
+	imgMultX = 1.0;
+	imgMultY = 1.0;
+
+	videoMultX = 1.0;
+	videoMultY = 1.0;
         videoSpeed = 1.0;
         previousSpeed = 1.0;
         videoVolume = 0;
@@ -383,6 +390,21 @@
         // video ----------------------------------------------------------------------
         //if a video content is chosen it draws it
         if (videoBg) {
+	    if (videoHFlip || videoVFlip) {
+	        glPushMatrix();		
+		if(videoHFlip && !videoVFlip) {
+			ofTranslate(videoWidth*videoMultX,0);		
+			glScalef(-1,1,1);
+		}
+	        else if(videoVFlip && !videoHFlip) {
+			ofTranslate(0,videoHeight*videoMultY);
+			glScalef(1,-1,1);
+			}
+		else {
+			ofTranslate(videoWidth*videoMultX,videoHeight*videoMultY);
+			glScalef(-1,-1,1);
+		}
+	    }
         ofEnableAlphaBlending();
         ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
         if (!videoLoop) {
@@ -398,17 +420,35 @@
             else {video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);}
         }
         ofDisableAlphaBlending();
+	    if (videoHFlip || videoVFlip) {
+	        glPopMatrix();
+	    }
         }
 
 
         // camera ------------------------------------------------------------------------------
 	    // camera stuff
 	    if (camBg) {
-        ofEnableAlphaBlending();
+	    if (camHFlip || camVFlip) {
+	        glPushMatrix();
+		if(camHFlip && !camVFlip) {
+			ofTranslate(camWidth*camMultX,0);			
+			glScalef(-1,1,1);}
+	        else if(camVFlip && !camHFlip) {
+			ofTranslate(0,camHeight*camMultY);
+			glScalef(1,-1,1);}
+		else {
+			ofTranslate(camWidth*camMultX,camHeight*camMultY);
+			glScalef(-1,-1,1);}
+	    }
+            ofEnableAlphaBlending();
 	    ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
 	    if (camGreenscreen) { camAlphaTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY); }
 	    else { camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY); }
 	    ofDisableAlphaBlending();
+	    if (camHFlip || camVFlip) {
+	        glPopMatrix();
+	    }
 	    }
 
 
@@ -462,10 +502,28 @@
 
         //if an image content is chosen it draws it (maybe use it as mask as well?)
         if (imgBg) {
+	    if (imgHFlip || imgVFlip) {
+	        glPushMatrix();		
+		if(imgHFlip && !imgVFlip) {
+			ofTranslate(img.getWidth()*imgMultX,0);		
+			glScalef(-1,1,1);
+		}
+	        else if(imgVFlip && !imgHFlip) {
+			ofTranslate(0,img.getHeight()*imgMultY);
+			glScalef(1,-1,1);
+			}
+		else {
+			ofTranslate(img.getWidth()*imgMultX,img.getHeight()*imgMultY);
+			glScalef(-1,-1,1);
+		}
+	    }
         ofEnableAlphaBlending();
         ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
         img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
         ofDisableAlphaBlending();
+	if (imgHFlip || imgVFlip) {
+	    glPopMatrix();
+	}
         }
 
 

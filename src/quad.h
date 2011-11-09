@@ -95,6 +95,13 @@ public:
     bool slideFit;
     bool slideKeepAspect;
 
+    bool videoHFlip;
+    bool imgHFlip;
+    bool camHFlip;
+    bool videoVFlip;
+    bool imgVFlip;
+    bool camVFlip;
+
     int videoVolume;
     int thresholdGreenscreen;
     int bgSlideshow;
