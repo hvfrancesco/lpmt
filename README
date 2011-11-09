@@ -33,7 +33,9 @@ MAIN FEATURES:
 
 * up to 36 independent layers (remember you can use a solid black quad even as a mask)
 * possible content: solid color, images, video, live-cam, slideshows, smoothly changing solid colors, and more ...
-* independent transparency setting for each content element
+* independent opacity setting for each content element
+* customizable green-screen (chromakey) for video and live-cam sources
+* horizontal and vertical flipping for image, video and live-cam content
 * customizable colorization for each content element
 * customizable video speed and volume
 * save/load project set to/from xml file
@@ -41,6 +43,8 @@ MAIN FEATURES:
 * vertex snap function for adjacent quads
 * cam snapshot background for rough positioning of quads
 * customizable speed for slideshows and color transitions
+* synced multi-projectors shows
+* control and setup through a rich set of OSC messages
 
 
 KEY COMMANDS:
@@ -77,9 +81,10 @@ TODO:
 ----------
 
 - quad masking (needs some OpenGL-fu)
-- controlling settings via OSC messages
 - a timeline (?)
-- integration with MostPixelsEver for multiple projectors syncing
+- grid warping
+- edge feathering for multi-projector shows
+- overlay modes for quads
 
 
 CONTACT:
