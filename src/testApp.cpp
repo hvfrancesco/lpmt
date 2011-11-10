@@ -162,8 +162,8 @@ void testApp::setup()
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img mult X", quads[i].imgMultX, 0.1, 5.0);
         gui.addSlider("img mult Y", quads[i].imgMultY, 0.1, 5.0);
-	gui.addToggle("H mirror", quads[i].imgHFlip);
-	gui.addToggle("V mirror", quads[i].imgVFlip);
+        gui.addToggle("H mirror", quads[i].imgHFlip);
+        gui.addToggle("V mirror", quads[i].imgVFlip);
         gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
         gui.addTitle("Solid color").setNewColumn(true);
         gui.addToggle("solid bg on/off", quads[i].colorBg);
@@ -179,8 +179,8 @@ void testApp::setup()
         gui.addButton("load video", bVideoLoad);
         gui.addSlider("video mult X", quads[i].videoMultX, 0.1, 5.0);
         gui.addSlider("video mult Y", quads[i].videoMultY, 0.1, 5.0);
-	gui.addToggle("H mirror", quads[i].videoHFlip);
-	gui.addToggle("V mirror", quads[i].videoVFlip);
+        gui.addToggle("H mirror", quads[i].videoHFlip);
+        gui.addToggle("V mirror", quads[i].videoVFlip);
         gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
         gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
@@ -189,8 +189,8 @@ void testApp::setup()
         gui.addToggle("cam on/off", quads[i].camBg);
         gui.addSlider("camera mult X", quads[i].camMultX, 0.1, 5.0);
         gui.addSlider("camera mult Y", quads[i].camMultY, 0.1, 5.0);
-	gui.addToggle("H mirror", quads[i].camHFlip);
-	gui.addToggle("V mirror", quads[i].camVFlip);
+        gui.addToggle("H mirror", quads[i].camHFlip);
+        gui.addToggle("V mirror", quads[i].camVFlip);
         gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
         gui.addTitle("Greenscreen");
         gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 128);
