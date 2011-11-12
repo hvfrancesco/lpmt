@@ -77,6 +77,9 @@ void testApp::setup()
     }
 
 
+    // load shaders
+    edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
+
     ttf.loadFont("type/frabk.ttf", 11);
     // set border color for quads in setup mode
     borderColor = 0x666666;
@@ -102,8 +105,6 @@ void testApp::setup()
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
     snapshotOn = 0;
 
-    // load shaders
-    edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
 
     // initializes layers array
     for(int i = 0; i < 36; i++)

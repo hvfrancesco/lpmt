@@ -29,6 +29,8 @@ int quad::getdir (string dir, vector<string> &files)
 void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader)
 {
 
+    shaderBlend = edgeBlendShader;
+
     //loads load in some truetype fonts
     ttf.loadFont("type/frabk.ttf", 22);
     ttf2.loadFont("type/frabk.ttf", 14);
@@ -151,7 +153,6 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     thresholdGreenscreen = 10;
 
-    shaderBlend = edgeBlendShader;
 
 }
 
