@@ -12,7 +12,7 @@
 #define False false
 #endif
 
-class quad
+class quad: public ofNode
 {
 
 public:
