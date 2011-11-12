@@ -128,7 +128,7 @@ public:
     string loadedVideo;
     string loadedSlideshow;
 
-    ofShader shaderBlend;
+    ofShader * shaderBlend;
 
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);

@@ -29,7 +29,7 @@ int quad::getdir (string dir, vector<string> &files)
 void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader)
 {
 
-    shaderBlend = edgeBlendShader;
+    shaderBlend = &edgeBlendShader;
 
     //loads load in some truetype fonts
     ttf.loadFont("type/frabk.ttf", 22);
@@ -152,6 +152,12 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     colorGreenscreen.a = 0;
 
     thresholdGreenscreen = 10;
+
+    edgeBlendBool = True;
+    edgeBlendExponent = 1.0;
+    edgeBlendGamma = 1.8;
+    edgeBlendAmountSin = 0.3;
+    edgeBlendAmountDx = 0.3;
 
 
 }
@@ -404,9 +410,23 @@ void quad::draw()
         findHomography(src, dst, matrix);
 
 
+        if(edgeBlendBool)
+            {
+                shaderBlend->begin();
+                shaderBlend->setUniform1f("exponent", edgeBlendExponent);
+                shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
+                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
+                shaderBlend->setUniform1i("w", ofGetWidth());
+                shaderBlend->setUniform1i("h", ofGetHeight());
+            }
+
+
+
+
         //finally lets multiply our matrix
         //wooooo hoooo!
         glMultMatrixf(matrix);
+
 
 
         // -- NOW LETS DRAW!!!!!!  -----
@@ -655,9 +675,16 @@ void quad::draw()
             ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
         }
 
-
         // restore previous coordinates
         ofPopMatrix();
+
+        if(edgeBlendBool)
+        {
+            shaderBlend->end();
+        }
+
+
+
     }
 }
 
