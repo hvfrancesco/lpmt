@@ -40,6 +40,7 @@ public:
     void mousePressed(int x, int y, int button);
     void mouseReleased();
     int whichCorner;
+
     ofTrueTypeFont ttf;
 
     quad quads[36];
@@ -73,6 +74,9 @@ public:
     string		msg_strings[NUM_MSG_STRINGS];
     float			timers[NUM_MSG_STRINGS];
     void parseOsc();
+
+    // Shaders
+    ofShader edgeBlendShader;
 
     // gui elements
     bool showGui;

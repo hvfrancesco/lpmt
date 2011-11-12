@@ -75,6 +75,10 @@ public:
     float previousSpeed;
     float slideshowSpeed;
     float transDuration;
+    float edgeBlendExponent;
+    float edgeBlendAmountSin;
+    float edgeBlendAmountDx;
+    float edgeBlendGamma;
 
     int quadNumber;
 
@@ -101,6 +105,7 @@ public:
     bool videoVFlip;
     bool imgVFlip;
     bool camVFlip;
+    bool edgeBlendBool;
 
     int videoVolume;
     int thresholdGreenscreen;
@@ -123,11 +128,13 @@ public:
     string loadedVideo;
     string loadedSlideshow;
 
+    ofShader shaderBlend;
+
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader);
 
     void update();
 

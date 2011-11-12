@@ -26,7 +26,7 @@ int quad::getdir (string dir, vector<string> &files)
 }
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader)
 {
 
     //loads load in some truetype fonts
@@ -150,6 +150,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     colorGreenscreen.a = 0;
 
     thresholdGreenscreen = 10;
+
+    shaderBlend = edgeBlendShader;
 
 }
 
