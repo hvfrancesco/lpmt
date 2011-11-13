@@ -153,12 +153,11 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     thresholdGreenscreen = 10;
 
-    edgeBlendBool = True;
+    edgeBlendBool = False;
     edgeBlendExponent = 1.0;
     edgeBlendGamma = 1.8;
     edgeBlendAmountSin = 0.3;
     edgeBlendAmountDx = 0.3;
-
 
 }
 
@@ -199,6 +198,8 @@ void quad::update()
 {
     if (isOn)
     {
+
+        quadFbo.allocate(ofGetWidth(),ofGetHeight());
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors
@@ -408,29 +409,16 @@ void quad::draw()
 
         // find transformation matrix
         findHomography(src, dst, matrix);
-
-
-        if(edgeBlendBool)
-            {
-                shaderBlend->begin();
-                shaderBlend->setUniform1f("exponent", edgeBlendExponent);
-                shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
-                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
-                shaderBlend->setUniform1i("w", ofGetWidth());
-                shaderBlend->setUniform1i("h", ofGetHeight());
-            }
-
-
-
+        
+        
 
         //finally lets multiply our matrix
         //wooooo hoooo!
         glMultMatrixf(matrix);
 
-
-
         // -- NOW LETS DRAW!!!!!!  -----
-
+        quadFbo.begin();
+        
         // if a solid color content or color transition is set it draws it
         // solid colors ----------------------------------------------------------------
         if (colorBg)
@@ -675,14 +663,29 @@ void quad::draw()
             ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
         }
 
+        quadFbo.end();       
+
         // restore previous coordinates
         ofPopMatrix();
+        
 
+    
         if(edgeBlendBool)
         {
-            shaderBlend->end();
+                shaderBlend->begin();
+                shaderBlend->setUniform1f("exponent", edgeBlendExponent);
+                shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
+                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
+                shaderBlend->setUniform1i("w", ofGetWidth());
+                shaderBlend->setUniform1i("h", ofGetHeight());
+                quadFbo.draw(0,0);
+                shaderBlend->end();
         }
-
+        
+        else
+        {
+            quadFbo.draw(0,0);
+        }
 
 
     }

@@ -129,6 +129,7 @@ public:
     string loadedSlideshow;
 
     ofShader * shaderBlend;
+    ofFbo   quadFbo;
 
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);
