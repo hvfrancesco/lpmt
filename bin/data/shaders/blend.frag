@@ -2,7 +2,7 @@
 
 
 //uniform float time;
-uniform sampler2D tex;
+uniform sampler2DRect tex;
 
 // used in a few inversions
 const vec3 one = vec3(1.0);
@@ -32,7 +32,7 @@ void main(){
 
 	vec2 uv = gl_TexCoord[0].xy;
 	//vec4 col = texture2D(tex,uv).xyz;
-	vec4 col = texture2D(tex,gl_TexCoord[0].st);
+	vec4 col = texture2DRect(tex,gl_TexCoord[0].st);
 	//vec2 uv = vec2(gl_FragCoord.x, gl_FragCoord.y);
     	//vec4 col = gl_Color;
         vec4 edges = vec4(amount.x, 0.0, amount.y, 0.0);
@@ -59,7 +59,8 @@ void main(){
     //gl_FragColor = vec4(col * blend, 1.0);
     //gl_FragColor = vec4(col , 1.0);
 
-    gl_FragColor = vec4(col.xyz*blend, col.w*blend.x);
+    //gl_FragColor = vec4(col.xyz*blend, col.w*blend.x);
+    gl_FragData[0] = vec4(col.xyz*blend, col.w*blend.x);
 
 
 
