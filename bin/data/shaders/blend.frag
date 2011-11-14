@@ -2,7 +2,7 @@
 
 
 //uniform float time;
-//uniform sampler2D tex0;
+uniform sampler2D tex;
 
 // used in a few inversions
 const vec3 one = vec3(1.0);
@@ -30,10 +30,11 @@ void main(){
 
 	//we grab the x and y and store them in an int
 
-	//vec2 uv = gl_TexCoord[0].xy;
-	//ec3 col = texture2D(tex0,uv).xyz;
-	vec2 uv = vec2(gl_FragCoord.x, gl_FragCoord.y);
-    	vec4 col = gl_Color;
+	vec2 uv = gl_TexCoord[0].xy;
+	//vec4 col = texture2D(tex,uv).xyz;
+	vec4 col = texture2D(tex,gl_TexCoord[0].st);
+	//vec2 uv = vec2(gl_FragCoord.x, gl_FragCoord.y);
+    	//vec4 col = gl_Color;
         vec4 edges = vec4(amount.x, 0.0, amount.y, 0.0);
         vec3 gamma = vec3(userGamma, 1.5, 1.2);
 

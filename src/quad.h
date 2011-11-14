@@ -130,6 +130,7 @@ public:
 
     ofShader * shaderBlend;
     ofFbo   quadFbo;
+    ofFbo::Settings settings;
 
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);

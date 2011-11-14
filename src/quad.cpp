@@ -153,11 +153,18 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     thresholdGreenscreen = 10;
 
-    edgeBlendBool = False;
+    edgeBlendBool = True;
     edgeBlendExponent = 1.0;
     edgeBlendGamma = 1.8;
     edgeBlendAmountSin = 0.3;
     edgeBlendAmountDx = 0.3;
+
+    settings.internalformat = GL_RGBA;
+    settings.numSamples = 0;
+    settings.useDepth = false;
+    settings.useStencil = false;
+    settings.width = ofGetWidth();
+    settings.height = ofGetHeight();
 
 }
 
@@ -199,8 +206,9 @@ void quad::update()
     if (isOn)
     {
 
-        quadFbo.allocate(ofGetWidth(),ofGetHeight(),GL_RGBA);
-        //quadFbo.allocate(0,0);
+        settings.width = ofGetWidth();
+        settings.height = ofGetHeight();
+        quadFbo.allocate(settings);
 
 
         // solid colors ---------------------------------------------------------------
@@ -407,7 +415,7 @@ void quad::draw()
     if (isOn)
     {
         quadFbo.begin();
-
+        ofClear(0,0,0,0);
         // -- NOW LETS DRAW!!!!!!  -----
 
         // if a solid color content or color transition is set it draws it
@@ -656,6 +664,27 @@ void quad::draw()
 
         quadFbo.end();
 
+        if(edgeBlendBool)
+        {
+
+            if(quadFbo.getWidth()>0)
+            {
+                ofEnableAlphaBlending();
+                shaderBlend->begin();
+                shaderBlend->setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
+                shaderBlend->setUniform1f("exponent", edgeBlendExponent);
+                shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
+                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
+                shaderBlend->setUniform1i("w", ofGetWidth());
+                shaderBlend->setUniform1i("h", ofGetHeight());
+                ofSetColor(255,255,255);
+                quadFbo.draw(0,0);
+                ofDisableAlphaBlending();
+            }
+        }
+
+
+
         // save actual GL coordinates
         ofPushMatrix();
         // find transformation matrix
@@ -667,20 +696,21 @@ void quad::draw()
 
         if(edgeBlendBool)
         {
-                shaderBlend->begin();
-                shaderBlend->setUniform1f("exponent", edgeBlendExponent);
-                shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
-                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
-                shaderBlend->setUniform1i("w", ofGetWidth());
-                shaderBlend->setUniform1i("h", ofGetHeight());
-                quadFbo.draw(0,0);
+
+            if(quadFbo.getWidth()>0)
+            {
                 shaderBlend->end();
+            }
         }
 
         else
         {
             ofEnableAlphaBlending();
-            quadFbo.draw(0,0);
+            if(quadFbo.getWidth()>0)
+            {
+                ofSetColor(255,255,255);
+                quadFbo.draw(0,0);
+            }
             ofDisableAlphaBlending();
         }
         // restore previous coordinates
