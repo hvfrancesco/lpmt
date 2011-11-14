@@ -679,7 +679,9 @@ void quad::draw()
 
         else
         {
+            ofEnableAlphaBlending();
             quadFbo.draw(0,0);
+            ofDisableAlphaBlending();
         }
         // restore previous coordinates
         ofPopMatrix();
