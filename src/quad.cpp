@@ -165,6 +165,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     settings.useStencil = false;
     settings.width = ofGetWidth();
     settings.height = ofGetHeight();
+    //quadFbo.allocate(settings);
 
 }
 
@@ -664,6 +665,16 @@ void quad::draw()
 
         quadFbo.end();
 
+
+        // save actual GL coordinates
+        ofPushMatrix();
+        // find transformation matrix
+        findHomography(src, dst, matrix);
+        //finally lets multiply our matrix
+        //wooooo hoooo!
+        glMultMatrixf(matrix);
+
+
         if(edgeBlendBool)
         {
 
@@ -680,28 +691,10 @@ void quad::draw()
                 ofSetColor(255,255,255);
                 quadFbo.draw(0,0);
                 ofDisableAlphaBlending();
-            }
-        }
-
-
-
-        // save actual GL coordinates
-        ofPushMatrix();
-        // find transformation matrix
-        findHomography(src, dst, matrix);
-        //finally lets multiply our matrix
-        //wooooo hoooo!
-        glMultMatrixf(matrix);
-
-
-        if(edgeBlendBool)
-        {
-
-            if(quadFbo.getWidth()>0)
-            {
                 shaderBlend->end();
             }
         }
+
 
         else
         {

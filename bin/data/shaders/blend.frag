@@ -63,5 +63,4 @@ void main(){
     gl_FragData[0] = vec4(col.xyz*blend, col.w*blend.x);
 
 
-
 }
