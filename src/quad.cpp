@@ -199,7 +199,9 @@ void quad::update()
     if (isOn)
     {
 
-        quadFbo.allocate(ofGetWidth(),ofGetHeight());
+        quadFbo.allocate(ofGetWidth(),ofGetHeight(),GL_RGBA);
+        //quadFbo.allocate(0,0);
+
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors
@@ -404,21 +406,10 @@ void quad::draw()
 {
     if (isOn)
     {
-        // save actual GL coordinates
-        ofPushMatrix();
-
-        // find transformation matrix
-        findHomography(src, dst, matrix);
-        
-        
-
-        //finally lets multiply our matrix
-        //wooooo hoooo!
-        glMultMatrixf(matrix);
+        quadFbo.begin();
 
         // -- NOW LETS DRAW!!!!!!  -----
-        quadFbo.begin();
-        
+
         // if a solid color content or color transition is set it draws it
         // solid colors ----------------------------------------------------------------
         if (colorBg)
@@ -663,13 +654,17 @@ void quad::draw()
             ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
         }
 
-        quadFbo.end();       
+        quadFbo.end();
 
-        // restore previous coordinates
-        ofPopMatrix();
-        
+        // save actual GL coordinates
+        ofPushMatrix();
+        // find transformation matrix
+        findHomography(src, dst, matrix);
+        //finally lets multiply our matrix
+        //wooooo hoooo!
+        glMultMatrixf(matrix);
 
-    
+
         if(edgeBlendBool)
         {
                 shaderBlend->begin();
@@ -681,13 +676,13 @@ void quad::draw()
                 quadFbo.draw(0,0);
                 shaderBlend->end();
         }
-        
+
         else
         {
             quadFbo.draw(0,0);
         }
-
-
+        // restore previous coordinates
+        ofPopMatrix();
     }
 }
 

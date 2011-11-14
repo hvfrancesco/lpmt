@@ -792,6 +792,9 @@ void testApp::mousePressed(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mouseReleased()
 {
+    if (isSetup && !bGui)
+    {
+
     if (whichCorner >= 0)
     {
         // snap detection for near quads
@@ -824,6 +827,7 @@ void testApp::mouseReleased()
         }
     }
     whichCorner = -1;
+    }
 }
 
 
