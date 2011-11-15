@@ -148,7 +148,10 @@ void testApp::setup()
     gui.config->sliderTextHeight = 22;
     gui.config->titleHeight = 18;
     //gui.config->fullActiveColor = 0x6B404B;
-    gui.config->fullActiveColor = 0x5E4D3E;
+    //gui.config->fullActiveColor = 0x5E4D3E;
+    gui.config->fullActiveColor = 0x648B96;
+    gui.config->textColor = 0xFFFFFF;
+    gui.config->textBGOverColor = 0xDB6800;
     // adding controls
     // first a general page for toggling layers on/off
     for(int i = 0; i < 36; i++)
@@ -175,6 +178,12 @@ void testApp::setup()
         gui.addToggle("transition color", quads[i].transBg);
         gui.addColorPicker("second Color", &quads[i].secondColor.r);
         gui.addSlider("trans duration", quads[i].transDuration, 0.1, 60.0);
+        gui.addTitle("Edge blending").setNewColumn(true);
+        gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
+        gui.addSlider("exponent", quads[i].edgeBlendExponent, 1.0, 4.0);
+        gui.addSlider("gamma", quads[i].edgeBlendGamma, 1.0, 2.2);
+        gui.addSlider("left edge amount", quads[i].edgeBlendAmountSin, 0.0, 0.5);
+        gui.addSlider("right edge amount", quads[i].edgeBlendAmountDx, 0.0, 0.5);
 
         gui.addPage("quad "+ofToString(i)+" - 2/3");
         gui.addTitle("Video");

@@ -153,7 +153,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     thresholdGreenscreen = 10;
 
-    edgeBlendBool = True;
+    edgeBlendBool = False;
     edgeBlendExponent = 1.0;
     edgeBlendGamma = 1.8;
     edgeBlendAmountSin = 0.3;
@@ -630,39 +630,6 @@ void quad::draw()
             }
         }
 
-
-        //lets draw a bounding box if we are in setup mode
-        ofNoFill();
-        if (isSetup)
-        {
-            ofSetHexColor(borderColor);
-            ofRect(0, 0, ofGetWidth(), ofGetHeight());
-            // draws helper grid on active quad
-            if (borderColor == 0xFFFFFF)
-            {
-                ofSetHexColor(0x444444);
-                ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
-                ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
-                ofLine(ofGetWidth()/2,0,ofGetWidth()/2-20,20);
-                ofLine(ofGetWidth()/2,0,ofGetWidth()/2+20,20);
-                ofLine(ofGetWidth()/2-20,20,ofGetWidth()/2+20,20);
-                ofLine(0,ofGetHeight()/4,ofGetWidth(),ofGetHeight()/4);
-                ofLine(0,ofGetHeight()/2+ofGetHeight()/4,ofGetWidth(),ofGetHeight()/2+ofGetHeight()/4);
-                ofLine(ofGetWidth()/4,0,ofGetWidth()/4,ofGetHeight());
-                ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
-            }
-        }
-
-
-        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
-        if (isSetup)
-        {
-            ofSetHexColor(0x000000);
-            ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
-            ofSetHexColor(0xFFFFFF);
-            ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
-        }
-
         quadFbo.end();
 
 
@@ -706,6 +673,41 @@ void quad::draw()
             }
             ofDisableAlphaBlending();
         }
+
+        //lets draw a bounding box if we are in setup mode
+        ofNoFill();
+        ofEnableSmoothing();
+        ofSetLineWidth(0.25);
+        if (isSetup)
+        {
+            ofSetHexColor(borderColor);
+            ofRect(0, 0, ofGetWidth(), ofGetHeight());
+            // draws helper grid on active quad
+            if (borderColor == 0xFFFFFF)
+            {
+                ofSetHexColor(0x444444);
+                ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2,ofGetHeight());
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2-20,20);
+                ofLine(ofGetWidth()/2,0,ofGetWidth()/2+20,20);
+                ofLine(ofGetWidth()/2-20,20,ofGetWidth()/2+20,20);
+                ofLine(0,ofGetHeight()/4,ofGetWidth(),ofGetHeight()/4);
+                ofLine(0,ofGetHeight()/2+ofGetHeight()/4,ofGetWidth(),ofGetHeight()/2+ofGetHeight()/4);
+                ofLine(ofGetWidth()/4,0,ofGetWidth()/4,ofGetHeight());
+                ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
+            }
+        }
+
+
+        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
+        if (isSetup)
+        {
+            ofSetHexColor(0x000000);
+            ttf.drawString("quad n. "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
+            ofSetHexColor(0xFFFFFF);
+            ttf.drawString("quad n. "+ofToString(quadNumber), (ofGetWidth()/2)-4, (ofGetHeight()/2)-4);
+        }
+
         // restore previous coordinates
         ofPopMatrix();
     }
