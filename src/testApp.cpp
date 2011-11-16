@@ -184,6 +184,12 @@ void testApp::setup()
         gui.addSlider("gamma", quads[i].edgeBlendGamma, 1.0, 2.2);
         gui.addSlider("left edge amount", quads[i].edgeBlendAmountSin, 0.0, 0.5);
         gui.addSlider("right edge amount", quads[i].edgeBlendAmountDx, 0.0, 0.5);
+        gui.addTitle("Content placement");
+        gui.addSlider("X displacement", quads[i].quadDispX, -1280, 1280);
+        gui.addSlider("Y displacement", quads[i].quadDispY, -1280, 1280);
+        gui.addSlider("Width", quads[i].quadW, 0, 2400);
+        gui.addSlider("Height", quads[i].quadH, 0, 2400);
+        gui.addButton("Reset", bQuadReset);
 
         gui.addPage("quad "+ofToString(i)+" - 2/3");
         gui.addTitle("Video");
@@ -283,6 +289,15 @@ void testApp::prepare()
 
     if (bStarted)
     {
+
+        //check if quad dimensions reset button on GUI is pressed
+        if(bQuadReset)
+        {
+            bQuadReset = false;
+            quadDimensionsReset();
+        }
+
+
         // check if image load button on GUI is pressed
         if(bImageLoad)
         {
@@ -903,6 +918,19 @@ void testApp::stopProjection()
         }
     }
 }
+
+
+//---------------------------------------------------------------
+void testApp::quadDimensionsReset()
+{
+    quads[activeQuad].quadDispX = 0;
+    quads[activeQuad].quadDispY = 0;
+    quads[activeQuad].quadW = ofGetWidth();
+    quads[activeQuad].quadH = ofGetHeight();
+
+
+}
+
 
 
 //--------------------------------------------------------------

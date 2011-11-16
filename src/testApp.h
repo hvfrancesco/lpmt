@@ -82,8 +82,10 @@ public:
     bool showGui;
     void openImageFile();
     void openVideoFile();
+    void quadDimensionsReset();
     bool bImageLoad;
     bool bVideoLoad;
+    bool bQuadReset;
 
     // camera grabber
     ofVideoGrabber camGrabber;

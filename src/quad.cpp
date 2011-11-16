@@ -165,7 +165,11 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     settings.useStencil = false;
     settings.width = ofGetWidth();
     settings.height = ofGetHeight();
-    //quadFbo.allocate(settings);
+
+    quadDispX = 0;
+    quadDispY = 0;
+    quadW = ofGetWidth();
+    quadH = ofGetHeight();
 
 }
 
@@ -656,7 +660,7 @@ void quad::draw()
                 shaderBlend->setUniform1i("w", ofGetWidth());
                 shaderBlend->setUniform1i("h", ofGetHeight());
                 ofSetColor(255,255,255);
-                quadFbo.draw(0,0);
+                quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                 ofDisableAlphaBlending();
                 shaderBlend->end();
             }
@@ -669,7 +673,7 @@ void quad::draw()
             if(quadFbo.getWidth()>0)
             {
                 ofSetColor(255,255,255);
-                quadFbo.draw(0,0);
+                quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
             }
             ofDisableAlphaBlending();
         }
@@ -677,7 +681,7 @@ void quad::draw()
         //lets draw a bounding box if we are in setup mode
         ofNoFill();
         ofEnableSmoothing();
-        ofSetLineWidth(0.25);
+        ofSetLineWidth(0.5);
         if (isSetup)
         {
             ofSetHexColor(borderColor);

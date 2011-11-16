@@ -132,6 +132,11 @@ public:
     ofFbo   quadFbo;
     ofFbo::Settings settings;
 
+    int quadDispX;
+    int quadDispY;
+    int quadW;
+    int quadH;
+
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);
 
