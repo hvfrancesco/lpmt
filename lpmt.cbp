@@ -237,6 +237,9 @@
 		<Unit filename="src/ball.h">
 			<Option virtualFolder="src" />
 		</Unit>
+		<Unit filename="src/homography.h">
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="src/main.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
