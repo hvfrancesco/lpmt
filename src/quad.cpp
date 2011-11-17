@@ -171,6 +171,9 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     quadW = ofGetWidth();
     quadH = ofGetHeight();
 
+    bBlendModes = False;
+    blendMode = 0;
+
 }
 
 
@@ -648,7 +651,6 @@ void quad::draw()
 
         if(edgeBlendBool)
         {
-
             if(quadFbo.getWidth()>0)
             {
                 ofEnableAlphaBlending();
@@ -659,21 +661,43 @@ void quad::draw()
                 shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
                 shaderBlend->setUniform1i("w", ofGetWidth());
                 shaderBlend->setUniform1i("h", ofGetHeight());
+                //set ofColor to white
                 ofSetColor(255,255,255);
+                //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
+                if(bBlendModes) {
+                    glEnable(GL_BLEND);
+                    if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
+                    else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
+                    else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
+                    else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
+                }
                 quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                if(bBlendModes) {
+                    glDisable(GL_BLEND);
+                }
                 ofDisableAlphaBlending();
                 shaderBlend->end();
             }
         }
-
-
         else
         {
             ofEnableAlphaBlending();
             if(quadFbo.getWidth()>0)
             {
+                //set ofColor to white
                 ofSetColor(255,255,255);
+                //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
+                if(bBlendModes) {
+                    glEnable(GL_BLEND);
+                    if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
+                    else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
+                    else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
+                    else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
+                }
                 quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                if(bBlendModes) {
+                    glDisable(GL_BLEND);
+                }
             }
             ofDisableAlphaBlending();
         }

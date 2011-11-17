@@ -107,6 +107,9 @@ public:
     bool camVFlip;
     bool edgeBlendBool;
 
+    bool bBlendModes;
+    int blendMode;
+
     int videoVolume;
     int thresholdGreenscreen;
     int bgSlideshow;

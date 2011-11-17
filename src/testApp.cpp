@@ -171,7 +171,11 @@ void testApp::setup()
         gui.addSlider("img mult Y", quads[i].imgMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].imgHFlip);
         gui.addToggle("V mirror", quads[i].imgVFlip);
-        gui.addColorPicker("img colorize", &quads[i].imgColorize.r);
+        gui.addColorPicker("img tint", &quads[i].imgColorize.r);
+        gui.addTitle("Blending modes");
+        gui.addToggle("blending on/off", quads[i].bBlendModes);
+        string blendModesArray[] = {"screen","add","subtract","multiply"};
+        gui.addComboBox("blending mode", quads[i].blendMode, 4, blendModesArray);
         gui.addTitle("Solid color").setNewColumn(true);
         gui.addToggle("solid bg on/off", quads[i].colorBg);
         gui.addColorPicker("Color", &quads[i].bgColor.r);
@@ -200,7 +204,7 @@ void testApp::setup()
         gui.addSlider("video mult Y", quads[i].videoMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].videoHFlip);
         gui.addToggle("V mirror", quads[i].videoVFlip);
-        gui.addColorPicker("video colorize", &quads[i].videoColorize.r);
+        gui.addColorPicker("video tint", &quads[i].videoColorize.r);
         gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
@@ -210,7 +214,7 @@ void testApp::setup()
         gui.addSlider("camera mult Y", quads[i].camMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].camHFlip);
         gui.addToggle("V mirror", quads[i].camVFlip);
-        gui.addColorPicker("cam colorize", &quads[i].camColorize.r);
+        gui.addColorPicker("cam tint", &quads[i].camColorize.r);
         gui.addTitle("Greenscreen");
         gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 128);
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
