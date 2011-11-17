@@ -42,6 +42,17 @@ int getdir (string dir, vector<string> &files)
 void testApp::setup()
 {
 
+    if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>768 )
+    {
+        WINDOW_W = 1024;
+        WINDOW_H = 768;
+    }
+    else
+    {
+        WINDOW_W = 800;
+        WINDOW_H = 600;
+    }
+
     //we run at 60 fps!
     ofSetVerticalSync(true);
 
@@ -156,14 +167,14 @@ void testApp::setup()
     // first a general page for toggling layers on/off
     for(int i = 0; i < 36; i++)
     {
-        gui.addToggle("quad "+ofToString(i), quads[i].isOn);
+        gui.addToggle("surface "+ofToString(i), quads[i].isOn);
     }
 
     // then two pages of settings for each instantiable layer
     for(int i = 0; i < 36; i++)
     {
-        gui.addPage("quad "+ofToString(i)+" - 1/3");
-        gui.addTitle("quad n. "+ofToString(i));
+        gui.addPage("surface "+ofToString(i)+" - 1/3");
+        gui.addTitle("surface "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
@@ -195,7 +206,7 @@ void testApp::setup()
         gui.addSlider("Height", quads[i].quadH, 0, 2400);
         gui.addButton("Reset", bQuadReset);
 
-        gui.addPage("quad "+ofToString(i)+" - 2/3");
+        gui.addPage("surface "+ofToString(i)+" - 2/3");
         gui.addTitle("Video");
         gui.addToggle("video on/off", quads[i].videoBg);
         //gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
@@ -227,7 +238,7 @@ void testApp::setup()
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
 
-        gui.addPage("quad "+ofToString(i)+" - 3/3");
+        gui.addPage("surface "+ofToString(i)+" - 3/3");
         gui.addTitle("Corner 0");
         gui.addSlider("X", quads[i].corners[0].x, -1.0, 2.0);
         gui.addSlider("Y", quads[i].corners[0].y, -1.0, 2.0);
@@ -432,7 +443,7 @@ void testApp::draw()
                 ofDisableAlphaBlending();
             }
             ofSetHexColor(0xFFFFFF);
-            ttf.drawString("active quad: "+ofToString(activeQuad), 30, ofGetHeight()-25);
+            ttf.drawString("active surface: "+ofToString(activeQuad), 30, ofGetHeight()-25);
             // draws gui
             gui.draw();
         }

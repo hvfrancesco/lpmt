@@ -2,8 +2,8 @@
 #define _TEST_APP
 #define OF_ADDON_USING_OFXXMLSETTINGS
 
-#define WINDOW_W 800
-#define WINDOW_H 600
+//#define WINDOW_W 800
+//#define WINDOW_H 600
 
 // OSC stuff - listen on port 12345
 #define PORT 12345
@@ -20,6 +20,9 @@ class testApp : public ofSimpleApp
 {
 
 public:
+
+    int WINDOW_W;
+    int WINDOW_H;
 
     void setup();
     void update();

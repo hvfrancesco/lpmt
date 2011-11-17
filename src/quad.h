@@ -2,7 +2,6 @@
 
 #include "ofMain.h"
 #include "ofGraphics.h"
-#include "ball.h"
 
 #ifndef True
 #define True true
@@ -39,8 +38,6 @@ public:
     int videoHeight;
     unsigned char * videoAlphaPixels;
     unsigned char * videoPixels;
-
-    ball balls[80];
 
     int borderColor;
     ofFloatColor bgColor;
@@ -150,9 +147,9 @@ public:
 
     void draw();
 
-    void gaussian_elimination(float *input, int n);
+    //void gaussian_elimination(float *input, int n);
 
-    void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
+    //void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
 
     void loadImageFromFile(string imgName, string imgPath);
 
