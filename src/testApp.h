@@ -16,7 +16,7 @@
 #include "ofxMostPixelsEver.h"
 #include "ofxOsc.h"
 
-class testApp : public ofSimpleApp
+class testApp : public ofBaseApp
 {
 
 public:
@@ -42,6 +42,8 @@ public:
     void mouseDragged(int x, int y, int button);
     void mousePressed(int x, int y, int button);
     void mouseReleased();
+    void windowResized(int w, int h);
+
     int whichCorner;
 
     ofTrueTypeFont ttf;
@@ -83,12 +85,15 @@ public:
 
     // gui elements
     bool showGui;
-    void openImageFile();
-    void openVideoFile();
-    void quadDimensionsReset();
+
     bool bImageLoad;
     bool bVideoLoad;
     bool bQuadReset;
+
+    void openImageFile();
+    void openVideoFile();
+    void quadDimensionsReset(int q);
+    void quadPlacementReset(int q);
 
     // camera grabber
     ofVideoGrabber camGrabber;

@@ -309,7 +309,8 @@ void testApp::prepare()
         if(bQuadReset)
         {
             bQuadReset = false;
-            quadDimensionsReset();
+            quadDimensionsReset(activeQuad);
+            quadPlacementReset(activeQuad);
         }
 
 
@@ -870,6 +871,19 @@ void testApp::mouseReleased()
 }
 
 
+void testApp::windowResized(int w, int h)
+{
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quadDimensionsReset(i);
+                }
+            }
+}
+
+
+
 //--------------------------------------------------------------
 void testApp::resync()
 {
@@ -936,16 +950,18 @@ void testApp::stopProjection()
 
 
 //---------------------------------------------------------------
-void testApp::quadDimensionsReset()
+void testApp::quadDimensionsReset(int q)
 {
-    quads[activeQuad].quadDispX = 0;
-    quads[activeQuad].quadDispY = 0;
-    quads[activeQuad].quadW = ofGetWidth();
-    quads[activeQuad].quadH = ofGetHeight();
-
-
+    quads[q].quadW = ofGetWidth();
+    quads[q].quadH = ofGetHeight();
 }
 
+//---------------------------------------------------------------
+void testApp::quadPlacementReset(int q)
+{
+    quads[q].quadDispX = 0;
+    quads[q].quadDispY = 0;
+}
 
 
 //--------------------------------------------------------------
