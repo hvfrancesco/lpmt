@@ -64,6 +64,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     // sets default variables
     initialized = True;
+    isActive = False;
     isSetup = True;
     isOn = True;
     colorBg = False;
@@ -174,6 +175,9 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     bBlendModes = False;
     blendMode = 0;
+
+    bHighlightCorner = False;
+    highlightedCorner = -1;
 
 }
 
@@ -701,6 +705,22 @@ void quad::draw()
                 }
             }
             ofDisableAlphaBlending();
+        }
+
+        // draws a little triangle to highlight draggable corner
+        if(isActive && bHighlightCorner && highlightedCorner >= 0)
+        {
+            ofFill();
+            ofSetHexColor(0x00FF00);
+            ofEnableAlphaBlending();
+
+            if(highlightedCorner == 0) {ofTriangle(0,0,20,0,0,20);}
+            else if(highlightedCorner == 1) {ofTriangle(ofGetWidth(),0,ofGetWidth()-20,0,ofGetWidth(),20);}
+            else if(highlightedCorner == 2) {ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-20,ofGetHeight(),ofGetWidth(),ofGetHeight()-20);}
+            else if(highlightedCorner == 3) {ofTriangle(0,ofGetHeight(),0,ofGetHeight()-20,20,ofGetHeight());}
+
+            ofDisableAlphaBlending();
+            ofNoFill();
         }
 
         //lets draw a bounding box if we are in setup mode

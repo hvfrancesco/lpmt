@@ -135,6 +135,7 @@ void testApp::setup()
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
+    quads[activeQuad].isActive = True;
     // number of total quads, to be modified later at each quad insertion
     nOfQuads = 4;
     layers[0] = 0;
@@ -605,11 +606,13 @@ void testApp::keyPressed(int key)
     {
         if (isSetup)
         {
+            quads[activeQuad].isActive = False;
             activeQuad += 1;
             if (activeQuad > nOfQuads-1)
             {
                 activeQuad = 0;
             }
+            quads[activeQuad].isActive = True;
         }
         gui.setPage((activeQuad*3)+2);
     }
@@ -619,11 +622,13 @@ void testApp::keyPressed(int key)
     {
         if (isSetup)
         {
+            quads[activeQuad].isActive = False;
             activeQuad -= 1;
             if (activeQuad < 0)
             {
                 activeQuad = nOfQuads-1;
             }
+            quads[activeQuad].isActive = True;
         }
         gui.setPage((activeQuad*3)+2);
     }
@@ -658,7 +663,9 @@ void testApp::keyPressed(int key)
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
+                quads[activeQuad].isActive = False;
                 activeQuad = nOfQuads;
+                quads[activeQuad].isActive = True;
                 ++nOfQuads;
                 gui.setPage((activeQuad*3)+2);
             }
@@ -779,6 +786,36 @@ void testApp::keyReleased(int key)
 void testApp::mouseMoved(int x, int y )
 {
 
+    if (isSetup && !bGui)
+    {
+        float smallestDist = 1.0;
+        whichCorner = -1;
+
+        for(int i = 0; i < 4; i++)
+        {
+            float distx = quads[activeQuad].corners[i].x - (float)x/ofGetWidth();
+            float disty = quads[activeQuad].corners[i].y - (float)y/ofGetHeight();
+            float dist  = sqrt( distx * distx + disty * disty);
+
+            if(dist < smallestDist && dist < 0.1)
+            {
+                whichCorner = i;
+                smallestDist = dist;
+            }
+        }
+
+        if(whichCorner >= 0)
+            {
+                quads[activeQuad].bHighlightCorner = True;
+                quads[activeQuad].highlightedCorner = whichCorner;
+            }
+        else
+            {
+                quads[activeQuad].bHighlightCorner = False;
+                quads[activeQuad].highlightedCorner = -1;
+            }
+    }
+
 
 }
 
@@ -867,6 +904,7 @@ void testApp::mouseReleased()
         }
     }
     whichCorner = -1;
+    quads[activeQuad].bHighlightCorner = False;
     }
 }
 
@@ -877,6 +915,7 @@ void testApp::windowResized(int w, int h)
             {
                 if (quads[i].initialized)
                 {
+                    quads[i].bHighlightCorner = False;
                     quadDimensionsReset(i);
                 }
             }

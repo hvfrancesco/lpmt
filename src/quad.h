@@ -80,6 +80,7 @@ public:
     int quadNumber;
 
     bool initialized;
+    bool isActive;
     bool isSetup;
     bool isOn;
     bool colorBg;
@@ -106,6 +107,9 @@ public:
 
     bool bBlendModes;
     int blendMode;
+
+    bool bHighlightCorner;
+    int highlightedCorner;
 
     int videoVolume;
     int thresholdGreenscreen;
