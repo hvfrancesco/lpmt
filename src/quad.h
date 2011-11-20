@@ -20,6 +20,7 @@ public:
     }
 
     ofPoint corners[4];
+    ofPoint center;
 
     ofPoint src[4];
     ofPoint dst[4];
@@ -28,6 +29,7 @@ public:
     GLfloat matrix[16];
     ofTrueTypeFont ttf;
     ofTrueTypeFont ttf2;
+    ofTrueTypeFont font11;
     // img and video stuff
     ofImage img;
     ofImage slide;

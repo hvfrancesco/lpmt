@@ -42,6 +42,10 @@ int getdir (string dir, vector<string> &files)
 void testApp::setup()
 {
 
+    //double click time
+    doubleclickTime = 500;
+    lastTap = 0;
+
     if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>768 )
     {
         WINDOW_W = 1024;
@@ -850,6 +854,11 @@ void testApp::mousePressed(int x, int y, int button)
     {
         float smallestDist = 1.0;
         whichCorner = -1;
+        unsigned long curTap = ofGetElapsedTimeMillis();
+        if(lastTap != 0 && curTap - lastTap < doubleclickTime){
+            //cout << "double click detected\n";
+        }
+        lastTap = curTap;
 
         for(int i = 0; i < 4; i++)
         {

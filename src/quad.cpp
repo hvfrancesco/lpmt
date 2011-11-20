@@ -35,6 +35,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     //loads load in some truetype fonts
     ttf.loadFont("type/frabk.ttf", 22);
     ttf2.loadFont("type/frabk.ttf", 14);
+    font11.loadFont("type/frabk.ttf", 11);
 
     bgImg = string("");
     loadedImg = string("");
@@ -56,6 +57,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     corners[3].x = x4;
     corners[3].y = y4;
+
+    center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
     //videos = videoFiles;
     slideshows = slideshowFolders;
@@ -218,6 +221,8 @@ void quad::update()
 {
     if (isOn)
     {
+        //recalculates center of quad
+        center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
         settings.width = ofGetWidth();
         settings.height = ofGetHeight();
@@ -732,7 +737,7 @@ void quad::draw()
             ofSetHexColor(borderColor);
             ofRect(0, 0, ofGetWidth(), ofGetHeight());
             // draws helper grid on active quad
-            if (borderColor == 0xFFFFFF)
+            if (isActive)
             {
                 ofSetHexColor(0x444444);
                 ofLine(0,ofGetHeight()/2,ofGetWidth(),ofGetHeight()/2);
@@ -746,17 +751,19 @@ void quad::draw()
                 ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
             }
         }
-
+        /*
         // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
+        // this version was the original one, it draws label in the center of the quad, but
+        // deformed according to perpective
         if (isSetup)
         {
             ofSetHexColor(0x000000);
             ttf.drawString("surface "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
-            if (borderColor == 0xFFFFFF) { ofSetHexColor(0xDB6800); }
+            if (isActive) { ofSetHexColor(0xDB6800); } // draws orange label if active quad, white if not
             else { ofSetHexColor(0xFFFFFF); }
             ttf.drawString("surface "+ofToString(quadNumber), (ofGetWidth()/2)-3, (ofGetHeight()/2)-3);
         }
-
+        */
         // restore previous coordinates
         ofPopMatrix();
 
@@ -770,5 +777,16 @@ void quad::draw()
         ofSetHexColor(0xFFFFFF);
         ttf.drawString("surface "+ofToString(quadNumber), (t.x)-4, (t.y)-4);
         */
+        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
+        // this version draws the label in the center of the quad, but undeformed
+        if (isSetup)
+        {
+            ofSetHexColor(0x000000);
+            font11.drawString("surface "+ofToString(quadNumber), center.x*ofGetWidth(), center.y*ofGetHeight());
+            if (isActive) { ofSetHexColor(0xDB6800); } // draws orange label if active quad, white if not
+            else { ofSetHexColor(0xFFFFFF); }
+            font11.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
+        }
+
     }
 }

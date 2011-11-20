@@ -111,6 +111,10 @@ public:
     void setXml();
     void getXml();
 
+    // double-click stuff
+    unsigned long doubleclickTime;
+    unsigned long lastTap;
+
 
 
 
