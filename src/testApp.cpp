@@ -856,7 +856,7 @@ void testApp::mousePressed(int x, int y, int button)
         whichCorner = -1;
         unsigned long curTap = ofGetElapsedTimeMillis();
         if(lastTap != 0 && curTap - lastTap < doubleclickTime){
-            //cout << "double click detected\n";
+            activateQuad(x,y);
         }
         lastTap = curTap;
 
@@ -1009,6 +1009,36 @@ void testApp::quadPlacementReset(int q)
 {
     quads[q].quadDispX = 0;
     quads[q].quadDispY = 0;
+}
+
+//---------------------------------------------------------------
+void testApp::activateQuad(int x, int y)
+{
+    float smallestDist = 1.0;
+    int whichQuad = activeQuad;
+
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
+        {
+            float distx = quads[i].center.x - (float)x/ofGetWidth();
+            float disty = quads[i].center.y - (float)y/ofGetHeight();
+            float dist  = sqrt( distx * distx + disty * disty);
+
+            if(dist < smallestDist && dist < 0.1)
+            {
+                whichQuad = i;
+                smallestDist = dist;
+            }
+        }
+    }
+    if (whichQuad != activeQuad)
+    {
+        quads[activeQuad].isActive = False;
+        activeQuad = whichQuad;
+        quads[activeQuad].isActive = True;
+        gui.setPage((activeQuad*3)+2);
+    }
 }
 
 

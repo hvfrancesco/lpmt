@@ -115,6 +115,8 @@ public:
     unsigned long doubleclickTime;
     unsigned long lastTap;
 
+    void activateQuad(int x, int y);
+
 
 
 
