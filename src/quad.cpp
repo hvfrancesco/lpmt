@@ -224,9 +224,7 @@ void quad::update()
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
-        settings.width = ofGetWidth();
-        settings.height = ofGetHeight();
-        quadFbo.allocate(settings);
+        //allocateFbo(ofGetWidth(), ofGetHeight());
 
 
         // solid colors ---------------------------------------------------------------
@@ -433,7 +431,8 @@ void quad::draw()
     if (isOn)
     {
         quadFbo.begin();
-        ofClear(0,0,0,0);
+        ofClear(0.0,0.0,0.0,0.0);
+        ofEnableAlphaBlending();
         // -- NOW LETS DRAW!!!!!!  -----
 
         // if a solid color content or color transition is set it draws it
@@ -441,7 +440,6 @@ void quad::draw()
         if (colorBg)
         {
             ofFill();
-            ofEnableAlphaBlending();
             // if we have two colors it draws with calculated transition color
             if (transBg)
             {
@@ -453,7 +451,6 @@ void quad::draw()
                 ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
             }
             ofRect(0, 0, ofGetWidth(), ofGetHeight());
-            ofDisableAlphaBlending();
             ofNoFill();
         }
 
@@ -480,7 +477,6 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofEnableAlphaBlending();
             ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
             if (!videoLoop)
             {
@@ -509,7 +505,6 @@ void quad::draw()
                     video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                 }
             }
-            ofDisableAlphaBlending();
             if (videoHFlip || videoVFlip)
             {
                 glPopMatrix();
@@ -540,7 +535,6 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofEnableAlphaBlending();
             ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
             if (camGreenscreen)
             {
@@ -550,7 +544,6 @@ void quad::draw()
             {
                 camTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
             }
-            ofDisableAlphaBlending();
             if (camHFlip || camVFlip)
             {
                 glPopMatrix();
@@ -569,7 +562,6 @@ void quad::draw()
                     currentSlide = 0;
                 }
                 slide = slides[currentSlide];
-                ofEnableAlphaBlending();
                 // color is set according to still img colorization combo
                 ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
                 // default is drawing image with its size unchanged, so we set mult factors = 1.0
@@ -602,7 +594,6 @@ void quad::draw()
                 }
                 // at last we draw the image with appropriate size multiplier
                 slide.draw(0,0,slide.getWidth()*multX, slide.getHeight()*multY);
-                ofDisableAlphaBlending();
 
                 // if slide showing time has elapsed it switches to next slide
                 if (slideTimer > slideFramesDuration )
@@ -637,16 +628,14 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofEnableAlphaBlending();
             ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
             img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
-            ofDisableAlphaBlending();
             if (imgHFlip || imgVFlip)
             {
                 glPopMatrix();
             }
         }
-
+        ofDisableAlphaBlending();
         quadFbo.end();
 
 
@@ -691,9 +680,10 @@ void quad::draw()
         }
         else
         {
-            ofEnableAlphaBlending();
+
             if(quadFbo.getWidth()>0)
             {
+                ofEnableAlphaBlending();
                 //set ofColor to white
                 ofSetColor(255,255,255);
                 //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
@@ -708,8 +698,8 @@ void quad::draw()
                 if(bBlendModes) {
                     glDisable(GL_BLEND);
                 }
+                ofDisableAlphaBlending();
             }
-            ofDisableAlphaBlending();
         }
 
         // draws a little triangle to highlight draggable corner
@@ -718,12 +708,10 @@ void quad::draw()
             ofFill();
             ofSetHexColor(0x00FF00);
             ofEnableAlphaBlending();
-
             if(highlightedCorner == 0) {ofTriangle(0,0,20,0,0,20);}
             else if(highlightedCorner == 1) {ofTriangle(ofGetWidth(),0,ofGetWidth()-20,0,ofGetWidth(),20);}
             else if(highlightedCorner == 2) {ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-20,ofGetHeight(),ofGetWidth(),ofGetHeight()-20);}
             else if(highlightedCorner == 3) {ofTriangle(0,ofGetHeight(),0,ofGetHeight()-20,20,ofGetHeight());}
-
             ofDisableAlphaBlending();
             ofNoFill();
         }
@@ -789,4 +777,12 @@ void quad::draw()
         }
 
     }
+}
+
+//--------------------------------------------------------------
+void quad::allocateFbo(int w, int h)
+{
+        settings.width = w;
+        settings.height = h;
+        quadFbo.allocate(settings);
 }

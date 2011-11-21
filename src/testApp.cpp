@@ -58,7 +58,7 @@ void testApp::setup()
     }
 
     //we run at 60 fps!
-    ofSetVerticalSync(true);
+    //ofSetVerticalSync(true);
 
     // splash image
     bSplash = true;
@@ -682,6 +682,8 @@ void testApp::keyPressed(int key)
         if (isSetup)
         {
             isSetup = False;
+            gui.hide();
+            bGui = False;
             for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
@@ -693,6 +695,8 @@ void testApp::keyPressed(int key)
         else
         {
             isSetup = True;
+            gui.show();
+            bGui = True;
             for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
@@ -925,6 +929,7 @@ void testApp::windowResized(int w, int h)
                 if (quads[i].initialized)
                 {
                     quads[i].bHighlightCorner = False;
+                    quads[i].allocateFbo(ofGetWidth(),ofGetHeight());
                     quadDimensionsReset(i);
                 }
             }

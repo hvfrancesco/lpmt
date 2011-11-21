@@ -161,5 +161,7 @@ public:
 
     void loadVideoFromFile(string videoName, string videoPath);
 
+    void allocateFbo(int w, int h);
+
 };
 
