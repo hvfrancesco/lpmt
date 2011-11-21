@@ -671,6 +671,7 @@ void testApp::keyPressed(int key)
                 activeQuad = nOfQuads;
                 quads[activeQuad].isActive = True;
                 ++nOfQuads;
+                quads[activeQuad].allocateFbo(ofGetWidth(),ofGetHeight());
                 gui.setPage((activeQuad*3)+2);
             }
         }
