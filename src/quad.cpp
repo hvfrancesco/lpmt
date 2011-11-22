@@ -33,8 +33,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     shaderBlend = &edgeBlendShader;
 
     //loads load in some truetype fonts
-    ttf.loadFont("type/frabk.ttf", 22);
-    ttf2.loadFont("type/frabk.ttf", 11);
+    ttf.loadFont("type/frabk.ttf", 11);
 
     bgImg = string("");
     loadedImg = string("");
@@ -769,10 +768,10 @@ void quad::draw()
         if (isSetup)
         {
             ofSetHexColor(0x000000);
-            ttf2.drawString("surface "+ofToString(quadNumber), center.x*ofGetWidth(), center.y*ofGetHeight());
+            ttf.drawString("surface "+ofToString(quadNumber), center.x*ofGetWidth(), center.y*ofGetHeight());
             if (isActive) { ofSetHexColor(0xDB6800); } // draws orange label if active quad, white if not
             else { ofSetHexColor(0xFFFFFF); }
-            ttf2.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
+            ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
         }
 
     }

@@ -28,7 +28,6 @@ public:
     //this will be the matrix that peforms the transformation
     GLfloat matrix[16];
     ofTrueTypeFont ttf;
-    ofTrueTypeFont ttf2;
     // img and video stuff
     ofImage img;
     ofImage slide;
