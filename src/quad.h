@@ -29,7 +29,6 @@ public:
     GLfloat matrix[16];
     ofTrueTypeFont ttf;
     ofTrueTypeFont ttf2;
-    ofTrueTypeFont font11;
     // img and video stuff
     ofImage img;
     ofImage slide;
