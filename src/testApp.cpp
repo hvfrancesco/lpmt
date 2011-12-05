@@ -390,6 +390,16 @@ void testApp::dostuff()
 {
     if (bStarted)
     {
+
+        // if snapshot is on draws it as window background
+        if (isSetup && snapshotOn)
+            {
+                ofEnableAlphaBlending();
+                ofSetHexColor(0xFFFFFF);
+                snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
+                ofDisableAlphaBlending();
+            }
+
         // loops through initialized quads and calls their draw function
         for(int j = 0; j < 36; j++)
         {
@@ -440,14 +450,7 @@ void testApp::draw()
 
         if (bStarted)
         {
-            // if snapshot is on draws it as window background
-            if (snapshotOn)
-            {
-                ofEnableAlphaBlending();
-                ofSetHexColor(0xFFFFFF);
-                snapshotTexture.draw(0,0,ofGetWidth(),ofGetHeight());
-                ofDisableAlphaBlending();
-            }
+
             ofSetHexColor(0xFFFFFF);
             ttf.drawString("active surface: "+ofToString(activeQuad), 30, ofGetHeight()-25);
             // draws gui
