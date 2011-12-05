@@ -1,0 +1,43 @@
+LPMT version 1.0
+
+Release Note
+----------------
+
+we have finally decided to release a 1.0 version to mark a milestone, not all issues are addressed and not all bugs have been squeezed,
+but anyway, here we go:
+
+new core features
+- content horizontal/vertical mirroring in projection surfaces for video, images and live-cam.
+- code has been refactored introducing use of FBOs for quads.
+- there are now some blending modes possible for projection surfaces.
+- an edge-blending feature has been introduced using GLSL shaders, allowing use of several overlapping projectors
+ (the edge-blending feature requires a rather good GPU, but should work reliably on most modern systems).
+
+usability enhancements
+- now you can activate a projection surface by double-clicking its label, quite useful in setup workflow.
+- surfaces labels are no more influenced by quad warping, remaining readable even with strong quad warping.
+- mouse-over effect for draggable corners on active surface.
+
+distribution
+- new binary version for Windows systems, tested on Windows 7 and Xp.
+now Widows binaries are distributed as free trial version, with limited number of projection surfaces and watermarked,
+and full version, for which we charge a little fee to compensate for the hassle of firing up a windows machine to compile it.
+Obviously LPMT remains an open-source project, and you're free to get the source and compile it yourself.
+
+
+Known bugs
+---------------
+
+- on Windows, if you load images or movies placed outside the LPMT folder structure, you may mess up the default path,
+triggering error in finding things like LPMT default font and so on, so you're encouraged to put your projectable assets in
+LPMT folder. We are trying to address this issue, but haven't found a solution yet.
+Things work well on Linux.
+
+- on Windows, Apple Quicktime is used by Openframeworks for video reproduction, this limits the kind of video assets you
+can put in projection surfaces in LPMT. If you try to load a video format not recognized by Quicktime, projection surface
+will stay black and no message or explanation will be displayed, or, in worst cases, LPMT may crash silently.
+In case of doubt, always use video material that you have tested with Quicktime player to get sure it is playable in LPMT.
+
+- If you plan to manage simultaneously many High Definition video clips, then you are invited to consider to encode them using
+a non-cpu intensive codec, or reproduction may be sluggish and choppy. Always consider to re-size your video content according to
+projector's resolution: it makes non sense putting a full HD video in a projection surface if your projector is a SVGA one!
