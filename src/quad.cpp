@@ -218,24 +218,67 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
 
 void quad::maskAddPoint(int x, int y)
 {
-    ofPoint mouse;
-    ofPoint warped;
+    ofVec3f mouse;
+    ofVec2f minimouse;
+    ofVec2f warpedmini;
+    ofVec3f warped;
+    ofVec3f warped1;
+    ofVec3f warpedInv;
+    ofVec3f warped1Inv;
     ofMatrix4x4 warpMatrix;
-    mouse.x = (float)x/ofGetWidth();
-    mouse.y = (float)y/ofGetHeight();
-    mouse.z = 0.0;
+    ofMatrix4x4 warpMatrix1;
+    ofMatrix3x3 miniMatrix;
+    //mouse.x = (float)x/ofGetWidth();
+    //mouse.y = (float)y/ofGetHeight();
+    mouse.x = (float)x;
+   mouse.y = (float)y;
+    mouse.z = 1.0;
+    //mouse.w = 1.0;
+
+    minimouse.x = (float)x;
+    minimouse.y = (float)y;
 
     findHomography(src, dst, matrix);
-    warpMatrix = ofMatrix4x4(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7], matrix[8], matrix[9], matrix[10], matrix[11], matrix[12], matrix[13], matrix[14], matrix[15]);
+    miniMatrix = ofMatrix3x3(matrix[0],matrix[1],matrix[3],matrix[4],matrix[5],matrix[7],matrix[12],matrix[13],matrix[15]);
+   warpMatrix1 = ofMatrix4x4(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7], matrix[8], matrix[9], matrix[10], matrix[11], matrix[12], matrix[13], matrix[14], matrix[15]);
+    warpMatrix = findVectorHomography(src, dst);
+    cout << warpMatrix1 <<"\n\n";
+    cout << miniMatrix <<"\n\n";
+    miniMatrix.invert();
+    cout << miniMatrix << "\n\n";
+    cout << warpMatrix1.getInverse() <<"\n\n";
+    cout << warpMatrix << "\n\n";
+    cout << warpMatrix.getInverse() <<"\n\n";
+
+    //warpMatrix = findVectorHomography(dst, src);
+
+    cout << "src\n0x " << src[0].x << " 0y " << src[0].y << "\n";
+    cout << "1x " << src[1].x << " 1y " << src[1].y << "\n";
+    cout << "2x " << src[2].x << " 2y " << src[2].y << "\n";
+    cout << "3x " << src[3].x << " 3y " << src[3].y << "\n\n";
+
+    cout << "dst\n0x " << dst[0].x << " 0y " << dst[0].y << "\n";
+    cout << "1x " << dst[1].x << " 1y " << dst[1].y << "\n";
+    cout << "2x " << dst[2].x << " 2y " << dst[2].y << "\n";
+    cout << "3x " << dst[3].x << " 3y " << dst[3].y << "\n\n";
 
     cout << "mouse x = " << mouse.x << "\n";
     cout << "mouse y = " << mouse.y << "\n\n";
 
-    warped = mouse * findVectorHomography(src, dst).getInverse();
     //warped = mouse * warpMatrix.getInverse();
-    //warped = mouse * warpMatrix;
+    warped = mouse * warpMatrix;
+    warped1 = mouse * warpMatrix1;
+    warpedInv = mouse * warpMatrix.getInverse();
+    warped1Inv = mouse * warpMatrix1.getInverse();
+  //  warpedmini = minimouse * miniMatrix;
     cout << "warp x = " << warped.x << "\n";
     cout << "warp y = " << warped.y << "\n\n";
+    cout << "warp_i x = " << warpedInv.x << "\n";
+    cout << "warp_i y = " << warpedInv.y << "\n\n";
+    cout << "warp1 x = " << warped1.x << "\n";
+    cout << "warp1 y = " << warped1.y << "\n\n";
+    cout << "warp1_i x = " << warped1Inv.x << "\n";
+    cout << "warp1_i y = " << warped1Inv.y << "\n\n";
 
 
 }
