@@ -577,15 +577,29 @@ void testApp::keyPressed(int key)
     }
 
     // takes a snapshot of attached camera and uses it as window background
-    if (key == 'w' || key == 'W')
+    if (key == 'w')
     {
         snapshotOn = !snapshotOn;
         if (snapshotOn == 1)
         {
             camGrabber.grabFrame();
-            //int totalPixels = camWidth*camHeight*3;
+            snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
             unsigned char * pixels = camGrabber.getPixels();
             snapshotTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
+        }
+    }
+
+    // takes a snapshot from an image file and uses it as window background
+    if (key == 'W')
+    {
+        snapshotOn = !snapshotOn;
+        if (snapshotOn == 1)
+        {
+            ofImage img;
+            img.clone(loadImageFromFile());
+            snapshotTexture.allocate(img.width,img.height, GL_RGB);
+            unsigned char * pixels = img.getPixels();
+            snapshotTexture.loadData(pixels, img.width,img.height, GL_RGB);
         }
     }
 
@@ -1049,6 +1063,26 @@ void testApp::activateQuad(int x, int y)
         gui.setPage((activeQuad*3)+2);
     }
 }
+
+
+//-----------------------------------------------------------
+ofImage testApp::loadImageFromFile()
+{
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image file", false);
+    if(dialog_result.bSuccess)
+    {
+        ofImage img;
+        string imgName = dialog_result.getName();
+        string imgPath = dialog_result.getPath();
+        ofFile image(imgPath);
+        img.loadImage(image);
+        return img;
+    }
+
+}
+
+
+
 
 
 //--------------------------------------------------------------

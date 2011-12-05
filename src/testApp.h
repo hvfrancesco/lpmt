@@ -118,6 +118,10 @@ public:
     void activateQuad(int x, int y);
 
 
+    // snapshot loading
+    ofImage loadImageFromFile();
+
+
 
 
 };
