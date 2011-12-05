@@ -215,6 +215,32 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
     loadedVideo = videoName;
 }
 
+
+void quad::maskAddPoint(int x, int y)
+{
+    ofPoint mouse;
+    ofPoint warped;
+    ofMatrix4x4 warpMatrix;
+    mouse.x = (float)x/ofGetWidth();
+    mouse.y = (float)y/ofGetHeight();
+    mouse.z = 0.0;
+
+    findHomography(src, dst, matrix);
+    warpMatrix = ofMatrix4x4(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7], matrix[8], matrix[9], matrix[10], matrix[11], matrix[12], matrix[13], matrix[14], matrix[15]);
+
+    cout << "mouse x = " << mouse.x << "\n";
+    cout << "mouse y = " << mouse.y << "\n\n";
+
+    warped = mouse * findVectorHomography(src, dst).getInverse();
+    //warped = mouse * warpMatrix.getInverse();
+    //warped = mouse * warpMatrix;
+    cout << "warp x = " << warped.x << "\n";
+    cout << "warp y = " << warped.y << "\n\n";
+
+
+}
+
+
 void quad::update()
 {
     if (isOn)

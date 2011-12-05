@@ -161,5 +161,7 @@ public:
 
     void allocateFbo(int w, int h);
 
+    void maskAddPoint(int x, int y);
+
 };
 

@@ -61,6 +61,7 @@ public:
     bool snapshotOn;
     bool bStarted;
     bool bSplash;
+    bool maskSetup;
 
     ofImage splashImg;
     float splashTime;

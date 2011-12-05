@@ -65,6 +65,9 @@ void testApp::setup()
     splashImg.loadImage("lpmt_splash.png");
     splashTime = ofGetElapsedTimef();
 
+    //mask editing
+    maskSetup = false;
+
     // OSC setup
     receiver.setup( PORT );
     current_msg_string = 0;
@@ -753,6 +756,12 @@ void testApp::keyPressed(int key)
         bGui = !bGui;
     }
 
+    // toggles mask editing
+    if(key == 'n')
+    {
+        maskSetup = !maskSetup;
+    }
+
     if(key == '[')
     {
         gui.prevPage();
@@ -874,6 +883,13 @@ void testApp::mousePressed(int x, int y, int button)
 
     if (isSetup && !bGui)
     {
+
+        if(maskSetup) {
+        quads[activeQuad].maskAddPoint(x, y);
+
+        }
+
+        else {
         float smallestDist = 1.0;
         whichCorner = -1;
         unsigned long curTap = ofGetElapsedTimeMillis();
@@ -894,6 +910,7 @@ void testApp::mousePressed(int x, int y, int button)
                 smallestDist = dist;
             }
         }
+    }
     }
 }
 
