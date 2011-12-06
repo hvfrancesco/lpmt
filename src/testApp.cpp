@@ -456,6 +456,10 @@ void testApp::draw()
 
             ofSetHexColor(0xFFFFFF);
             ttf.drawString("active surface: "+ofToString(activeQuad), 30, ofGetHeight()-25);
+            if(maskSetup) {
+                ofSetHexColor(0xFF0000);
+                ttf.drawString("Mask-editing mode ", 170, ofGetHeight()-25);
+            }
             // draws gui
             gui.draw();
         }
@@ -757,7 +761,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles mask editing
-    if(key == 'n')
+    if(key == 'm')
     {
         maskSetup = !maskSetup;
     }
@@ -797,7 +801,7 @@ void testApp::keyPressed(int key)
         stopProjection();
     }
 
-    if(key == 'm')
+    if(key == 'n')
     {
         mpeSetup();
     }

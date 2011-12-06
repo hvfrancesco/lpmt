@@ -180,6 +180,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     bHighlightCorner = False;
     highlightedCorner = -1;
 
+    maskPoints = vector<ofPoint>();
+
 }
 
 
@@ -218,38 +220,21 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
 
 void quad::maskAddPoint(int x, int y)
 {
-    ofVec3f mouse;
+
+    ofPoint mouse;
+    mouse.x = x;
+    mouse.y = y;
+
     ofVec3f warped;
+    warped = findWarpedPoint(src, dst, mouse);
 
-    ofMatrix4x4 warpMatrix;
-    ofMatrix3x3 homographyMatrix;
+    maskPoints.push_back(warped);
 
-    float multMatrix[3][3];
-
-    mouse.x = (float)x;
-    mouse.y = (float)y;
-    mouse.z = 1.0;
-
-    warpMatrix = findVectorHomography(src, dst);
-    homographyMatrix = ofMatrix3x3(warpMatrix(0,0),warpMatrix(0,1), warpMatrix(0,3), warpMatrix(1,0), warpMatrix(1,1), warpMatrix(1,3), warpMatrix(3,0), warpMatrix(3,1), warpMatrix(3,3));
-
-    homographyMatrix.invert();
-
-    multMatrix = {{homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]}, {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]}, {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]}};
-
-
-    for (int i=0; i<3; i++) {
-        for (int j=0; j<3; j++) {
-            warped[j] += (float)multMatrix[j][i] * mouse[i];
-        }
-
-    }
-
-
-    cout << "warped x = " << warped.x/warped.z <<"\n";
-    cout << "warped y = " << warped.y/warped.z <<"\n";
+    /*
+    cout << "warped x = " << warped.x <<"\n";
+    cout << "warped y = " << warped.y <<"\n";
     cout << "warped z = " << warped.z <<"\n\n";
-
+    */
 }
 
 
@@ -671,8 +656,32 @@ void quad::draw()
                 glPopMatrix();
             }
         }
+
+
         ofDisableAlphaBlending();
         quadFbo.end();
+
+        //mask
+        maskFbo.begin();
+        ofClear(0.0,0.0,0.0,0.0);
+        ofEnableAlphaBlending();
+        ofFill();
+        ofEnableSmoothing();
+        ofSetLineWidth(0.5);
+        if(maskPoints.size()>0)
+        {
+            ofSetColor(255,255,255);
+            ofBeginShape();
+            for(unsigned int i = 0; i < maskPoints.size(); i++)
+                {
+                    ofVertex(maskPoints[i]);
+                }
+            ofEndShape(true);
+        }
+        ofDisableSmoothing();
+        ofNoFill();
+        ofDisableAlphaBlending();
+        maskFbo.end();
 
 
         // save actual GL coordinates
@@ -738,6 +747,16 @@ void quad::draw()
             }
         }
 
+        // draw mask
+        if(isActive)
+        {
+        ofEnableAlphaBlending();
+        //set ofColor to red with alpha
+        ofSetColor(255,100,100,180);
+        maskFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+        ofDisableAlphaBlending();
+        }
+
         // draws a little triangle to highlight draggable corner
         if(isActive && bHighlightCorner && highlightedCorner >= 0)
         {
@@ -775,34 +794,9 @@ void quad::draw()
                 ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
             }
         }
-        /*
-        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
-        // this version was the original one, it draws label in the center of the quad, but
-        // deformed according to perpective
-        if (isSetup)
-        {
-            ofSetHexColor(0x000000);
-            ttf.drawString("surface "+ofToString(quadNumber), ofGetWidth()/2, ofGetHeight()/2);
-            if (isActive) { ofSetHexColor(0xDB6800); } // draws orange label if active quad, white if not
-            else { ofSetHexColor(0xFFFFFF); }
-            ttf.drawString("surface "+ofToString(quadNumber), (ofGetWidth()/2)-3, (ofGetHeight()/2)-3);
-        }
-        */
-        // restore previous coordinates
+
         ofPopMatrix();
 
-        //TODO look into this stuff
-        /*
-        ofMatrix4x4 H = findVectorHomography(src,dst);
-        ofVec4f v(ofGetWidth()/2,ofGetHeight()/2,1,1);
-        ofVec4f t = v*H;
-        ofSetHexColor(0x000000);
-        ttf.drawString("surface "+ofToString(quadNumber), t.x, t.y);
-        ofSetHexColor(0xFFFFFF);
-        ttf.drawString("surface "+ofToString(quadNumber), (t.x)-4, (t.y)-4);
-        */
-        // writes quad number with a dropback shadow in the middle of quad - KEEP IT AT LAST POSITION IN draw()
-        // this version draws the label in the center of the quad, but undeformed
         if (isSetup)
         {
             ofSetHexColor(0x000000);
@@ -821,4 +815,5 @@ void quad::allocateFbo(int w, int h)
         settings.width = w;
         settings.height = h;
         quadFbo.allocate(settings);
+        maskFbo.allocate(settings);
 }

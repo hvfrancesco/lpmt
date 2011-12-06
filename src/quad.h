@@ -136,6 +136,9 @@ public:
     ofFbo   quadFbo;
     ofFbo::Settings settings;
 
+    ofFbo maskFbo;
+    ofFbo::Settings maskFboSettings;
+
     int quadDispX;
     int quadDispY;
     int quadW;
@@ -162,6 +165,8 @@ public:
     void allocateFbo(int w, int h);
 
     void maskAddPoint(int x, int y);
+
+    vector<ofPoint> maskPoints;
 
 };
 

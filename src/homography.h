@@ -176,3 +176,40 @@ ofMatrix4x4 findVectorHomography(ofPoint src[4], ofPoint dst[4]){
 	return matrix;
 }
 
+
+ofPoint findWarpedPoint(ofPoint src[4], ofPoint dst[4], ofPoint point) {
+
+    ofVec3f srcPoint;
+    ofPoint warped;
+
+    ofMatrix4x4 warpMatrix;
+    ofMatrix3x3 homographyMatrix;
+
+    float multMatrix[3][3];
+
+    srcPoint.x = (float)point.x;
+    srcPoint.y = (float)point.y;
+    srcPoint.z = 1.0;
+
+    warpMatrix = findVectorHomography(src, dst);
+    homographyMatrix = ofMatrix3x3(warpMatrix(0,0),warpMatrix(0,1), warpMatrix(0,3), warpMatrix(1,0), warpMatrix(1,1), warpMatrix(1,3), warpMatrix(3,0), warpMatrix(3,1), warpMatrix(3,3));
+
+    homographyMatrix.invert();
+
+    multMatrix = {{homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]}, {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]}, {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]}};
+
+
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<3; j++) {
+            warped[j] += (float)multMatrix[j][i] * srcPoint[i];
+        }
+
+    }
+
+    warped.x = warped.x/warped.z;
+    warped.y = warped.y/warped.z;
+    warped.z = 0.0;
+
+    return warped;
+
+}
