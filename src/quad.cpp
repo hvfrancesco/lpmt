@@ -220,51 +220,23 @@ void quad::maskAddPoint(int x, int y)
 {
     ofVec3f mouse;
     ofVec3f warped;
-    ofVec3f warped2;
-
-    warped.set(0.0,0.0,0.0);
 
     ofMatrix4x4 warpMatrix;
-    ofMatrix4x4 inverseMatrix;
     ofMatrix3x3 homographyMatrix;
-    ofMatrix3x3 homographyMatrix2;
+
     float multMatrix[3][3];
-    float multMatrix2[3][3];
-    //mouse.x = (float)x/ofGetWidth();
-    //mouse.y = (float)y/ofGetHeight();
+
     mouse.x = (float)x;
     mouse.y = (float)y;
     mouse.z = 1.0;
 
-
-    findHomography(src, dst, matrix);
-    //findHomography(dst, src, matrix);
     warpMatrix = findVectorHomography(src, dst);
-    //warpMatrix = findVectorHomography(dst, src);
-    inverseMatrix = warpMatrix.getInverse();
     homographyMatrix = ofMatrix3x3(warpMatrix(0,0),warpMatrix(0,1), warpMatrix(0,3), warpMatrix(1,0), warpMatrix(1,1), warpMatrix(1,3), warpMatrix(3,0), warpMatrix(3,1), warpMatrix(3,3));
-    //homographyMatrix = ofMatrix3x3(inverseMatrix(0,0),inverseMatrix(0,1), inverseMatrix(0,3), inverseMatrix(1,0), inverseMatrix(1,1), inverseMatrix(1,3), inverseMatrix(3,0), inverseMatrix(3,1), inverseMatrix(3,3));
-    homographyMatrix2 = ofMatrix3x3(matrix[0], matrix[1],matrix[3],
-                               matrix[4], matrix[5], matrix[7],
-                              matrix[12],matrix[13],matrix[15]);
 
-    cout << homographyMatrix <<"\n\n";
     homographyMatrix.invert();
-    cout << homographyMatrix <<"\n\n";
-
-    cout << homographyMatrix2 <<"\n\n";
-   homographyMatrix2.invert();
-    homographyMatrix2.transpose();
-    cout << homographyMatrix2 <<"\n\n";
-
-    //cout << warpMatrix <<"\n\n";
-    //cout << inverseMatrix <<"\n\n";
 
     multMatrix = {{homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]}, {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]}, {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]}};
-    multMatrix2 = {{homographyMatrix2[0], homographyMatrix2[1], homographyMatrix2[2]}, {homographyMatrix2[3], homographyMatrix2[4], homographyMatrix2[5]}, {homographyMatrix2[6], homographyMatrix2[7], homographyMatrix2[8]}};
 
-    cout << "mouse x = " << mouse.x << "\n";
-    cout << "mouse y = " << mouse.y << "\n\n";
 
     for (int i=0; i<3; i++) {
         for (int j=0; j<3; j++) {
@@ -273,26 +245,10 @@ void quad::maskAddPoint(int x, int y)
 
     }
 
-    for (int i=0; i<3; i++) {
-        for (int j=0; j<3; j++) {
-            warped2[j] += (float)multMatrix2[j][i] * mouse[i];
-        }
-
-    }
-
-
 
     cout << "warped x = " << warped.x/warped.z <<"\n";
     cout << "warped y = " << warped.y/warped.z <<"\n";
     cout << "warped z = " << warped.z <<"\n\n";
-
-    cout << "warped2 x = " << warped2.x/warped.z <<"\n";
-    cout << "warped2 y = " << warped2.y/warped.z <<"\n\n";
-    cout << "warped2 z = " << warped2.z <<"\n";
-
-
-
-
 
 }
 
