@@ -219,66 +219,79 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
 void quad::maskAddPoint(int x, int y)
 {
     ofVec3f mouse;
-    ofVec2f minimouse;
-    ofVec2f warpedmini;
     ofVec3f warped;
-    ofVec3f warped1;
-    ofVec3f warpedInv;
-    ofVec3f warped1Inv;
+    ofVec3f warped2;
+
+    warped.set(0.0,0.0,0.0);
+
     ofMatrix4x4 warpMatrix;
-    ofMatrix4x4 warpMatrix1;
-    ofMatrix3x3 miniMatrix;
+    ofMatrix4x4 inverseMatrix;
+    ofMatrix3x3 homographyMatrix;
+    ofMatrix3x3 homographyMatrix2;
+    float multMatrix[3][3];
+    float multMatrix2[3][3];
     //mouse.x = (float)x/ofGetWidth();
     //mouse.y = (float)y/ofGetHeight();
     mouse.x = (float)x;
-   mouse.y = (float)y;
+    mouse.y = (float)y;
     mouse.z = 1.0;
-    //mouse.w = 1.0;
 
-    minimouse.x = (float)x;
-    minimouse.y = (float)y;
 
     findHomography(src, dst, matrix);
-    miniMatrix = ofMatrix3x3(matrix[0],matrix[1],matrix[3],matrix[4],matrix[5],matrix[7],matrix[12],matrix[13],matrix[15]);
-   warpMatrix1 = ofMatrix4x4(matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7], matrix[8], matrix[9], matrix[10], matrix[11], matrix[12], matrix[13], matrix[14], matrix[15]);
+    //findHomography(dst, src, matrix);
     warpMatrix = findVectorHomography(src, dst);
-    cout << warpMatrix1 <<"\n\n";
-    cout << miniMatrix <<"\n\n";
-    miniMatrix.invert();
-    cout << miniMatrix << "\n\n";
-    cout << warpMatrix1.getInverse() <<"\n\n";
-    cout << warpMatrix << "\n\n";
-    cout << warpMatrix.getInverse() <<"\n\n";
-
     //warpMatrix = findVectorHomography(dst, src);
+    inverseMatrix = warpMatrix.getInverse();
+    homographyMatrix = ofMatrix3x3(warpMatrix(0,0),warpMatrix(0,1), warpMatrix(0,3), warpMatrix(1,0), warpMatrix(1,1), warpMatrix(1,3), warpMatrix(3,0), warpMatrix(3,1), warpMatrix(3,3));
+    //homographyMatrix = ofMatrix3x3(inverseMatrix(0,0),inverseMatrix(0,1), inverseMatrix(0,3), inverseMatrix(1,0), inverseMatrix(1,1), inverseMatrix(1,3), inverseMatrix(3,0), inverseMatrix(3,1), inverseMatrix(3,3));
+    homographyMatrix2 = ofMatrix3x3(matrix[0], matrix[1],matrix[3],
+                               matrix[4], matrix[5], matrix[7],
+                              matrix[12],matrix[13],matrix[15]);
 
-    cout << "src\n0x " << src[0].x << " 0y " << src[0].y << "\n";
-    cout << "1x " << src[1].x << " 1y " << src[1].y << "\n";
-    cout << "2x " << src[2].x << " 2y " << src[2].y << "\n";
-    cout << "3x " << src[3].x << " 3y " << src[3].y << "\n\n";
+    cout << homographyMatrix <<"\n\n";
+    homographyMatrix.invert();
+    cout << homographyMatrix <<"\n\n";
 
-    cout << "dst\n0x " << dst[0].x << " 0y " << dst[0].y << "\n";
-    cout << "1x " << dst[1].x << " 1y " << dst[1].y << "\n";
-    cout << "2x " << dst[2].x << " 2y " << dst[2].y << "\n";
-    cout << "3x " << dst[3].x << " 3y " << dst[3].y << "\n\n";
+    cout << homographyMatrix2 <<"\n\n";
+   homographyMatrix2.invert();
+    homographyMatrix2.transpose();
+    cout << homographyMatrix2 <<"\n\n";
+
+    //cout << warpMatrix <<"\n\n";
+    //cout << inverseMatrix <<"\n\n";
+
+    multMatrix = {{homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]}, {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]}, {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]}};
+    multMatrix2 = {{homographyMatrix2[0], homographyMatrix2[1], homographyMatrix2[2]}, {homographyMatrix2[3], homographyMatrix2[4], homographyMatrix2[5]}, {homographyMatrix2[6], homographyMatrix2[7], homographyMatrix2[8]}};
 
     cout << "mouse x = " << mouse.x << "\n";
     cout << "mouse y = " << mouse.y << "\n\n";
 
-    //warped = mouse * warpMatrix.getInverse();
-    warped = mouse * warpMatrix;
-    warped1 = mouse * warpMatrix1;
-    warpedInv = mouse * warpMatrix.getInverse();
-    warped1Inv = mouse * warpMatrix1.getInverse();
-  //  warpedmini = minimouse * miniMatrix;
-    cout << "warp x = " << warped.x << "\n";
-    cout << "warp y = " << warped.y << "\n\n";
-    cout << "warp_i x = " << warpedInv.x << "\n";
-    cout << "warp_i y = " << warpedInv.y << "\n\n";
-    cout << "warp1 x = " << warped1.x << "\n";
-    cout << "warp1 y = " << warped1.y << "\n\n";
-    cout << "warp1_i x = " << warped1Inv.x << "\n";
-    cout << "warp1_i y = " << warped1Inv.y << "\n\n";
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<3; j++) {
+            warped[j] += (float)multMatrix[j][i] * mouse[i];
+        }
+
+    }
+
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<3; j++) {
+            warped2[j] += (float)multMatrix2[j][i] * mouse[i];
+        }
+
+    }
+
+
+
+    cout << "warped x = " << warped.x/warped.z <<"\n";
+    cout << "warped y = " << warped.y/warped.z <<"\n";
+    cout << "warped z = " << warped.z <<"\n\n";
+
+    cout << "warped2 x = " << warped2.x/warped.z <<"\n";
+    cout << "warped2 y = " << warped2.y/warped.z <<"\n\n";
+    cout << "warped2 z = " << warped2.z <<"\n";
+
+
+
 
 
 }
