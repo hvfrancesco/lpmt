@@ -31,6 +31,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 {
 
     shaderBlend = &edgeBlendShader;
+    // load shaders
+    maskShader.load("shaders/mask.vert", "shaders/mask.frag");
 
     //loads load in some truetype fonts
     ttf.loadFont("type/frabk.ttf", 11);
@@ -68,6 +70,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     isActive = False;
     isSetup = True;
     isOn = True;
+    isMaskSetup = False;
     colorBg = False;
     transBg = False;
     transUp = True;
@@ -181,6 +184,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     highlightedCorner = -1;
 
     maskPoints = vector<ofPoint>();
+    bMask = False;
+    maskInvert = False;
 
 }
 
@@ -667,7 +672,6 @@ void quad::draw()
         ofEnableAlphaBlending();
         ofFill();
         ofEnableSmoothing();
-        ofSetLineWidth(0.5);
         if(maskPoints.size()>0)
         {
             ofSetColor(255,255,255);
@@ -677,6 +681,13 @@ void quad::draw()
                     ofVertex(maskPoints[i]);
                 }
             ofEndShape(true);
+            ofPolyline contour;
+            for(unsigned int i = 0; i < maskPoints.size(); i++)
+                {
+                    contour.addVertex(maskPoints[i]);
+                }
+            ofSetLineWidth(1.2);
+            contour.draw();
         }
         ofDisableSmoothing();
         ofNoFill();
@@ -723,36 +734,70 @@ void quad::draw()
                 shaderBlend->end();
             }
         }
+
         else
         {
 
-            if(quadFbo.getWidth()>0)
+            if(bMask)
             {
-                ofEnableAlphaBlending();
-                //set ofColor to white
-                ofSetColor(255,255,255);
-                //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
-                if(bBlendModes) {
-                    glEnable(GL_BLEND);
-                    if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
-                    else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
-                    else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
-                    else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
+                if(quadFbo.getWidth()>0)
+                {
+                    ofEnableAlphaBlending();
+                    if (maskInvert) { maskMode = 1;} else { maskMode = 0;}
+                    maskShader.begin();
+                    maskShader.setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
+                    maskShader.setUniformTexture ("mask", maskFbo.getTextureReference(), 1);
+                    maskShader.setUniform1i ("mode", maskMode);
+                    //set ofColor to white
+                    ofSetColor(255,255,255);
+                    //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
+                    if(bBlendModes) {
+                        glEnable(GL_BLEND);
+                        if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
+                        else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
+                        else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
+                        else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
+                    }
+                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    if(bBlendModes) {
+                        glDisable(GL_BLEND);
+                    }
+                    ofDisableAlphaBlending();
+                    maskShader.end();
                 }
-                quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                if(bBlendModes) {
-                    glDisable(GL_BLEND);
+            }
+
+            else
+            {
+                if(quadFbo.getWidth()>0)
+                {
+                    ofEnableAlphaBlending();
+                    //set ofColor to white
+                    ofSetColor(255,255,255);
+                    //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
+                    if(bBlendModes) {
+                        glEnable(GL_BLEND);
+                        if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
+                        else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
+                        else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
+                        else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
+                    }
+                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    if(bBlendModes) {
+                        glDisable(GL_BLEND);
+                    }
+                    ofDisableAlphaBlending();
                 }
-                ofDisableAlphaBlending();
             }
         }
 
         // draw mask
-        if(isActive)
+        if(isActive && isMaskSetup)
         {
         ofEnableAlphaBlending();
         //set ofColor to red with alpha
-        ofSetColor(255,100,100,180);
+        //ofSetColor(255,100,100,180);
+        ofSetColor(100,139,150,160);
         maskFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
         ofDisableAlphaBlending();
         }

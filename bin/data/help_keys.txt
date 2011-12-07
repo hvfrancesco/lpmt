@@ -14,6 +14,8 @@ KEY COMMANDS:
 ‘q’ – fills window with active quad
 ‘1’ – shows general settings page of gui
 
+‘m’ – toggles mask-edit mode
+
 ‘g’ – toggles gui (for quad warping with mouse gui must be switched off)
 ‘f’ – toggles fullscreen mode
 ‘w’ – toggles cam snapshot window background
@@ -23,7 +25,7 @@ KEY COMMANDS:
 ‘p’ – starts projection
 ‘o’ – stops projection
 
-‘m’ – connects to a MostPixelsEver sync server
+‘n’ – connects to a MostPixelsEver sync server
 
 ’s' – saves settings to xml (_lpmt_settings.xml in data folder)
 ‘l’ – loads settings from xml file

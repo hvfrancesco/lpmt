@@ -231,6 +231,12 @@
 		<Unit filename="bin/data/shaders/blend.vert">
 			<Option virtualFolder="shaders/" />
 		</Unit>
+		<Unit filename="bin/data/shaders/mask.frag">
+			<Option virtualFolder="shaders/" />
+		</Unit>
+		<Unit filename="bin/data/shaders/mask.vert">
+			<Option virtualFolder="shaders/" />
+		</Unit>
 		<Unit filename="config.make">
 			<Option virtualFolder="build config" />
 		</Unit>

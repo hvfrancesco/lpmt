@@ -201,6 +201,9 @@ void testApp::setup()
         gui.addToggle("transition color", quads[i].transBg);
         gui.addColorPicker("second Color", &quads[i].secondColor.r);
         gui.addSlider("trans duration", quads[i].transDuration, 0.1, 60.0);
+        gui.addTitle("Mask");
+        gui.addToggle("mask on/off", quads[i].bMask);
+        gui.addToggle("invert mask", quads[i].maskInvert);
         gui.addTitle("Edge blending").setNewColumn(true);
         gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
         gui.addSlider("exponent", quads[i].edgeBlendExponent, 1.0, 4.0);
@@ -763,7 +766,16 @@ void testApp::keyPressed(int key)
     // toggles mask editing
     if(key == 'm')
     {
+        if (!bGui){
         maskSetup = !maskSetup;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isMaskSetup = !quads[i].isMaskSetup;
+                }
+            }
+        }
     }
 
     if(key == '[')
@@ -825,7 +837,7 @@ void testApp::keyReleased(int key)
 void testApp::mouseMoved(int x, int y )
 {
 
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !maskSetup)
     {
         float smallestDist = 1.0;
         whichCorner = -1;
@@ -861,7 +873,7 @@ void testApp::mouseMoved(int x, int y )
 //--------------------------------------------------------------
 void testApp::mouseDragged(int x, int y, int button)
 {
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !maskSetup)
     {
 
         float scaleX = (float)x / ofGetWidth();

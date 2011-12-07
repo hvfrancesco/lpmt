@@ -83,6 +83,7 @@ public:
     bool isActive;
     bool isSetup;
     bool isOn;
+    bool isMaskSetup;
     bool colorBg;
     bool transBg;
     bool transUp;
@@ -107,6 +108,10 @@ public:
 
     bool bBlendModes;
     int blendMode;
+
+    bool bMask;
+    bool maskInvert;
+    int maskMode;
 
     bool bHighlightCorner;
     int highlightedCorner;
@@ -136,6 +141,7 @@ public:
     ofFbo   quadFbo;
     ofFbo::Settings settings;
 
+    ofShader maskShader;
     ofFbo maskFbo;
     ofFbo::Settings maskFboSettings;
 
