@@ -16,7 +16,7 @@ void main(){
 
 	vec4 col = texture2DRect(tex,gl_TexCoord[0].st);
 	vec4 maskcol = texture2DRect(mask,gl_TexCoord[0].st);
-	vec4 nullo = (0.0,0.0,0.0,0.0);
+	vec4 nullo = vec4(0.0,0.0,0.0,0.0);
 	if(mode == 0) factor = maskcol.w;
 	if(mode == 1) factor = 1.0 - maskcol.w;
 
