@@ -677,7 +677,14 @@ void testApp::keyPressed(int key)
     }
 
     // goes to second page of gui for active quad
-    if ( key == 'c' || key == 'C' || key == OF_KEY_F3)
+    if ( key == 'c' || key == 'C')
+    {
+
+        if(maskSetup) {quads[activeQuad].maskPoints.clear();}
+        else {gui.setPage((activeQuad*3)+4);}
+    }
+
+    if (key == OF_KEY_F3)
     {
         gui.setPage((activeQuad*3)+4);
     }
