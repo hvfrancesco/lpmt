@@ -59,6 +59,7 @@ public:
     int camHeight;
     unsigned char * camPixels;
     unsigned char * camAlphaPixels;
+    ofVideoGrabber * camera;
 
     int layer;
 
@@ -154,7 +155,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofVideoGrabber &camGrabber);
 
     void update();
 

@@ -27,10 +27,12 @@ int quad::getdir (string dir, vector<string> &files)
 }
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofVideoGrabber &camGrabber)
 {
 
     shaderBlend = &edgeBlendShader;
+    camera = &camGrabber;
+
     // load shaders
     maskShader.load("shaders/mask.vert", "shaders/mask.frag");
 
@@ -291,6 +293,7 @@ void quad::update()
         // live camera --------------------------------------------------------------
         if (camBg)
         {
+            camPixels = camera->getPixels();
             if (camGreenscreen)
             {
                 // checking for greenscreen color match
@@ -322,7 +325,6 @@ void quad::update()
                 camTexture.loadData(camPixels, camWidth, camHeight, GL_RGB);
             }
         }
-
 
         // video --------------------------------------------------------------------
         // loads video
@@ -575,7 +577,6 @@ void quad::draw()
                 glPopMatrix();
             }
         }
-
 
         // draws slideshows
         if (slideshowBg)
