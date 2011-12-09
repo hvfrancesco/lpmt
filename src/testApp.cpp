@@ -43,16 +43,19 @@ void testApp::setup()
 {
 
     // camera stuff
+    bCameraOk = False;
     camWidth = 640;	// try to grab at this size.
     camHeight = 480;
     camGrabber.setVerbose(true);
-    camGrabber.initGrabber(camWidth,camHeight);
+    bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
+
+    /*
     while (!camGrabber.isFrameNew())
     {
         cout << "initializing camera\n";
         camGrabber.grabFrame();
     }
-
+    */
 
     //double click time
     doubleclickTime = 500;
@@ -256,7 +259,7 @@ void testApp::setup()
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
         gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
-        gui.addTitle("Slideshow");
+        gui.addTitle("Slideshow").setNewColumn(true);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
         gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);

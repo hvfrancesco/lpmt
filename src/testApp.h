@@ -62,6 +62,7 @@ public:
     bool bStarted;
     bool bSplash;
     bool maskSetup;
+    bool bCameraOk;
 
     ofImage splashImg;
     float splashTime;
