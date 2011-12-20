@@ -661,11 +661,18 @@ void testApp::keyPressed(int key)
         gui.setPage((activeQuad*3)+2);
     }
 
-    // goes to first page of gui for active quad
-    if ( key == 'z' || key == 'Z' || key == OF_KEY_F1)
+    // goes to first page of gui for active quad or, in mask edit mode, delete last drawn point
+    if ( key == 'z' || key == 'Z')
+    {
+        if(maskSetup) {quads[activeQuad].maskPoints.pop_back();}
+        else {gui.setPage((activeQuad*3)+2);}
+    }
+
+    if ( key == OF_KEY_F1)
     {
         gui.setPage((activeQuad*3)+2);
     }
+
 
     // goes to second page of gui for active quad
     if ( key == 'x' || key == 'X' || key == OF_KEY_F2)
@@ -673,7 +680,7 @@ void testApp::keyPressed(int key)
         gui.setPage((activeQuad*3)+3);
     }
 
-    // goes to second page of gui for active quad
+    // goes to second page of gui for active quad or, in edit mask mode, clears mask
     if ( key == 'c' || key == 'C')
     {
 
@@ -763,6 +770,16 @@ void testApp::keyPressed(int key)
     // toggles gui
     if(key == 'g')
     {
+        if (maskSetup) {
+            maskSetup = False;
+            for(int i = 0; i < 36; i++)
+                {
+                    if (quads[i].initialized)
+                    {
+                        quads[i].isMaskSetup = False;
+                    }
+                }
+        }
         gui.toggleDraw();
         bGui = !bGui;
     }
