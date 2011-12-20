@@ -664,7 +664,7 @@ void testApp::keyPressed(int key)
     // goes to first page of gui for active quad or, in mask edit mode, delete last drawn point
     if ( key == 'z' || key == 'Z')
     {
-        if(maskSetup) {quads[activeQuad].maskPoints.pop_back();}
+        if(maskSetup && quads[activeQuad].maskPoints.size()>0) {quads[activeQuad].maskPoints.pop_back();}
         else {gui.setPage((activeQuad*3)+2);}
     }
 
