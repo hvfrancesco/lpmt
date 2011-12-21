@@ -673,6 +673,18 @@ void testApp::keyPressed(int key)
         gui.setPage((activeQuad*3)+2);
     }
 
+    if ( key == 'd' || key == 'D')
+    {
+        if(maskSetup && quads[activeQuad].maskPoints.size()>0)
+        {
+            if (quads[activeQuad].bHighlightMaskPoint)
+            {
+                quads[activeQuad].maskPoints.erase(quads[activeQuad].maskPoints.begin()+quads[activeQuad].highlightedMaskPoint);
+            }
+
+        }
+    }
+
 
     // goes to second page of gui for active quad
     if ( key == 'x' || key == 'X' || key == OF_KEY_F2)
@@ -888,6 +900,35 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
+    else if (maskSetup)
+    {
+        float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
+        int whichPoint = -1;
+        ofVec3f warped;
+        for(int i = 0; i < quads[activeQuad].maskPoints.size(); i++)
+        {
+            warped = quads[activeQuad].getWarpedPoint(x,y);
+            float distx = (float)quads[activeQuad].maskPoints[i].x - (float)warped.x;
+            float disty = (float)quads[activeQuad].maskPoints[i].y - (float)warped.y;
+            float dist  = sqrt( distx * distx + disty * disty);
+
+            if(dist < smallestDist && dist < 20.0)
+            {
+                whichPoint = i;
+                smallestDist = dist;
+            }
+        }
+        if(whichPoint >= 0)
+            {
+                quads[activeQuad].bHighlightMaskPoint = True;
+                quads[activeQuad].highlightedMaskPoint = whichPoint;
+            }
+        else
+            {
+                quads[activeQuad].bHighlightMaskPoint = False;
+                quads[activeQuad].highlightedMaskPoint = -1;
+            }
+    }
 
 }
 
@@ -905,7 +946,13 @@ void testApp::mouseDragged(int x, int y, int button)
             quads[activeQuad].corners[whichCorner].x = scaleX;
             quads[activeQuad].corners[whichCorner].y = scaleY;
         }
-
+    }
+    else if(maskSetup && quads[activeQuad].bHighlightMaskPoint)
+    {
+        ofVec3f punto;
+        punto = quads[activeQuad].getWarpedPoint(x,y);
+        quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].x = punto.x;
+        quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].y = punto.y;
     }
 }
 
@@ -922,8 +969,10 @@ void testApp::mousePressed(int x, int y, int button)
     {
 
         if(maskSetup) {
-        quads[activeQuad].maskAddPoint(x, y);
-
+            if (!quads[activeQuad].bHighlightMaskPoint)
+            {
+                quads[activeQuad].maskAddPoint(x, y);
+            }
         }
 
         else {

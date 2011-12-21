@@ -189,59 +189,9 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     bMask = False;
     maskInvert = False;
 
-}
+    bHighlightMaskPoint = False;
+    highlightedMaskPoint = -1;
 
-
-void quad::loadImageFromFile(string imgName, string imgPath)
-{
-    ofFile image(imgPath);
-    imgBg = true;
-    img.loadImage(image);
-    bgImg = imgPath;
-    loadedImg = imgName;
-}
-
-void quad::loadVideoFromFile(string videoName, string videoPath)
-{
-    //ofFile movie(videoPath);
-    videoBg = true;
-    bgVideo = videoPath;
-    loadedVideo = videoName;
-    if (video.isLoaded())
-    {
-        video.closeMovie();
-    }
-    video.loadMovie(videoPath);
-    videoWidth = video.width;
-    videoHeight = video.height;
-    if (videoTex.bAllocated())
-    {
-        videoTex.clear();
-    }
-    videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
-    videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
-    video.play();
-    loadedVideo = videoName;
-}
-
-
-void quad::maskAddPoint(int x, int y)
-{
-
-    ofPoint mouse;
-    mouse.x = x;
-    mouse.y = y;
-
-    ofVec3f warped;
-    warped = findWarpedPoint(src, dst, mouse);
-
-    maskPoints.push_back(warped);
-
-    /*
-    cout << "warped x = " << warped.x <<"\n";
-    cout << "warped y = " << warped.y <<"\n";
-    cout << "warped z = " << warped.z <<"\n\n";
-    */
 }
 
 
@@ -843,6 +793,23 @@ void quad::draw()
 
         ofPopMatrix();
 
+        if (isMaskSetup && bHighlightMaskPoint)
+        {
+            ofVec3f punto;
+            punto.x = maskPoints[highlightedMaskPoint].x;
+            punto.y = maskPoints[highlightedMaskPoint].y;
+            punto.z = 0.0;
+            punto = findWarpedPoint(dst, src, punto);
+            ofSetColor(100,139,150,255);
+            ofSetLineWidth(1.0);
+            ofCircle(punto.x, punto.y, 4);
+            ofCircle(punto.x, punto.y, 10);
+
+        }
+
+
+
+
         if (isSetup)
         {
             ofSetHexColor(0x000000);
@@ -862,4 +829,67 @@ void quad::allocateFbo(int w, int h)
         settings.height = h;
         quadFbo.allocate(settings);
         maskFbo.allocate(settings);
+}
+
+//--------------------------------------------------------------
+void quad::maskAddPoint(int x, int y)
+{
+
+    ofPoint mouse;
+    mouse.x = x;
+    mouse.y = y;
+
+    ofVec3f warped;
+    warped = findWarpedPoint(src, dst, mouse);
+
+    maskPoints.push_back(warped);
+
+}
+
+ofVec3f quad::getWarpedPoint(int x, int y)
+{
+    ofPoint punto;
+    punto.x = x;
+    punto.y = y;
+
+    ofVec3f warped;
+    warped = findWarpedPoint(src, dst, punto);
+    return warped;
+}
+
+
+
+//---------------------------------------------------------------
+void quad::loadImageFromFile(string imgName, string imgPath)
+{
+    ofFile image(imgPath);
+    imgBg = true;
+    img.loadImage(image);
+    bgImg = imgPath;
+    loadedImg = imgName;
+}
+
+
+//---------------------------------------------------------------
+void quad::loadVideoFromFile(string videoName, string videoPath)
+{
+    //ofFile movie(videoPath);
+    videoBg = true;
+    bgVideo = videoPath;
+    loadedVideo = videoName;
+    if (video.isLoaded())
+    {
+        video.closeMovie();
+    }
+    video.loadMovie(videoPath);
+    videoWidth = video.width;
+    videoHeight = video.height;
+    if (videoTex.bAllocated())
+    {
+        videoTex.clear();
+    }
+    videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
+    videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
+    video.play();
+    loadedVideo = videoName;
 }

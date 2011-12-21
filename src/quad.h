@@ -120,7 +120,7 @@ public:
     int videoVolume;
     int thresholdGreenscreen;
     int bgSlideshow;
-    int currentSlide;
+    unsigned int currentSlide;
     int transStep;
     int transCounter;
     int fps;
@@ -174,6 +174,9 @@ public:
     void maskAddPoint(int x, int y);
 
     vector<ofPoint> maskPoints;
+    ofVec3f getWarpedPoint(int x, int y);
+    bool bHighlightMaskPoint;
+    int highlightedMaskPoint;
 
 };
 
