@@ -637,7 +637,7 @@ void quad::draw()
                 {
                     contour.addVertex(maskPoints[i]);
                 }
-            ofSetLineWidth(1.2);
+            ofSetLineWidth(2.0);
             contour.draw();
         }
         ofDisableSmoothing();
