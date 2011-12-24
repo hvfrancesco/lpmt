@@ -612,12 +612,10 @@ void quad::draw()
                 glPopMatrix();
             }
         }
-
-
         ofDisableAlphaBlending();
         quadFbo.end();
 
-        //mask
+        //mask on mask FBO
         maskFbo.begin();
         ofClear(0.0,0.0,0.0,0.0);
         ofEnableAlphaBlending();
@@ -632,13 +630,6 @@ void quad::draw()
                     ofVertex(maskPoints[i]);
                 }
             ofEndShape(true);
-            ofPolyline contour;
-            for(unsigned int i = 0; i < maskPoints.size(); i++)
-                {
-                    contour.addVertex(maskPoints[i]);
-                }
-            ofSetLineWidth(2.0);
-            contour.draw();
         }
         ofDisableSmoothing();
         ofNoFill();
@@ -742,7 +733,8 @@ void quad::draw()
             }
         }
 
-        // draw mask
+
+        // draw mask hatch if we are in mask setup mode
         if(isActive && isMaskSetup)
         {
         ofEnableAlphaBlending();
@@ -793,18 +785,43 @@ void quad::draw()
 
         ofPopMatrix();
 
-        if (isMaskSetup && bHighlightMaskPoint)
-        {
-            ofVec3f punto;
-            punto.x = maskPoints[highlightedMaskPoint].x;
-            punto.y = maskPoints[highlightedMaskPoint].y;
-            punto.z = 0.0;
-            punto = findWarpedPoint(dst, src, punto);
-            ofSetColor(100,139,150,255);
-            ofSetLineWidth(1.0);
-            ofCircle(punto.x, punto.y, 4);
-            ofCircle(punto.x, punto.y, 10);
 
+        // draws mask markers and contour in mask-setup mode
+        if (isMaskSetup)
+        {
+            if (maskPoints.size()>0)
+            {
+                ofPolyline contour;
+                for(unsigned int i = 0; i < maskPoints.size(); i++)
+                {
+                    ofVec3f contourPoint;
+                    contourPoint.x = maskPoints[i].x;
+                    contourPoint.y = maskPoints[i].y;
+                    contourPoint.z = 0;
+                    contourPoint = findWarpedPoint(dst, src, contourPoint);
+                    contour.addVertex(contourPoint);
+                }
+                ofSetLineWidth(1.6);
+                contour.close();
+                contour.draw();
+
+            for(unsigned int i = 0; i < maskPoints.size(); i++)
+            {
+                ofVec3f punto;
+                punto.x = maskPoints[i].x;
+                punto.y = maskPoints[i].y;
+                punto.z = 0.0;
+                punto = findWarpedPoint(dst, src, punto);
+                ofSetColor(100,139,150,255);
+                ofSetLineWidth(1.0);
+                if(bHighlightMaskPoint && highlightedMaskPoint == i) { ofFill();}
+                ofCircle(punto.x, punto.y, 4);
+                ofNoFill();
+                ofCircle(punto.x, punto.y, 10);
+            }
+
+
+            }
         }
 
 
