@@ -1003,7 +1003,7 @@ void testApp::mouseDragged(int x, int y, int button)
         ofVec3f punto;
         punto = quads[activeQuad].getWarpedPoint(x,y);
         quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
-        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetWidth();
+        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetHeight();
     }
 }
 
