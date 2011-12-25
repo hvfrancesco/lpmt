@@ -1192,14 +1192,8 @@ void quad::draw()
 
         }
 
-
-
-
-
-
-
         // draws mask markers and contour in mask-setup mode
-        if (isMaskSetup)
+        if (isActive && isMaskSetup)
         {
             if (maskPoints.size()>0)
             {
