@@ -197,11 +197,12 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
 
     //This sets up my Bezier Surface
-
-    isGridSetup = True;
+    bBezier = False;
+    isGridSetup = False;
     highlightedCtrlPointRow = -1;
     highlightedCtrlPointCol = -1;
 
+    /*
     gridPoints =
     {
         {   {0, 0, 0},          {0.25, 0, 0},    {0.75, 0, 0},    {1.0, 0, 0}    },
@@ -209,14 +210,14 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
         {   {0, 0.75, 0},        {0.25, 0.75, 0},  {0.75, 0.75, 0},  {1.0, 0.75, 0}  },
         {   {0, 1.0, 0},        {0.25, 1.0, 0},  {0.75, 1.0, 0},  {1.0, 1.0, 0}  }
     };
-
+    */
 
     gridPoints =
     {
-        {   {0, 0, 0},          {0.25, 0, 0},    {0.75, 0, 0},    {1.0, 0, 0}    },
-        {   {0, 0.25, 0},        {0.25, 0.25, 0},  {0.75, 0.25, 0},  {1.0, 0.25, 0}  },
-        {   {0, 0.75, 0},        {0.25, 0.75, 0},  {0.75, 0.75, 0},  {1.0, 0.75, 0}  },
-        {   {0, 1.0, 0},        {0.25, 1.0, 0},  {0.75, 1.0, 0},  {1.0, 1.0, 0}  }
+        {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
+        {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
+        {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
+        {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
     };
 
     //This sets up my Bezier Surface
@@ -246,7 +247,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     glEnable(GL_MAP2_VERTEX_3);
     glEnable(GL_AUTO_NORMAL);
     glMapGrid2f(20, 0, 1, 20, 0, 1);
-    glShadeModel(GL_FLAT);
+    //glShadeModel(GL_FLAT);
 
 
 }
@@ -478,6 +479,7 @@ void quad::draw()
 
         // TODO: to optimize this try to limit recalculation to cases when it's really needed
         GLfloat ctrlPoints[4][4][3];
+
         ctrlPoints =
         {
             {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
@@ -485,8 +487,10 @@ void quad::draw()
             {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
             {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
         };
+        if(bBezier)
+        {
         glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
-
+        }
 
         quadFbo.begin();
         ofClear(0.0,0.0,0.0,0.0);
@@ -749,7 +753,43 @@ void quad::draw()
                     else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
                     else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                 }
-                quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                if(!bBezier)
+                {
+                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                }
+                else
+                {
+                    quadFbo.getTextureReference().bind();
+
+                    glMatrixMode(GL_TEXTURE);
+                    glPushMatrix();//to scale the texture
+                    glLoadIdentity();
+
+                    ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                    if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                    {
+                        glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                    }
+                    else
+                    {
+                        glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                    }
+                    glMatrixMode(GL_MODELVIEW);
+                    //draw the bezier shape
+                    glEnable(GL_MAP2_VERTEX_3);
+                    glEnable(GL_AUTO_NORMAL);
+
+                    glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+
+                    glDisable(GL_MAP2_VERTEX_3);
+                    glDisable(GL_AUTO_NORMAL);
+
+                    quadFbo.getTextureReference().unbind();
+                    glMatrixMode(GL_TEXTURE);
+                    glPopMatrix();// texture scale pop matrix
+                    glMatrixMode(GL_MODELVIEW);
+                }
+
                 if(bBlendModes)
                 {
                     glDisable(GL_BLEND);
@@ -790,7 +830,43 @@ void quad::draw()
                         else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
-                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    if(!bBezier)
+                    {
+                        quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    }
+                    else
+                    {
+                        quadFbo.getTextureReference().bind();
+
+                        glMatrixMode(GL_TEXTURE);
+                        glPushMatrix();//to scale the texture
+                        glLoadIdentity();
+
+                        ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                        if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                        {
+                            glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                        }
+                        else
+                        {
+                            glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        }
+                        glMatrixMode(GL_MODELVIEW);
+                        //draw the bezier shape
+                        glEnable(GL_MAP2_VERTEX_3);
+                        glEnable(GL_AUTO_NORMAL);
+
+                        glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+
+                        glDisable(GL_MAP2_VERTEX_3);
+                        glDisable(GL_AUTO_NORMAL);
+
+                        quadFbo.getTextureReference().unbind();
+                        glMatrixMode(GL_TEXTURE);
+                        glPopMatrix();// texture scale pop matrix
+                        glMatrixMode(GL_MODELVIEW);
+                    }
+
                     if(bBlendModes)
                     {
                         glDisable(GL_BLEND);
@@ -817,38 +893,42 @@ void quad::draw()
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
 
-
-                    //quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-
-                    quadFbo.getTextureReference().bind();
-
-                    glMatrixMode(GL_TEXTURE);
-                    glPushMatrix();//to scale the texture
-                    glLoadIdentity();
-
-                    ofTextureData texData = quadFbo.getTextureReference().getTextureData();
-                    if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                    if(!bBezier)
                     {
-                        glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                        quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                     }
                     else
                     {
-                        glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        quadFbo.getTextureReference().bind();
+
+                        glMatrixMode(GL_TEXTURE);
+                        glPushMatrix();//to scale the texture
+                        glLoadIdentity();
+
+                        ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                        if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                        {
+                            glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                        }
+                        else
+                        {
+                            glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        }
+                        glMatrixMode(GL_MODELVIEW);
+                        //draw the bezier shape
+                        glEnable(GL_MAP2_VERTEX_3);
+                        glEnable(GL_AUTO_NORMAL);
+
+                        glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+
+                        glDisable(GL_MAP2_VERTEX_3);
+                        glDisable(GL_AUTO_NORMAL);
+
+                        quadFbo.getTextureReference().unbind();
+                        glMatrixMode(GL_TEXTURE);
+                        glPopMatrix();// texture scale pop matrix
+                        glMatrixMode(GL_MODELVIEW);
                     }
-                    glMatrixMode(GL_MODELVIEW);
-                    //draw the bezier shape
-                    glEnable(GL_MAP2_VERTEX_3);
-                    glEnable(GL_AUTO_NORMAL);
-
-                    glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-
-                    glDisable(GL_MAP2_VERTEX_3);
-                    glDisable(GL_AUTO_NORMAL);
-
-                    quadFbo.getTextureReference().unbind();
-                    glMatrixMode(GL_TEXTURE);
-                    glPopMatrix();// texture scale pop matrix
-                    glMatrixMode(GL_MODELVIEW);
 
                     if(bBlendModes)
                     {
@@ -924,7 +1004,7 @@ void quad::draw()
         ofPopMatrix();
 
         // draws markers for bezier deform setup
-        if (isGridSetup && isActive)
+        if (isActive && isGridSetup)
         {
             ofSetColor(220,200,0,255);
             ofSetLineWidth(1.5);

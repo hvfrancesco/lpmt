@@ -84,7 +84,7 @@ void testApp::setup()
     maskSetup = false;
 
     //grid editing
-    gridSetup = true;
+    gridSetup = false;
 
     // OSC setup
     receiver.setup( PORT );
@@ -149,7 +149,6 @@ void testApp::setup()
     {
         layers[i] = -1;
     }
-
 
     // defines the first 4 default quads
     quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, camGrabber);
@@ -224,6 +223,8 @@ void testApp::setup()
         gui.addTitle("Mask");
         gui.addToggle("mask on/off", quads[i].bMask);
         gui.addToggle("invert mask", quads[i].maskInvert);
+        gui.addTitle("Bezier deformation");
+        gui.addToggle("use bezier deform.", quads[i].bBezier);
         gui.addTitle("Edge blending").setNewColumn(true);
         gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
         gui.addSlider("exponent", quads[i].edgeBlendExponent, 1.0, 4.0);
@@ -475,10 +476,6 @@ void testApp::draw()
         ofDisableAlphaBlending();
     }
 }
-
-
-
-
 
 
 //--------------------------------------------------------------
@@ -814,6 +811,21 @@ void testApp::keyPressed(int key)
         }
     }
 
+    // toggles bezier deformation editing
+    if(key == 'b')
+    {
+        if (!bGui){
+        gridSetup = !gridSetup;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isGridSetup = !quads[i].isGridSetup;
+                }
+            }
+        }
+    }
+
     if(key == '[')
     {
         gui.prevPage();
@@ -873,7 +885,7 @@ void testApp::keyReleased(int key)
 void testApp::mouseMoved(int x, int y )
 {
 
-    if (isSetup && !bGui && !maskSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup)
     {
         float smallestDist = 1.0;
         whichCorner = -1;
@@ -903,7 +915,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (maskSetup)
+    else if (maskSetup && !gridSetup)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPoint = -1;
@@ -933,7 +945,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (gridSetup)
+    else if (gridSetup && !maskSetup)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPointRow = -1;
@@ -978,7 +990,7 @@ void testApp::mouseMoved(int x, int y )
 //--------------------------------------------------------------
 void testApp::mouseDragged(int x, int y, int button)
 {
-    if (isSetup && !bGui && !maskSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup)
     {
 
         float scaleX = (float)x / ofGetWidth();
@@ -1019,7 +1031,7 @@ void testApp::mousePressed(int x, int y, int button)
     if (isSetup && !bGui)
     {
 
-        if(maskSetup) {
+        if(maskSetup && !gridSetup) {
             if (!quads[activeQuad].bHighlightMaskPoint)
             {
                 quads[activeQuad].maskAddPoint(x, y);

@@ -183,6 +183,7 @@ public:
     int highlightedCtrlPointRow;
     int highlightedCtrlPointCol;
     float gridPoints[4][4][3];
+    bool bBezier;
 
 
 };
