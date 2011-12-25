@@ -756,23 +756,30 @@ void quad::draw()
                 if(!bBezier)
                 {
                     quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    shaderBlend->end();
                 }
                 else
                 {
-                    quadFbo.getTextureReference().bind();
+                    targetFbo.begin();
+                    ofClear(0.0,0.0,0.0,0.0);
+                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                    shaderBlend->end();
+                    targetFbo.end();
+
+                    targetFbo.getTextureReference().bind();
 
                     glMatrixMode(GL_TEXTURE);
                     glPushMatrix();//to scale the texture
                     glLoadIdentity();
 
-                    ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                    ofTextureData texData = targetFbo.getTextureReference().getTextureData();
                     if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
                     {
-                        glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                        glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
                     }
                     else
                     {
-                        glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
                     }
                     glMatrixMode(GL_MODELVIEW);
                     //draw the bezier shape
@@ -784,7 +791,7 @@ void quad::draw()
                     glDisable(GL_MAP2_VERTEX_3);
                     glDisable(GL_AUTO_NORMAL);
 
-                    quadFbo.getTextureReference().unbind();
+                    targetFbo.getTextureReference().unbind();
                     glMatrixMode(GL_TEXTURE);
                     glPopMatrix();// texture scale pop matrix
                     glMatrixMode(GL_MODELVIEW);
@@ -795,7 +802,7 @@ void quad::draw()
                     glDisable(GL_BLEND);
                 }
                 ofDisableAlphaBlending();
-                shaderBlend->end();
+
             }
         }
 
@@ -833,23 +840,30 @@ void quad::draw()
                     if(!bBezier)
                     {
                         quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                        maskShader.end();
                     }
                     else
                     {
-                        quadFbo.getTextureReference().bind();
+                        targetFbo.begin();
+                        ofClear(0.0,0.0,0.0,0.0);
+                        quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+                        maskShader.end();
+                        targetFbo.end();
+
+                        targetFbo.getTextureReference().bind();
 
                         glMatrixMode(GL_TEXTURE);
                         glPushMatrix();//to scale the texture
                         glLoadIdentity();
 
-                        ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                        ofTextureData texData = targetFbo.getTextureReference().getTextureData();
                         if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
                         {
-                            glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                            glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
                         }
                         else
                         {
-                            glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                            glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
                         }
                         glMatrixMode(GL_MODELVIEW);
                         //draw the bezier shape
@@ -861,7 +875,7 @@ void quad::draw()
                         glDisable(GL_MAP2_VERTEX_3);
                         glDisable(GL_AUTO_NORMAL);
 
-                        quadFbo.getTextureReference().unbind();
+                        targetFbo.getTextureReference().unbind();
                         glMatrixMode(GL_TEXTURE);
                         glPopMatrix();// texture scale pop matrix
                         glMatrixMode(GL_MODELVIEW);
@@ -872,7 +886,7 @@ void quad::draw()
                         glDisable(GL_BLEND);
                     }
                     ofDisableAlphaBlending();
-                    maskShader.end();
+
                 }
             }
 
@@ -1261,6 +1275,7 @@ void quad::allocateFbo(int w, int h)
     settings.height = h;
     quadFbo.allocate(settings);
     maskFbo.allocate(settings);
+    targetFbo.allocate(settings);
 }
 
 //--------------------------------------------------------------

@@ -146,6 +146,8 @@ public:
     ofFbo maskFbo;
     ofFbo::Settings maskFboSettings;
 
+    ofFbo targetFbo;
+
     int quadDispX;
     int quadDispY;
     int quadW;
