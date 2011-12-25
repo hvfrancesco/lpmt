@@ -178,5 +178,12 @@ public:
     bool bHighlightMaskPoint;
     int highlightedMaskPoint;
 
+    bool isGridSetup;
+    bool bHighlightCtrlPoint;
+    int highlightedCtrlPointRow;
+    int highlightedCtrlPointCol;
+    float gridPoints[4][4][3];
+
+
 };
 

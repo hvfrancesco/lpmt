@@ -83,6 +83,9 @@ void testApp::setup()
     //mask editing
     maskSetup = false;
 
+    //grid editing
+    gridSetup = true;
+
     // OSC setup
     receiver.setup( PORT );
     current_msg_string = 0;
@@ -930,6 +933,46 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
+    else if (gridSetup)
+    {
+        float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
+        int whichPointRow = -1;
+        int whichPointCol = -1;
+        ofVec3f warped;
+        for(int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                warped = quads[activeQuad].getWarpedPoint(x,y);
+                float distx = (float)quads[activeQuad].gridPoints[i][j][0] * ofGetWidth() - (float)warped.x;
+                float disty = (float)quads[activeQuad].gridPoints[i][j][1] * ofGetHeight() - (float)warped.y;
+                float dist  = sqrt( distx * distx + disty * disty);
+
+                if(dist < smallestDist && dist < 20.0)
+                {
+                    whichPointRow = i;
+                    whichPointCol = j;
+                    smallestDist = dist;
+                }
+            }
+
+        }
+        if(whichPointRow >= 0)
+            {
+                quads[activeQuad].bHighlightCtrlPoint = True;
+                quads[activeQuad].highlightedCtrlPointRow = whichPointRow;
+                quads[activeQuad].highlightedCtrlPointCol = whichPointCol;
+            }
+        else
+            {
+                quads[activeQuad].bHighlightCtrlPoint = False;
+                quads[activeQuad].highlightedCtrlPointRow = -1;
+                quads[activeQuad].highlightedCtrlPointCol = -1;
+            }
+    }
+
+
+
 }
 
 //--------------------------------------------------------------
@@ -953,6 +996,14 @@ void testApp::mouseDragged(int x, int y, int button)
         punto = quads[activeQuad].getWarpedPoint(x,y);
         quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].x = punto.x;
         quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].y = punto.y;
+    }
+
+    else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint)
+    {
+        ofVec3f punto;
+        punto = quads[activeQuad].getWarpedPoint(x,y);
+        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
+        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetWidth();
     }
 }
 

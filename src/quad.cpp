@@ -7,6 +7,9 @@
 #include <vector>
 #include <string>
 
+//float gridPoints[4][4][3];
+GLfloat ctrlPoints[4][4][3];
+
 // a func for reading a dir content to a vector of strings
 int quad::getdir (string dir, vector<string> &files)
 {
@@ -192,6 +195,60 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     bHighlightMaskPoint = False;
     highlightedMaskPoint = -1;
 
+
+    //This sets up my Bezier Surface
+
+    isGridSetup = True;
+    highlightedCtrlPointRow = -1;
+    highlightedCtrlPointCol = -1;
+
+    gridPoints =
+    {
+        {   {0, 0, 0},          {0.25, 0, 0},    {0.75, 0, 0},    {1.0, 0, 0}    },
+        {   {0, 0.25, 0},        {0.25, 0.25, 0},  {0.75, 0.25, 0},  {1.0, 0.25, 0}  },
+        {   {0, 0.75, 0},        {0.25, 0.75, 0},  {0.75, 0.75, 0},  {1.0, 0.75, 0}  },
+        {   {0, 1.0, 0},        {0.25, 1.0, 0},  {0.75, 1.0, 0},  {1.0, 1.0, 0}  }
+    };
+
+
+    gridPoints =
+    {
+        {   {0, 0, 0},          {0.25, 0, 0},    {0.75, 0, 0},    {1.0, 0, 0}    },
+        {   {0, 0.25, 0},        {0.25, 0.25, 0},  {0.75, 0.25, 0},  {1.0, 0.25, 0}  },
+        {   {0, 0.75, 0},        {0.25, 0.75, 0},  {0.75, 0.75, 0},  {1.0, 0.75, 0}  },
+        {   {0, 1.0, 0},        {0.25, 1.0, 0},  {0.75, 1.0, 0},  {1.0, 1.0, 0}  }
+    };
+
+
+    //This sets up my Bezier Surface
+    //there is probably a better way to do this, but I am very new to OpenGL
+    ctrlPoints =
+    {
+        {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
+        {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
+        {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
+        {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
+    };
+
+    //This sets up my Texture Surface
+    GLfloat texpts [2][2][2] =
+    {
+        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
+    };
+
+    // enable depth test, so we only see the front
+    glEnable(GL_DEPTH_TEST);
+    //set up bezier surface
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
+    //set up texture map for bezier surface
+    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
+    glEnable(GL_MAP2_TEXTURE_COORD_2);
+    glEnable(GL_MAP2_VERTEX_3);
+    glEnable(GL_AUTO_NORMAL);
+    glMapGrid2f(20, 0, 1, 20, 0, 1);
+    glShadeModel(GL_FLAT);
+
+
 }
 
 
@@ -202,8 +259,15 @@ void quad::update()
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
-        //allocateFbo(ofGetWidth(), ofGetHeight());
-
+        // TODO: to optimize this try to limit recalculation to cases when it's really needed
+        ctrlPoints =
+        {
+            {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
+            {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
+            {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
+            {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
+        };
+        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors
@@ -626,9 +690,9 @@ void quad::draw()
             ofSetColor(255,255,255);
             ofBeginShape();
             for(unsigned int i = 0; i < maskPoints.size(); i++)
-                {
-                    ofVertex(maskPoints[i]);
-                }
+            {
+                ofVertex(maskPoints[i]);
+            }
             ofEndShape(true);
         }
         ofDisableSmoothing();
@@ -661,7 +725,8 @@ void quad::draw()
                 //set ofColor to white
                 ofSetColor(255,255,255);
                 //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
-                if(bBlendModes) {
+                if(bBlendModes)
+                {
                     glEnable(GL_BLEND);
                     if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
                     else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
@@ -669,7 +734,8 @@ void quad::draw()
                     else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                 }
                 quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                if(bBlendModes) {
+                if(bBlendModes)
+                {
                     glDisable(GL_BLEND);
                 }
                 ofDisableAlphaBlending();
@@ -685,7 +751,14 @@ void quad::draw()
                 if(quadFbo.getWidth()>0)
                 {
                     ofEnableAlphaBlending();
-                    if (maskInvert) { maskMode = 1;} else { maskMode = 0;}
+                    if (maskInvert)
+                    {
+                        maskMode = 1;
+                    }
+                    else
+                    {
+                        maskMode = 0;
+                    }
                     maskShader.begin();
                     maskShader.setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
                     maskShader.setUniformTexture ("mask", maskFbo.getTextureReference(), 1);
@@ -693,7 +766,8 @@ void quad::draw()
                     //set ofColor to white
                     ofSetColor(255,255,255);
                     //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
-                    if(bBlendModes) {
+                    if(bBlendModes)
+                    {
                         glEnable(GL_BLEND);
                         if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
                         else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
@@ -701,7 +775,8 @@ void quad::draw()
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
                     quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                    if(bBlendModes) {
+                    if(bBlendModes)
+                    {
                         glDisable(GL_BLEND);
                     }
                     ofDisableAlphaBlending();
@@ -717,15 +792,55 @@ void quad::draw()
                     //set ofColor to white
                     ofSetColor(255,255,255);
                     //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
-                    if(bBlendModes) {
+                    if(bBlendModes)
+                    {
                         glEnable(GL_BLEND);
                         if(blendMode == 0) glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR); //screen
                         else if(blendMode == 1) glBlendFunc(GL_ONE, GL_ONE); //add
                         else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
-                    quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                    if(bBlendModes) {
+
+
+                    //quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+
+
+
+                    quadFbo.getTextureReference().bind();
+
+                    glMatrixMode(GL_TEXTURE);
+                    glPushMatrix();//to scale the texture
+                    glLoadIdentity();
+
+                    ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                    if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                    {
+                        glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                    }
+                    else
+                    {
+                        glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                    }
+                    glMatrixMode(GL_MODELVIEW);
+                    //draw the bezier shape
+                    glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+
+                    quadFbo.getTextureReference().unbind();
+                    glMatrixMode(GL_TEXTURE);
+                    glPopMatrix();// texture scale pop matrix
+                    glMatrixMode(GL_MODELVIEW);
+
+
+
+
+
+
+
+
+
+
+                    if(bBlendModes)
+                    {
                         glDisable(GL_BLEND);
                     }
                     ofDisableAlphaBlending();
@@ -737,12 +852,12 @@ void quad::draw()
         // draw mask hatch if we are in mask setup mode
         if(isActive && isMaskSetup)
         {
-        ofEnableAlphaBlending();
-        //set ofColor to red with alpha
-        //ofSetColor(255,100,100,180);
-        ofSetColor(100,139,150,160);
-        maskFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-        ofDisableAlphaBlending();
+            ofEnableAlphaBlending();
+            //set ofColor to red with alpha
+            //ofSetColor(255,100,100,180);
+            ofSetColor(100,139,150,160);
+            maskFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
+            ofDisableAlphaBlending();
         }
 
         // draws a little triangle to highlight draggable corner
@@ -751,10 +866,22 @@ void quad::draw()
             ofFill();
             ofSetHexColor(0x00FF00);
             ofEnableAlphaBlending();
-            if(highlightedCorner == 0) {ofTriangle(0,0,20,0,0,20);}
-            else if(highlightedCorner == 1) {ofTriangle(ofGetWidth(),0,ofGetWidth()-20,0,ofGetWidth(),20);}
-            else if(highlightedCorner == 2) {ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-20,ofGetHeight(),ofGetWidth(),ofGetHeight()-20);}
-            else if(highlightedCorner == 3) {ofTriangle(0,ofGetHeight(),0,ofGetHeight()-20,20,ofGetHeight());}
+            if(highlightedCorner == 0)
+            {
+                ofTriangle(0,0,20,0,0,20);
+            }
+            else if(highlightedCorner == 1)
+            {
+                ofTriangle(ofGetWidth(),0,ofGetWidth()-20,0,ofGetWidth(),20);
+            }
+            else if(highlightedCorner == 2)
+            {
+                ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-20,ofGetHeight(),ofGetWidth(),ofGetHeight()-20);
+            }
+            else if(highlightedCorner == 3)
+            {
+                ofTriangle(0,ofGetHeight(),0,ofGetHeight()-20,20,ofGetHeight());
+            }
             ofDisableAlphaBlending();
             ofNoFill();
         }
@@ -786,6 +913,35 @@ void quad::draw()
         ofPopMatrix();
 
 
+        if (isGridSetup && isActive)
+        {
+            for(unsigned int i = 0; i < 4; i++)
+            {
+                for(unsigned int j = 0; j < 4; j++)
+                {
+                    ofVec3f punto;
+                    punto.x = ctrlPoints[i][j][0];
+                    punto.y = ctrlPoints[i][j][1];
+                    punto.z = ctrlPoints[i][j][2];
+                    punto = findWarpedPoint(dst, src, punto);
+                    ofSetColor(220,200,0,255);
+                    ofSetLineWidth(1.5);
+                    if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
+                    {
+                        ofFill();
+                    }
+                    ofCircle(punto.x, punto.y, 3.6);
+                    ofNoFill();
+                }
+            }
+        }
+
+
+
+
+
+
+
         // draws mask markers and contour in mask-setup mode
         if (isMaskSetup)
         {
@@ -805,20 +961,23 @@ void quad::draw()
                 contour.close();
                 contour.draw();
 
-            for(unsigned int i = 0; i < maskPoints.size(); i++)
-            {
-                ofVec3f punto;
-                punto.x = maskPoints[i].x;
-                punto.y = maskPoints[i].y;
-                punto.z = 0.0;
-                punto = findWarpedPoint(dst, src, punto);
-                ofSetColor(100,139,150,255);
-                ofSetLineWidth(1.0);
-                if(bHighlightMaskPoint && highlightedMaskPoint == i) { ofFill();}
-                ofCircle(punto.x, punto.y, 4);
-                ofNoFill();
-                ofCircle(punto.x, punto.y, 10);
-            }
+                for(unsigned int i = 0; i < maskPoints.size(); i++)
+                {
+                    ofVec3f punto;
+                    punto.x = maskPoints[i].x;
+                    punto.y = maskPoints[i].y;
+                    punto.z = 0.0;
+                    punto = findWarpedPoint(dst, src, punto);
+                    ofSetColor(100,139,150,255);
+                    ofSetLineWidth(1.0);
+                    if(bHighlightMaskPoint && highlightedMaskPoint == i)
+                    {
+                        ofFill();
+                    }
+                    ofCircle(punto.x, punto.y, 4);
+                    ofNoFill();
+                    ofCircle(punto.x, punto.y, 10);
+                }
 
 
             }
@@ -831,8 +990,14 @@ void quad::draw()
         {
             ofSetHexColor(0x000000);
             ttf.drawString("surface "+ofToString(quadNumber), center.x*ofGetWidth(), center.y*ofGetHeight());
-            if (isActive) { ofSetHexColor(0xDB6800); } // draws orange label if active quad, white if not
-            else { ofSetHexColor(0xFFFFFF); }
+            if (isActive)
+            {
+                ofSetHexColor(0xDB6800);    // draws orange label if active quad, white if not
+            }
+            else
+            {
+                ofSetHexColor(0xFFFFFF);
+            }
             ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
         }
 
@@ -842,10 +1007,10 @@ void quad::draw()
 //--------------------------------------------------------------
 void quad::allocateFbo(int w, int h)
 {
-        settings.width = w;
-        settings.height = h;
-        quadFbo.allocate(settings);
-        maskFbo.allocate(settings);
+    settings.width = w;
+    settings.height = h;
+    quadFbo.allocate(settings);
+    maskFbo.allocate(settings);
 }
 
 //--------------------------------------------------------------
