@@ -202,16 +202,6 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     highlightedCtrlPointRow = -1;
     highlightedCtrlPointCol = -1;
 
-    /*
-    gridPoints =
-    {
-        {   {0, 0, 0},          {0.25, 0, 0},    {0.75, 0, 0},    {1.0, 0, 0}    },
-        {   {0, 0.25, 0},        {0.25, 0.25, 0},  {0.75, 0.25, 0},  {1.0, 0.25, 0}  },
-        {   {0, 0.75, 0},        {0.25, 0.75, 0},  {0.75, 0.75, 0},  {1.0, 0.75, 0}  },
-        {   {0, 1.0, 0},        {0.25, 1.0, 0},  {0.75, 1.0, 0},  {1.0, 1.0, 0}  }
-    };
-    */
-
     gridPoints =
     {
         {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
@@ -221,7 +211,6 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     };
 
     //This sets up my Bezier Surface
-
     GLfloat ctrlPoints[4][4][3];
     ctrlPoints =
     {
@@ -247,7 +236,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     glEnable(GL_MAP2_VERTEX_3);
     glEnable(GL_AUTO_NORMAL);
     glMapGrid2f(20, 0, 1, 20, 0, 1);
-    //glShadeModel(GL_FLAT);
+    glShadeModel(GL_FLAT);
 
 
 }
@@ -782,12 +771,15 @@ void quad::draw()
                         glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
                     }
                     glMatrixMode(GL_MODELVIEW);
-                    //draw the bezier shape
+
                     glEnable(GL_MAP2_VERTEX_3);
                     glEnable(GL_AUTO_NORMAL);
-
+                    // this tries to prevent the double alpha problem
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                    //draw the bezier shape
                     glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-
+                    glDisable(GL_BLEND);
                     glDisable(GL_MAP2_VERTEX_3);
                     glDisable(GL_AUTO_NORMAL);
 
@@ -866,12 +858,14 @@ void quad::draw()
                             glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
                         }
                         glMatrixMode(GL_MODELVIEW);
-                        //draw the bezier shape
                         glEnable(GL_MAP2_VERTEX_3);
                         glEnable(GL_AUTO_NORMAL);
-
+                        // this tries to prevent the double alpha problem
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                        //draw the bezier shape
                         glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-
+                        glDisable(GL_BLEND);
                         glDisable(GL_MAP2_VERTEX_3);
                         glDisable(GL_AUTO_NORMAL);
 
