@@ -47,7 +47,11 @@ void testApp::setup()
     camWidth = 640;	// try to grab at this size.
     camHeight = 480;
     camGrabber.setVerbose(true);
+    camGrabber.listDevices();
     bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
+    camWidth = camGrabber.width;
+    camHeight= camGrabber.height;
+    printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
 
     /*
     while (!camGrabber.isFrameNew())
