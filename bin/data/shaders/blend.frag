@@ -43,10 +43,11 @@ void main(){
 
     // calculate edge blending factor
     float a = 1.0;
-    if(edges.x > 0.0) a *= clamp((uv.x/w)/edges.x, 0.0, 1.0);
-	if(edges.y > 0.0) a *= clamp((uv.y/h)/edges.y, 0.0, 1.0);
-	if(edges.z > 0.0) a *= clamp((1.0-(uv.x/w))/edges.z, 0.0, 1.0);
-	if(edges.w > 0.0) a *= clamp((1.0-(uv.y/h))/edges.w, 0.0, 1.0);
+
+    if(edges.x > 0.0) a *= clamp((uv.x/float(w))/edges.x, 0.0, 1.0);
+	if(edges.y > 0.0) a *= clamp((uv.y/float(h))/edges.y, 0.0, 1.0);
+	if(edges.z > 0.0) a *= clamp((1.0-(uv.x/float(w)))/edges.z, 0.0, 1.0);
+	if(edges.w > 0.0) a *= clamp((1.0-(uv.y/float(h)))/edges.w, 0.0, 1.0);
 
 	// blend function with luminance control (for each of the 3 channels)
 	vec3 blend = (a < 0.5) ? (luminance * pow(2.0 * a, exponent))

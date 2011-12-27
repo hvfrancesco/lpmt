@@ -211,7 +211,6 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     };
 
     //This sets up my Bezier Surface
-    GLfloat ctrlPoints[4][4][3];
     ctrlPoints =
     {
         {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
@@ -467,8 +466,6 @@ void quad::draw()
     {
 
         // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        GLfloat ctrlPoints[4][4][3];
-
         ctrlPoints =
         {
             {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },

@@ -186,6 +186,7 @@ public:
     int highlightedCtrlPointCol;
     float gridPoints[4][4][3];
     bool bBezier;
+    float ctrlPoints[4][4][3];
 
 
 };
