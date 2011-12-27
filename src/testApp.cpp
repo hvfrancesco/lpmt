@@ -65,7 +65,7 @@ void testApp::setup()
     doubleclickTime = 500;
     lastTap = 0;
 
-    if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>768 )
+    if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>800 )
     {
         WINDOW_W = 1024;
         WINDOW_H = 768;
