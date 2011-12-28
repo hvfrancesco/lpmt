@@ -297,7 +297,7 @@ void quad::update()
 
 
         // live camera --------------------------------------------------------------
-        if (camBg)
+        if (camBg && camera->width > 0)
         {
             camPixels = camera->getPixels();
             if (camGreenscreen)
@@ -562,7 +562,7 @@ void quad::draw()
 
         // camera ------------------------------------------------------------------------------
         // camera stuff
-        if (camBg)
+        if (camBg && camera->width > 0)
         {
             if (camHFlip || camVFlip)
             {

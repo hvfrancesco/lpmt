@@ -37,7 +37,6 @@ int getdir (string dir, vector<string> &files)
 }
 
 
-
 //--------------------------------------------------------------
 void testApp::setup()
 {
@@ -52,6 +51,7 @@ void testApp::setup()
     camWidth = camGrabber.width;
     camHeight= camGrabber.height;
     printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
+    if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera not found, live feed not available"); }
 
     /*
     while (!camGrabber.isFrameNew())
@@ -135,12 +135,18 @@ void testApp::setup()
     bGui = 1;
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
-    /*
+
     // camera stuff
+    /*
+    bCameraOk = False;
     camWidth = 640;	// try to grab at this size.
     camHeight = 480;
     camGrabber.setVerbose(true);
-    camGrabber.initGrabber(camWidth,camHeight);
+    camGrabber.listDevices();
+    bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
+    camWidth = camGrabber.width;
+    camHeight= camGrabber.height;
+    printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
     */
 
     // texture for snapshot background
@@ -213,7 +219,7 @@ void testApp::setup()
         gui.addSlider("img mult Y", quads[i].imgMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].imgHFlip);
         gui.addToggle("V mirror", quads[i].imgVFlip);
-        gui.addColorPicker("img tint", &quads[i].imgColorize.r);
+        gui.addColorPicker("img color", &quads[i].imgColorize.r);
         gui.addTitle("Blending modes");
         gui.addToggle("blending on/off", quads[i].bBlendModes);
         string blendModesArray[] = {"screen","add","subtract","multiply"};
@@ -251,23 +257,30 @@ void testApp::setup()
         gui.addSlider("video mult Y", quads[i].videoMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].videoHFlip);
         gui.addToggle("V mirror", quads[i].videoVFlip);
-        gui.addColorPicker("video tint", &quads[i].videoColorize.r);
+        gui.addColorPicker("video color", &quads[i].videoColorize.r);
         gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
-        gui.addTitle("Camera bg").setNewColumn(true);
+        gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
+        if (camWidth > 0)
+        {
+        gui.addTitle("Camera").setNewColumn(true);
         gui.addToggle("cam on/off", quads[i].camBg);
         gui.addSlider("camera mult X", quads[i].camMultX, 0.1, 5.0);
         gui.addSlider("camera mult Y", quads[i].camMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].camHFlip);
         gui.addToggle("V mirror", quads[i].camVFlip);
-        gui.addColorPicker("cam tint", &quads[i].camColorize.r);
+        gui.addColorPicker("cam color", &quads[i].camColorize.r);
+        gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
         gui.addTitle("Greenscreen");
+        }
+        else
+        {
+        gui.addTitle("Greenscreen").setNewColumn(true);
+        }
         gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 128);
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
-        gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
-        gui.addToggle("camera greenscreen", quads[i].camGreenscreen);
-        gui.addTitle("Slideshow").setNewColumn(true);
+        gui.addTitle("Slideshow").setNewColumn(false);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
         gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
@@ -385,10 +398,13 @@ void testApp::prepare()
         for(int j = 0; j < 36; j++)
         {
             int i = layers[j];
-            if (quads[i].initialized)
+            if (i >= 0)
             {
-                quads[i].update();
-                quads[i].borderColor = borderColor;
+                if (quads[i].initialized)
+                {
+                    quads[i].update();
+                    quads[i].borderColor = borderColor;
+                }
             }
         }
 
@@ -415,9 +431,12 @@ void testApp::dostuff()
         for(int j = 0; j < 36; j++)
         {
             int i = layers[j];
-            if (quads[i].initialized)
+            if (i >= 0)
             {
-                quads[i].draw();
+                if (quads[i].initialized)
+                {
+                    quads[i].draw();
+                }
             }
         }
 
