@@ -142,7 +142,7 @@ public:
     ofFbo   quadFbo;
     ofFbo::Settings settings;
 
-    ofShader maskShader;
+    ofShader * maskShader;
     ofFbo maskFbo;
     ofFbo::Settings maskFboSettings;
 
@@ -157,7 +157,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofVideoGrabber &camGrabber);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber);
 
     void update();
 

@@ -30,14 +30,12 @@ int quad::getdir (string dir, vector<string> &files)
 }
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofVideoGrabber &camGrabber)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber)
 {
 
     shaderBlend = &edgeBlendShader;
+    maskShader = &quadMaskShader;
     camera = &camGrabber;
-
-    // load shaders
-    maskShader.load("shaders/mask.vert", "shaders/mask.frag");
 
     //loads load in some truetype fonts
     ttf.loadFont("type/frabk.ttf", 11);
@@ -811,10 +809,10 @@ void quad::draw()
                     {
                         maskMode = 0;
                     }
-                    maskShader.begin();
-                    maskShader.setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
-                    maskShader.setUniformTexture ("mask", maskFbo.getTextureReference(), 1);
-                    maskShader.setUniform1i ("mode", maskMode);
+                    maskShader->begin();
+                    maskShader->setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
+                    maskShader->setUniformTexture ("mask", maskFbo.getTextureReference(), 1);
+                    maskShader->setUniform1i ("mode", maskMode);
                     //set ofColor to white
                     ofSetColor(255,255,255);
                     //Blend modes stuff (with shaders would be better, but it scales bad on older GPUs)
@@ -829,14 +827,14 @@ void quad::draw()
                     if(!bBezier)
                     {
                         quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                        maskShader.end();
+                        maskShader->end();
                     }
                     else
                     {
                         targetFbo.begin();
                         ofClear(0.0,0.0,0.0,0.0);
                         quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
-                        maskShader.end();
+                        maskShader->end();
                         targetFbo.end();
 
                         targetFbo.getTextureReference().bind();

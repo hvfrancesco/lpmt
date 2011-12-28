@@ -119,6 +119,7 @@ void testApp::setup()
 
     // load shaders
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
+    quadMaskShader.load("shaders/mask.vert", "shaders/mask.frag");
 
     ttf.loadFont("type/frabk.ttf", 11);
     // set border color for quads in setup mode
@@ -161,13 +162,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, camGrabber);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, camGrabber);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, camGrabber);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, camGrabber);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -736,7 +737,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, camGrabber);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -746,6 +747,12 @@ void testApp::keyPressed(int key)
                 ++nOfQuads;
                 quads[activeQuad].allocateFbo(ofGetWidth(),ofGetHeight());
                 gui.setPage((activeQuad*3)+2);
+                //gui.show(); // bad workaround for image disappearing bug when adding quad and gui is off
+                if (!bGui)
+                {
+                    gui.toggleDraw();
+                    bGui = !bGui;
+                }
             }
         }
     }
@@ -1396,7 +1403,7 @@ void testApp::getXml()
         float x3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:X",0.0);
         float y3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:Y",0.0);
 
-        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, slideshowFolders, edgeBlendShader, camGrabber);
+        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
         quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
         quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
         layers[quads[i].layer] = quads[i].quadNumber;

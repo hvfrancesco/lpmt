@@ -85,6 +85,7 @@ public:
 
     // Shaders
     ofShader edgeBlendShader;
+    ofShader quadMaskShader;
 
     // gui elements
     bool showGui;
