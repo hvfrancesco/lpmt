@@ -7,16 +7,16 @@ uniform sampler2DRect tex;
 // used in a few inversions
 const vec3 one = vec3(1.0);
 //const vec3 gamma = vec3(1.8, 1.5, 1.2);
-const vec3 luminance = vec3(0.5);
+//const vec3 luminance = vec3(0.5);
 
 // controls the interpolation curve ([1..n], 1.0 = linear, 2.0 = default quadratic)
 uniform float exponent; // try: 2.0;
 // controls the center of interpolation ([0..1], 0.5 = linear)
-// uniform vec3 luminance; // try: vec3(0.5);
+uniform vec3 userLuminance; // try: vec3(0.5);
 // controls gamma levels ([1..n], 1.8 or 2.2 is typical)
 //uniform vec3 gamma; // try: vec3(1.8, 1.5, 1.2);
 // controls blending area at left, top, right and bottom in percentages ([0..0.5])
-uniform vec2 amount;
+uniform vec4 amount;
 //uniform vec4 edges; // try: vec4(0.4, 0.4, 0.0, 0.0);
 
 uniform int w;
@@ -35,8 +35,10 @@ void main(){
 	vec4 col = texture2DRect(tex,gl_TexCoord[0].st);
 	//vec2 uv = vec2(gl_FragCoord.x, gl_FragCoord.y);
     	//vec4 col = gl_Color;
-        vec4 edges = vec4(amount.x, 0.0, amount.y, 0.0);
-        vec3 gamma = vec3(userGamma, 1.5, 1.2);
+        vec4 edges = vec4(amount.x, amount.y, amount.z, amount.w);
+        //vec3 gamma = vec3(userGamma, 1.5, 1.2);
+	vec3 gamma = vec3(userGamma, userGamma, userGamma);
+	vec3 luminance = vec3(userLuminance + 0.5);
 
 
 

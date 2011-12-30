@@ -165,8 +165,11 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
     edgeBlendGamma = 1.8;
+    edgeBlendLuminance = 0.0;
     edgeBlendAmountSin = 0.3;
     edgeBlendAmountDx = 0.3;
+    edgeBlendAmountTop = 0.0;
+    edgeBlendAmountBottom = 0.0;
 
     settings.internalformat = GL_RGBA;
     settings.numSamples = 0;
@@ -723,7 +726,8 @@ void quad::draw()
                 shaderBlend->setUniformTexture ("tex", quadFbo.getTextureReference(), 0);
                 shaderBlend->setUniform1f("exponent", edgeBlendExponent);
                 shaderBlend->setUniform1f("userGamma", edgeBlendGamma);
-                shaderBlend->setUniform2f("amount", edgeBlendAmountSin, edgeBlendAmountDx);
+                shaderBlend->setUniform3f("userLuminance", edgeBlendLuminance, edgeBlendLuminance, edgeBlendLuminance);
+                shaderBlend->setUniform4f("amount", edgeBlendAmountSin, edgeBlendAmountTop, edgeBlendAmountDx, edgeBlendAmountBottom);
                 shaderBlend->setUniform1i("w", ofGetWidth());
                 shaderBlend->setUniform1i("h", ofGetHeight());
                 //set ofColor to white

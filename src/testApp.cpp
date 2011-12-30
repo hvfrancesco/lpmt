@@ -240,8 +240,11 @@ void testApp::setup()
         gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
         gui.addSlider("power", quads[i].edgeBlendExponent, 0.0, 4.0);
         gui.addSlider("gamma", quads[i].edgeBlendGamma, 0.0, 4.0);
-        gui.addSlider("left edge amount", quads[i].edgeBlendAmountSin, 0.0, 0.5);
-        gui.addSlider("right edge amount", quads[i].edgeBlendAmountDx, 0.0, 0.5);
+        gui.addSlider("luminance", quads[i].edgeBlendLuminance, -4.0, 4.0);
+        gui.addSlider("left edge", quads[i].edgeBlendAmountSin, 0.0, 0.5);
+        gui.addSlider("right edge", quads[i].edgeBlendAmountDx, 0.0, 0.5);
+        gui.addSlider("top edge", quads[i].edgeBlendAmountTop, 0.0, 0.5);
+        gui.addSlider("bottom edge", quads[i].edgeBlendAmountBottom, 0.0, 0.5);
         gui.addTitle("Content placement");
         gui.addSlider("X displacement", quads[i].quadDispX, -1280, 1280);
         gui.addSlider("Y displacement", quads[i].quadDispY, -1280, 1280);

@@ -76,7 +76,10 @@ public:
     float edgeBlendExponent;
     float edgeBlendAmountSin;
     float edgeBlendAmountDx;
+    float edgeBlendAmountTop;
+    float edgeBlendAmountBottom;
     float edgeBlendGamma;
+    float edgeBlendLuminance;
 
     int quadNumber;
 
