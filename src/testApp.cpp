@@ -192,9 +192,9 @@ void testApp::setup()
     gui.addTitle("show/hide quads");
     // overriding default theme
     //gui.bDrawHeader = false;
-    gui.config->toggleHeight = 18;
+    gui.config->toggleHeight = 16;
     gui.config->buttonHeight = 18;
-    gui.config->sliderTextHeight = 22;
+    gui.config->sliderTextHeight = 18;
     gui.config->titleHeight = 18;
     //gui.config->fullActiveColor = 0x6B404B;
     //gui.config->fullActiveColor = 0x5E4D3E;
@@ -208,7 +208,7 @@ void testApp::setup()
         gui.addToggle("surface "+ofToString(i), quads[i].isOn);
     }
 
-    // then two pages of settings for each instantiable layer
+    // then two pages of settings for each quad surface
     for(int i = 0; i < 36; i++)
     {
         gui.addPage("surface "+ofToString(i)+" - 1/3");
@@ -238,8 +238,8 @@ void testApp::setup()
         gui.addToggle("use bezier deform.", quads[i].bBezier);
         gui.addTitle("Edge blending").setNewColumn(true);
         gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
-        gui.addSlider("exponent", quads[i].edgeBlendExponent, 1.0, 4.0);
-        gui.addSlider("gamma", quads[i].edgeBlendGamma, 1.0, 2.2);
+        gui.addSlider("power", quads[i].edgeBlendExponent, 0.0, 4.0);
+        gui.addSlider("gamma", quads[i].edgeBlendGamma, 0.0, 4.0);
         gui.addSlider("left edge amount", quads[i].edgeBlendAmountSin, 0.0, 0.5);
         gui.addSlider("right edge amount", quads[i].edgeBlendAmountDx, 0.0, 0.5);
         gui.addTitle("Content placement");
