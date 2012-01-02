@@ -121,6 +121,8 @@ public:
 
     void activateQuad(int x, int y);
 
+    ofPoint startDrag;
+
 
     // snapshot loading
     ofImage loadImageFromFile();
