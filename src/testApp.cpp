@@ -121,7 +121,8 @@ void testApp::setup()
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
     quadMaskShader.load("shaders/mask.vert", "shaders/mask.frag");
 
-    ttf.loadFont("type/frabk.ttf", 11);
+    //ttf.loadFont("type/frabk.ttf", 11);
+    ttf.loadFont("type/OpenSans-Regular.ttf", 11);
     // set border color for quads in setup mode
     borderColor = 0x666666;
     // starts in quads setup mode
@@ -192,10 +193,10 @@ void testApp::setup()
     gui.addTitle("show/hide quads");
     // overriding default theme
     //gui.bDrawHeader = false;
-    gui.config->toggleHeight = 16;
-    gui.config->buttonHeight = 18;
-    gui.config->sliderTextHeight = 18;
-    gui.config->titleHeight = 18;
+    gui.config->toggleHeight = 18;
+    gui.config->buttonHeight = 20;
+    gui.config->sliderTextHeight = 20;
+    gui.config->titleHeight = 20;
     //gui.config->fullActiveColor = 0x6B404B;
     //gui.config->fullActiveColor = 0x5E4D3E;
     gui.config->fullActiveColor = 0x648B96;

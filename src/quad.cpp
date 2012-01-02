@@ -38,7 +38,9 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     camera = &camGrabber;
 
     //loads load in some truetype fonts
-    ttf.loadFont("type/frabk.ttf", 11);
+    //ttf.loadFont("type/frabk.ttf", 11);
+    ttf.loadFont("type/OpenSans-Regular.ttf", 11);
+
 
     bgImg = string("");
     loadedImg = string("");
