@@ -1016,9 +1016,6 @@ void testApp::mouseMoved(int x, int y )
                 quads[activeQuad].highlightedCtrlPointCol = -1;
             }
     }
-
-
-
 }
 
 //--------------------------------------------------------------
@@ -1034,6 +1031,29 @@ void testApp::mouseDragged(int x, int y, int button)
         {
             quads[activeQuad].corners[whichCorner].x = scaleX;
             quads[activeQuad].corners[whichCorner].y = scaleY;
+        }
+        // check if we can move whole quad by dragging its center
+        else
+        {
+            float distx = quads[activeQuad].center.x - scaleX;
+            float disty = quads[activeQuad].center.y - scaleY;
+            float dist  = sqrt( distx * distx + disty * disty);
+            if(dist < 0.1) // TODO: verifiy if threshold value is good for distance
+            {
+                ofPoint mouse;
+                ofPoint movement;
+                mouse.x = x;
+                mouse.y = y;
+                movement = mouse-startDrag;
+
+                for(int i = 0; i < 4; i++)
+                {
+                    quads[activeQuad].corners[i].x = quads[activeQuad].corners[i].x + ((float)movement.x / ofGetWidth());
+                    quads[activeQuad].corners[i].y = quads[activeQuad].corners[i].y + ((float)movement.y / ofGetHeight());
+                }
+                startDrag.x = x;
+                startDrag.y = y;
+            }
         }
     }
     else if(maskSetup && quads[activeQuad].bHighlightMaskPoint)
@@ -1056,6 +1076,9 @@ void testApp::mouseDragged(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mousePressed(int x, int y, int button)
 {
+    // this is used for dragging the whole quad using its centroid
+    startDrag.x = x;
+    startDrag.y = y;
 
     if(bSplash)
     {
