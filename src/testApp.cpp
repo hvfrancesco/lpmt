@@ -1103,6 +1103,7 @@ void testApp::mousePressed(int x, int y, int button)
         }
         lastTap = curTap;
 
+        // check if we are near once of active quad's corners
         for(int i = 0; i < 4; i++)
         {
             float distx = quads[activeQuad].corners[i].x - (float)x/ofGetWidth();
