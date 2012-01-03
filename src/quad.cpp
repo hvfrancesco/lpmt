@@ -1237,8 +1237,6 @@ void quad::draw()
                     ofNoFill();
                     ofCircle(punto.x, punto.y, 10);
                 }
-
-
             }
         }
 
