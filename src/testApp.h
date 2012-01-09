@@ -12,6 +12,7 @@
 #include "ofMain.h"
 
 #include "quad.h"
+#include "kinectManager.h"
 #include "ofxXmlSettings.h"
 #include "ofxMostPixelsEver.h"
 #include "ofxOsc.h"
@@ -127,7 +128,7 @@ public:
     // snapshot loading
     ofImage loadImageFromFile();
 
-
+    kinectManager kinect;
 
 
 };

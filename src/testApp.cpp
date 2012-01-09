@@ -41,6 +41,9 @@ int getdir (string dir, vector<string> &files)
 void testApp::setup()
 {
 
+    kinect.setup();
+    //kinect.startThread(false, false);
+
     // camera stuff
     bCameraOk = False;
     camWidth = 640;	// try to grab at this size.
@@ -163,13 +166,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -305,6 +308,11 @@ void testApp::setup()
         gui.addTitle("Corner 2");
         gui.addSlider("X", quads[i].corners[2].x, -1.0, 2.0);
         gui.addSlider("Y", quads[i].corners[2].y, -1.0, 2.0);
+        gui.addToggle("kinect", quads[i].kinectBg);
+        gui.addToggle("use kinect as mask", quads[i].kinectMask);
+        gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
+        gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
+        gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
@@ -399,6 +407,10 @@ void testApp::prepare()
             ofBackground(0, 0, 0);
         }
         //ofSetWindowShape(800, 600);
+
+        // kinect update
+        kinect.update();
+
         // loops through initialized quads and runs update, setting the border color as well
         for(int j = 0; j < 36; j++)
         {
@@ -741,7 +753,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -1431,7 +1443,7 @@ void testApp::getXml()
         float x3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:X",0.0);
         float y3 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_3:Y",0.0);
 
-        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber);
+        quads[i].setup(x0, y0, x1, y1, x2, y2, x3, y3, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
         quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
         quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
         layers[quads[i].layer] = quads[i].quadNumber;

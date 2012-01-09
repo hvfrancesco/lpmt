@@ -5,3 +5,5 @@ ofxMostPixelsEver
 ofxMSAInteractiveObject
 ofxSimpleGuiToo
 ofxOsc
+ofxKinect
+ofxOpenCv

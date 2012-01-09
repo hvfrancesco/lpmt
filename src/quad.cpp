@@ -30,12 +30,13 @@ int quad::getdir (string dir, vector<string> &files)
 }
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect)
 {
 
     shaderBlend = &edgeBlendShader;
     maskShader = &quadMaskShader;
     camera = &camGrabber;
+    quadKinect = &kinect;
 
     //loads load in some truetype fonts
     //ttf.loadFont("type/frabk.ttf", 11);
@@ -163,6 +164,15 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     colorGreenscreen.a = 0;
 
     thresholdGreenscreen = 10;
+
+    kinectBg = false;
+    kinectMask = false;
+    kinectMultX = 1.0;
+    kinectMultY = 1.0;
+    kinectColorize.r = 1.0;
+    kinectColorize.g = 1.0;
+    kinectColorize.b = 1.0;
+    kinectColorize.a = 1.0;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -685,6 +695,17 @@ void quad::draw()
                 glPopMatrix();
             }
         }
+
+        // kinect stuff
+        if (kinectBg && !kinectMask)
+        {
+            ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+            quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+        }
+
+
+
+
         ofDisableAlphaBlending();
         quadFbo.end();
 
@@ -703,6 +724,11 @@ void quad::draw()
                 ofVertex(maskPoints[i]);
             }
             ofEndShape(true);
+        }
+        if(kinectBg && kinectMask)
+        {
+            ofSetColor(255,255,255);
+            quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
         }
         ofDisableSmoothing();
         ofNoFill();

@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofGraphics.h"
+#include "kinectManager.h"
 
 #ifndef True
 #define True true
@@ -49,6 +50,7 @@ public:
     ofFloatColor videoColorize;
     ofFloatColor camColorize;
     ofFloatColor colorGreenscreen;
+    ofFloatColor kinectColorize;
 
     int bgAlpha;
 
@@ -67,6 +69,8 @@ public:
     float camMultY;
     float imgMultX;
     float imgMultY;
+    float kinectMultX;
+    float kinectMultY;
     float videoMultX;
     float videoMultY;
     float videoSpeed;
@@ -101,6 +105,8 @@ public:
     bool slideshowBg;
     bool slideFit;
     bool slideKeepAspect;
+    bool kinectBg;
+    bool kinectMask;
 
     bool videoHFlip;
     bool imgHFlip;
@@ -149,6 +155,8 @@ public:
     ofFbo maskFbo;
     ofFbo::Settings maskFboSettings;
 
+    kinectManager * quadKinect;
+
     ofFbo targetFbo;
 
     int quadDispX;
@@ -160,7 +168,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect);
 
     void update();
 
