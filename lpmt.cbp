@@ -246,6 +246,12 @@
 		<Unit filename="src/homography.h">
 			<Option virtualFolder="src/" />
 		</Unit>
+		<Unit filename="src/kinectManager.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/kinectManager.h">
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="src/main.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
