@@ -107,6 +107,8 @@ public:
     bool slideKeepAspect;
     bool kinectBg;
     bool kinectMask;
+    int nearDepthTh;
+    int farDepthTh;
 
     bool videoHFlip;
     bool imgHFlip;

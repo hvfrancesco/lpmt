@@ -34,7 +34,7 @@ class kinectManager {
 
 
         //---------------------------------------------------------
-        void threadedFunction();
+        ofImage getThresholdDepthImage(int nearDepthTh, int farDepthTh);
 
 };
 

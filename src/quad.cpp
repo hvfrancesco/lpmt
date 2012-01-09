@@ -173,6 +173,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     kinectColorize.g = 1.0;
     kinectColorize.b = 1.0;
     kinectColorize.a = 1.0;
+    nearDepthTh = 255;
+    farDepthTh = 0;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -700,7 +702,8 @@ void quad::draw()
         if (kinectBg && !kinectMask)
         {
             ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
-            quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
         }
 
 
@@ -728,7 +731,8 @@ void quad::draw()
         if(kinectBg && kinectMask)
         {
             ofSetColor(255,255,255);
-            quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
         }
         ofDisableSmoothing();
         ofNoFill();

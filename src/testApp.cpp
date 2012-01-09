@@ -294,6 +294,14 @@ void testApp::setup()
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
+        gui.addTitle("Kinect").setNewColumn(true);
+        gui.addToggle("kinect", quads[i].kinectBg);
+        gui.addToggle("use kinect as mask", quads[i].kinectMask);
+        gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
+        gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
+        gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
+        gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
+        gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
 
         gui.addPage("surface "+ofToString(i)+" - 3/3");
         gui.addTitle("Corner 0");
@@ -308,11 +316,6 @@ void testApp::setup()
         gui.addTitle("Corner 2");
         gui.addSlider("X", quads[i].corners[2].x, -1.0, 2.0);
         gui.addSlider("Y", quads[i].corners[2].y, -1.0, 2.0);
-        gui.addToggle("kinect", quads[i].kinectBg);
-        gui.addToggle("use kinect as mask", quads[i].kinectMask);
-        gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
-        gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
-        gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
