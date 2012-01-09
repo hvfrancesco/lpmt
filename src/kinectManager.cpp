@@ -4,19 +4,22 @@
 
 //---------------------------------------------------------
 //This is called in the setup
-void kinectManager::setup()
+bool kinectManager::setup()
 {
 
     // enable depth->rgb image calibration
     //kinect.setRegistration(true);
 
-    kinect.init(false,false,true);
+    kinectOn = kinect.init(false,false,true);
     //kinect.init(true); // shows infrared instead of RGB video image
     //kinect.init(false, false); // disable video image (faster fps)
     kinect.open();
 
     //grayImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
     //grayImage.allocate(kinect.width, kinect.height);
+    thDepthImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+
+    return kinectOn;
 
 }
 
@@ -42,9 +45,6 @@ ofImage kinectManager::getThresholdDepthImage(int nearDepthTh, int farDepthTh)
 
     int nearThreshold = nearDepthTh;
     int farThreshold = farDepthTh;
-
-    ofImage thDepthImage;
-    thDepthImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
 
     unsigned char * depthPix = grayImage.getPixels();
     unsigned char * thPix = thDepthImage.getPixels();

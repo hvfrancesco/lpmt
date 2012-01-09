@@ -41,7 +41,7 @@ int getdir (string dir, vector<string> &files)
 void testApp::setup()
 {
 
-    kinect.setup();
+    bKinectOk = kinect.setup();
     //kinect.startThread(false, false);
 
     // camera stuff
@@ -294,14 +294,17 @@ void testApp::setup()
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
-        gui.addTitle("Kinect").setNewColumn(true);
-        gui.addToggle("kinect", quads[i].kinectBg);
-        gui.addToggle("use kinect as mask", quads[i].kinectMask);
-        gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
-        gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
-        gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
-        gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
-        gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
+        if(bKinectOk)
+        {
+            gui.addTitle("Kinect").setNewColumn(true);
+            gui.addToggle("kinect", quads[i].kinectBg);
+            gui.addToggle("use kinect as mask", quads[i].kinectMask);
+            gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
+            gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
+            gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
+            gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
+            gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
+        }
 
         gui.addPage("surface "+ofToString(i)+" - 3/3");
         gui.addTitle("Corner 0");

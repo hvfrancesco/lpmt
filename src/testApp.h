@@ -129,6 +129,7 @@ public:
     ofImage loadImageFromFile();
 
     kinectManager kinect;
+    bool bKinectOk;
 
 
 };

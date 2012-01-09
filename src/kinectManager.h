@@ -19,7 +19,8 @@ class kinectManager {
         kinectManager() {
         }
 
-
+        bool kinectOn;
+        ofImage thDepthImage;
         ofImage grayImage;
         //ofxCvGrayscaleImage grayImage;
 
@@ -28,7 +29,7 @@ class kinectManager {
 
         //---------------------------------------------------------
         //This is called in the setup
-        void setup();
+        bool setup();
 
         void update();
 
