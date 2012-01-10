@@ -19,8 +19,10 @@ void main(){
 	vec4 nullo = vec4(0.0,0.0,0.0,0.0);
 	//if(mode == 0) factor = maskcol.w;
 	//if(mode == 1) factor = 1.0 - maskcol.w;
-    if(mode == 0) factor = (maskcol.x*maskcol.y*maskcol.z*maskcol.w);
-	if(mode == 1) factor = 1.0 - (maskcol.x*maskcol.y*maskcol.z*maskcol.w);
+    //if(mode == 0) factor = (maskcol.x*maskcol.y*maskcol.z*maskcol.w);
+	//if(mode == 1) factor = 1.0 - (maskcol.x*maskcol.y*maskcol.z*maskcol.w);
+    if(mode == 0) factor = ((maskcol.x+maskcol.y+maskcol.z)/3.0*maskcol.w);
+	if(mode == 1) factor = 1.0 - ((maskcol.x+maskcol.y+maskcol.z)/3.0*maskcol.w);
 
 	// set final color
     //gl_FragData[0] = vec4(col.xyzw);
