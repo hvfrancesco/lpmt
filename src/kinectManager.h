@@ -2,7 +2,6 @@
 #define OF_KINECT_MANAGER
 
 #include "ofMain.h"
-//#include "ofThread.h"
 #include "ofxKinect.h"
 //#include "ofxOpenCv.h"
 
@@ -20,6 +19,8 @@ class kinectManager {
         }
 
         bool kinectOn;
+        int kinectAngle;
+
         ofImage thDepthImage;
         ofImage grayImage;
         //ofxCvGrayscaleImage grayImage; // the depth image

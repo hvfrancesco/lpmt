@@ -7,10 +7,12 @@
 bool kinectManager::setup()
 {
 
+    kinectAngle = 0;
+
     // enable depth->rgb image calibration
     //kinect.setRegistration(true);
 
-    kinectOn = kinect.init(false,false,true);
+    kinect.init(false,false,true);
     //kinect.init(true); // shows infrared instead of RGB video image
     //kinect.init(false, false); // disable video image (faster fps)
     kinect.open();
@@ -18,6 +20,8 @@ bool kinectManager::setup()
     //grayImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
     //grayImage.allocate(kinect.width, kinect.height);
     thDepthImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+
+    kinectOn = kinect.isConnected();
 
     return kinectOn;
 
@@ -34,6 +38,10 @@ void kinectManager::update()
         // load grayscale depth image from the kinect source
         //grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height);
         grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE, false);
+        if (kinectAngle != kinect.getCurrentCameraTiltAngle() && kinectAngle != kinect.getTargetCameraTiltAngle())
+        {
+            kinect.setCameraTiltAngle(kinectAngle);
+        }
 
     }
 

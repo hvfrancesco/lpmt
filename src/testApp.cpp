@@ -304,6 +304,7 @@ void testApp::setup()
             gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
             gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
             gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
+            gui.addSlider("kinect tilt angle", kinect.kinectAngle, -30, 30);
         }
 
         gui.addPage("surface "+ofToString(i)+" - 3/3");
