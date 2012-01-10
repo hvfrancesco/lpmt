@@ -63,6 +63,7 @@ ofImage kinectManager::getThresholdDepthImage(int nearDepthTh, int farDepthTh)
         }
     }
 
+    thDepthImage.update();
     return thDepthImage;
 
 }
