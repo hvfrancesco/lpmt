@@ -22,7 +22,9 @@ class kinectManager {
         bool kinectOn;
         ofImage thDepthImage;
         ofImage grayImage;
-        //ofxCvGrayscaleImage grayImage;
+        //ofxCvGrayscaleImage grayImage; // the depth image
+        //ofxCvGrayscaleImage grayThreshNear; // the near thresholded image
+        //ofxCvGrayscaleImage grayThreshFar; // the far thresholded image
 
         ofTexture grayTexture;
 
