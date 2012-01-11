@@ -240,6 +240,9 @@ void testApp::setup()
         gui.addToggle("invert mask", quads[i].maskInvert);
         gui.addTitle("Bezier deformation");
         gui.addToggle("use bezier deform.", quads[i].bBezier);
+        gui.addButton("spherize light", bQuadBezierSpherize);
+        gui.addButton("spherize strong", bQuadBezierSpherizeStrong);
+        gui.addButton("reset bezier warp", bQuadBezierReset);
         gui.addTitle("Edge blending").setNewColumn(true);
         gui.addToggle("edge blend on/off", quads[i].edgeBlendBool);
         gui.addSlider("power", quads[i].edgeBlendExponent, 0.0, 4.0);
@@ -380,6 +383,27 @@ void testApp::prepare()
             bQuadReset = false;
             quadDimensionsReset(activeQuad);
             quadPlacementReset(activeQuad);
+        }
+
+        //check if quad bezier spherize button on GUI is pressed
+        if(bQuadBezierSpherize)
+        {
+            bQuadBezierSpherize = false;
+            quadBezierSpherize(activeQuad);
+        }
+
+        //check if quad bezier spherize strong button on GUI is pressed
+        if(bQuadBezierSpherizeStrong)
+        {
+            bQuadBezierSpherizeStrong = false;
+            quadBezierSpherizeStrong(activeQuad);
+        }
+
+        //check if quad bezier reset button on GUI is pressed
+        if(bQuadBezierReset)
+        {
+            bQuadBezierReset = false;
+            quadBezierReset(activeQuad);
         }
 
 
@@ -1276,6 +1300,52 @@ void testApp::quadPlacementReset(int q)
     quads[q].quadDispX = 0;
     quads[q].quadDispY = 0;
 }
+
+//---------------------------------------------------------------
+void testApp::quadBezierSpherize(int q)
+{
+    int w = ofGetWidth();
+    int h = ofGetHeight();
+    float k = (sqrt(2)-1)*4/3;
+    quads[q].bBezier = true;
+    quads[q].gridPoints =
+    {
+        {   {0*h/w, 0, 0},          {0.5*k*h/w, -0.5*k, 0},    {(1.0*h/w)-(0.5*k*h/w), -0.5*k, 0},    {1.0*h/w, 0, 0}    },
+        {   {0*h/w-(0.5*k*h/w), 0.5*k, 0},        {0*h/w, 0, 0},  {1.0*h/w, 0, 0},  {1.0*h/w+(0.5*k*h/w), 0.5*k, 0}  },
+        {   {0*h/w-(0.5*k*h/w), 1.0-0.5*k, 0},        {0*h/w, 1.0, 0},  {1.0*h/w, 1.0, 0},  {1.0*h/w+(0.5*k*h/w), 1.0-0.5*k, 0}  },
+        {   {0*h/w, 1.0, 0},        {0.5*k*h/w, 1.0+0.5*k, 0},  {(1.0*h/w)-(0.5*k*h/w), 1.0+0.5*k, 0},  {1.0*h/w, 1.0, 0}  }
+    };
+}
+
+//---------------------------------------------------------------
+void testApp::quadBezierSpherizeStrong(int q)
+{
+    int w = ofGetWidth();
+    int h = ofGetHeight();
+    float k = (sqrt(2)-1)*4/3;
+    quads[q].bBezier = true;
+    quads[q].gridPoints =
+    {
+        {   {0*h/w, 0, 0},          {0.5*k*h/w, -0.5*k, 0},    {(1.0*h/w)-(0.5*k*h/w), -0.5*k, 0},    {1.0*h/w, 0, 0}    },
+        {   {0*h/w-(0.5*k*h/w), 0.5*k, 0},        {0*h/w-(0.5*k*h/w), -0.5*k, 0},  {1.0*h/w+(0.5*k*h/w), -0.5*k, 0},  {1.0*h/w+(0.5*k*h/w), 0.5*k, 0}  },
+        {   {0*h/w-(0.5*k*h/w), 1.0-0.5*k, 0},        {0*h/w-(0.5*k*h/w), 1.0+0.5*k, 0},  {1.0*h/w+(0.5*k*h/w), 1.0+0.5*k, 0},  {1.0*h/w+(0.5*k*h/w), 1.0-0.5*k, 0}  },
+        {   {0*h/w, 1.0, 0},        {0.5*k*h/w, 1.0+0.5*k, 0},  {(1.0*h/w)-(0.5*k*h/w), 1.0+0.5*k, 0},  {1.0*h/w, 1.0, 0}  }
+    };
+}
+
+//---------------------------------------------------------------
+void testApp::quadBezierReset(int q)
+{
+    quads[q].bBezier = true;
+    quads[q].gridPoints =
+    {
+        {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
+        {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
+        {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
+        {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
+    };
+}
+
 
 //---------------------------------------------------------------
 void testApp::activateQuad(int x, int y)

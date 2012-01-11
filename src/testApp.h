@@ -94,11 +94,17 @@ public:
     bool bImageLoad;
     bool bVideoLoad;
     bool bQuadReset;
+    bool bQuadBezierSpherize;
+    bool bQuadBezierSpherizeStrong;
+    bool bQuadBezierReset;
 
     void openImageFile();
     void openVideoFile();
     void quadDimensionsReset(int q);
     void quadPlacementReset(int q);
+    void quadBezierSpherize(int q);
+    void quadBezierSpherizeStrong(int q);
+    void quadBezierReset(int q);
 
     // camera grabber
     ofVideoGrabber camGrabber;
