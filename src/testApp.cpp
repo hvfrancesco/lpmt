@@ -300,14 +300,20 @@ void testApp::setup()
         if(bKinectOk)
         {
             gui.addTitle("Kinect").setNewColumn(true);
-            gui.addToggle("kinect", quads[i].kinectBg);
+            gui.addToggle("use kinect", quads[i].kinectBg);
+            gui.addToggle("show kinect image", quads[i].kinectImg);
             gui.addToggle("use kinect as mask", quads[i].kinectMask);
-            gui.addSlider("kinect mult X", quads[i].kinectMultX, 0.1, 5.0);
-            gui.addSlider("kinect mult Y", quads[i].kinectMultY, 0.1, 5.0);
+            gui.addToggle("get kinect contours", quads[i].getKinectContours);
+            gui.addSlider("kinect scale X", quads[i].kinectMultX, 0.1, 5.0);
+            gui.addSlider("kinect scale Y", quads[i].kinectMultY, 0.1, 5.0);
             gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
             gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
             gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
             gui.addSlider("kinect tilt angle", kinect.kinectAngle, -30, 30);
+            gui.addSlider("kinect smoothing", quads[i].kinectBlur, 0, 10);
+            gui.addSlider("contour min", quads[i].kinectContourMin, 0, 200);
+            gui.addSlider("contour simplify", quads[i].kinectContourSimplify, 0.0, 20.0);
+
         }
 
         gui.addPage("surface "+ofToString(i)+" - 3/3");

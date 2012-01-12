@@ -18,8 +18,11 @@ bool kinectManager::setup()
     kinect.open();
 
     //grayImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
-    //grayImage.allocate(kinect.width, kinect.height);
-    thDepthImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+    grayImage.allocate(kinect.width, kinect.height);
+    grayThreshNear.allocate(kinect.width, kinect.height);
+    grayThreshFar.allocate(kinect.width, kinect.height);
+    //thDepthImage.allocate(kinect.width, kinect.height, OF_IMAGE_GRAYSCALE);
+    thDepthImage.allocate(kinect.width, kinect.height);
 
     kinectOn = kinect.isConnected();
 
@@ -36,8 +39,8 @@ void kinectManager::update()
     {
 
         // load grayscale depth image from the kinect source
-        //grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height);
-        grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE, false);
+        grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height);
+        //grayImage.setFromPixels(kinect.getDepthPixels(), kinect.width, kinect.height, OF_IMAGE_GRAYSCALE, false);
         if (kinectAngle != kinect.getCurrentCameraTiltAngle() && kinectAngle != kinect.getTargetCameraTiltAngle())
         {
             kinect.setCameraTiltAngle(kinectAngle);
@@ -48,30 +51,25 @@ void kinectManager::update()
 }
 
 //---------------------------------------------------------
-ofImage kinectManager::getThresholdDepthImage(int nearDepthTh, int farDepthTh)
+ofxCvGrayscaleImage kinectManager::getThresholdDepthImage(int nearDepthTh, int farDepthTh, int blurVal)
 {
 
     int nearThreshold = nearDepthTh;
     int farThreshold = farDepthTh;
 
-    unsigned char * depthPix = grayImage.getPixels();
-    unsigned char * thPix = thDepthImage.getPixels();
+    grayThreshNear = grayImage;
+    grayThreshFar = grayImage;
+    thDepthImage = grayImage;
+    grayThreshNear.threshold(nearThreshold, true);
+    grayThreshFar.threshold(farThreshold);
+    cvAnd(grayThreshNear.getCvImage(), grayThreshFar.getCvImage(), thDepthImage.getCvImage(), NULL);
 
-    int numPixels = grayImage.getWidth() * grayImage.getHeight();
+    thDepthImage.flagImageChanged();
+    //thDepthImage.blurGaussian(blurVal);
+    thDepthImage.blur(blurVal);
 
-    for(int i = 0; i < numPixels; i++)
-    {
-        if(depthPix[i] < nearThreshold && depthPix[i] > farThreshold)
-        {
-            thPix[i] = 255;
-        }
-        else
-        {
-            thPix[i] = 0;
-        }
-    }
-
-    thDepthImage.update();
     return thDepthImage;
 
 }
+
+

@@ -166,6 +166,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     thresholdGreenscreen = 10;
 
     kinectBg = false;
+    kinectImg = false;
     kinectMask = false;
     kinectMultX = 1.0;
     kinectMultY = 1.0;
@@ -175,6 +176,10 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     kinectColorize.a = 1.0;
     nearDepthTh = 255;
     farDepthTh = 0;
+    kinectBlur = 3;
+    kinectContourMin = 20;
+    kinectContourSimplify = 0.0;
+    getKinectContours = false;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -699,15 +704,60 @@ void quad::draw()
         }
 
         // kinect stuff
-        if (kinectBg && !kinectMask)
+        if (kinectBg && kinectImg)
         {
             ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
             //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
-            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            if (getKinectContours)
+            {
+                ofxCvContourFinder contourFinder;
+                ofxCvGrayscaleImage contourImage;
+                contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
+                contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
+                contourFinder.findContours(contourImage, kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)/2, 20, false);
+                //ofSetLineWidth(3.0);
+                //contourFinder.draw(0,0, quadKinect->kinect.width*kinectMultX, quadKinect->kinect.height*kinectMultY);
+                ofPushStyle();
+                glPushMatrix();
+                glScalef( kinectMultX, kinectMultY, 0.0 );
+                // ---------------------------- draw the blobs
+                //ofSetColor(255,255,255,255);
+                ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                for( int i=0; i<(int)contourFinder.blobs.size(); i++ ) {
+                    ofFill();
+                    /* // with shape
+                    ofBeginShape();
+                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
+                        ofVertex( contourFinder.blobs[i].pts[j].x, contourFinder.blobs[i].pts[j].y );
+                    }
+                    ofEndShape();
+                    */
+                    /* // with polyline
+                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    poly.close();
+                    poly.draw();
+                    */
+                    ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                    ofPath path;
+                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
+                        path.lineTo(contourFinder.blobs[i].pts[j]);
+                    }
+                    path.setFilled(true);
+                    path.setFillColor(pathColor);
+                    path.close();
+                    path.simplify(kinectContourSimplify);
+                    path.draw();
+
+                }
+                glPopMatrix();
+                ofPopStyle();
+
+            }
+            else
+            {
+                quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            }
         }
-
-
-
 
         ofDisableAlphaBlending();
         quadFbo.end();
@@ -731,8 +781,44 @@ void quad::draw()
         if(kinectBg && kinectMask)
         {
             ofSetColor(255,255,255);
+            if (getKinectContours)
+            {
+                ofxCvContourFinder contourFinder;
+                ofxCvGrayscaleImage contourImage;
+                contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
+                contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
+                contourFinder.findContours(contourImage, kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)/2, 20, false);
+                //ofSetLineWidth(3.0);
+                //contourFinder.draw(0,0, quadKinect->kinect.width*kinectMultX, quadKinect->kinect.height*kinectMultY);
+                ofPushStyle();
+                glPushMatrix();
+                glScalef( kinectMultX, kinectMultY, 0.0 );
+                // ---------------------------- draw the blobs
+                //ofSetColor(255,255,255,255);
+                ofSetColor(255, 255, 255, 255);
+                for( int i=0; i<(int)contourFinder.blobs.size(); i++ ) {
+                    ofFill();
+                    ofColor pathColor(255, 255, 255, 255);
+                    ofPath path;
+                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
+                        path.lineTo(contourFinder.blobs[i].pts[j]);
+                    }
+                    path.setFilled(true);
+                    path.setFillColor(pathColor);
+                    path.close();
+                    path.simplify(kinectContourSimplify);
+                    path.draw();
+
+                }
+                glPopMatrix();
+                ofPopStyle();
+
+            }
+            else
+            {
             //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
-            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            }
         }
         ofDisableSmoothing();
         ofNoFill();

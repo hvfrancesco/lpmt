@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofGraphics.h"
+#include "ofxOpenCv.h"
 #include "kinectManager.h"
 
 #ifndef True
@@ -106,9 +107,14 @@ public:
     bool slideFit;
     bool slideKeepAspect;
     bool kinectBg;
+    bool kinectImg;
     bool kinectMask;
     int nearDepthTh;
     int farDepthTh;
+    int kinectBlur;
+    int kinectContourMin;
+    float kinectContourSimplify;
+    bool getKinectContours;
 
     bool videoHFlip;
     bool imgHFlip;

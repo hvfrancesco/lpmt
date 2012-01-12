@@ -3,10 +3,9 @@
 
 #include "ofMain.h"
 #include "ofxKinect.h"
-//#include "ofxOpenCv.h"
+#include "ofxOpenCv.h"
 
 
-//class kinectManager : public ofThread {
 class kinectManager {
 
     public:
@@ -21,13 +20,14 @@ class kinectManager {
         bool kinectOn;
         int kinectAngle;
 
-        ofImage thDepthImage;
-        ofImage grayImage;
-        //ofxCvGrayscaleImage grayImage; // the depth image
-        //ofxCvGrayscaleImage grayThreshNear; // the near thresholded image
-        //ofxCvGrayscaleImage grayThreshFar; // the far thresholded image
+        //ofImage thDepthImage;
+        //ofImage grayImage;
+        ofxCvGrayscaleImage grayImage; // the depth image
+        ofxCvGrayscaleImage grayThreshNear; // the near thresholded image
+        ofxCvGrayscaleImage grayThreshFar; // the far thresholded image
+        ofxCvGrayscaleImage thDepthImage;
 
-        ofTexture grayTexture;
+        //ofTexture grayTexture;
 
 
         //---------------------------------------------------------
@@ -38,7 +38,7 @@ class kinectManager {
 
 
         //---------------------------------------------------------
-        ofImage getThresholdDepthImage(int nearDepthTh, int farDepthTh);
+        ofxCvGrayscaleImage getThresholdDepthImage(int nearDepthTh, int farDepthTh, int blurVal);
 
 };
 
