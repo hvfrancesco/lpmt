@@ -764,6 +764,8 @@ void quad::draw()
                     poly.close();
                     ofPolyline poly2 = poly.getSmoothed(10);
                     ofSetLineWidth(3);
+
+                    poly2.close();
                     poly2.draw();
 
 
