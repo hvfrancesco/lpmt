@@ -112,9 +112,11 @@ public:
     int nearDepthTh;
     int farDepthTh;
     int kinectBlur;
-    int kinectContourMin;
+    float kinectContourMin;
+    float kinectContourMax;
     float kinectContourSimplify;
     bool getKinectContours;
+    bool kinectContourCurved;
 
     bool videoHFlip;
     bool imgHFlip;
@@ -164,6 +166,7 @@ public:
     ofFbo::Settings maskFboSettings;
 
     kinectManager * quadKinect;
+    ofxCvContourFinder contourFinder;
 
     ofFbo targetFbo;
 

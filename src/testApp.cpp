@@ -303,7 +303,8 @@ void testApp::setup()
             gui.addToggle("use kinect", quads[i].kinectBg);
             gui.addToggle("show kinect image", quads[i].kinectImg);
             gui.addToggle("use kinect as mask", quads[i].kinectMask);
-            gui.addToggle("get kinect contours", quads[i].getKinectContours);
+            gui.addToggle("kinect blob detection", quads[i].getKinectContours);
+            gui.addToggle("blob curved contour", quads[i].kinectContourCurved);
             gui.addSlider("kinect scale X", quads[i].kinectMultX, 0.1, 5.0);
             gui.addSlider("kinect scale Y", quads[i].kinectMultY, 0.1, 5.0);
             gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
@@ -311,8 +312,9 @@ void testApp::setup()
             gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
             gui.addSlider("kinect tilt angle", kinect.kinectAngle, -30, 30);
             gui.addSlider("kinect smoothing", quads[i].kinectBlur, 0, 10);
-            gui.addSlider("contour min", quads[i].kinectContourMin, 0, 200);
-            gui.addSlider("contour simplify", quads[i].kinectContourSimplify, 0.0, 20.0);
+            gui.addSlider("blobs min area", quads[i].kinectContourMin, 0.0, 1.0);
+            gui.addSlider("blobs max area", quads[i].kinectContourMax, 0.0, 1.0);
+            gui.addSlider("blobs simplify", quads[i].kinectContourSimplify, 0.0, 20.0);
 
         }
 

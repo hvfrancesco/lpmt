@@ -177,9 +177,11 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     nearDepthTh = 255;
     farDepthTh = 0;
     kinectBlur = 3;
-    kinectContourMin = 20;
+    kinectContourMin = 0.0;
+    kinectContourMax = 1.0;
     kinectContourSimplify = 0.0;
     getKinectContours = false;
+    kinectContourCurved = false;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -448,6 +450,19 @@ void quad::update()
             slideshowBg = True;
         }
 
+        // -------------------------
+        // finds kinect blobs with OpenCV
+        if (kinectBg)
+        {
+            ofxCvGrayscaleImage contourImage;
+            contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
+            contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
+            contourFinder.findContours(contourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, false);
+        }
+
+
+
+
         //we set matrix to the default - 0 translation
         //and 1.0 scale for x y z and w
         for(int i = 0; i < 16; i++)
@@ -710,13 +725,6 @@ void quad::draw()
             //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             if (getKinectContours)
             {
-                ofxCvContourFinder contourFinder;
-                ofxCvGrayscaleImage contourImage;
-                contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
-                contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
-                contourFinder.findContours(contourImage, kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)/2, 20, false);
-                //ofSetLineWidth(3.0);
-                //contourFinder.draw(0,0, quadKinect->kinect.width*kinectMultX, quadKinect->kinect.height*kinectMultY);
                 ofPushStyle();
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
@@ -740,13 +748,24 @@ void quad::draw()
                     ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
                     ofPath path;
                     for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
-                        path.lineTo(contourFinder.blobs[i].pts[j]);
+                        if (kinectContourCurved)
+                        {
+                            path.curveTo(contourFinder.blobs[i].pts[j]);
+                        }
+                        else { path.lineTo(contourFinder.blobs[i].pts[j]);}
                     }
                     path.setFilled(true);
                     path.setFillColor(pathColor);
                     path.close();
                     path.simplify(kinectContourSimplify);
                     path.draw();
+
+                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    poly.close();
+                    ofPolyline poly2 = poly.getSmoothed(10);
+                    ofSetLineWidth(3);
+                    poly2.draw();
+
 
                 }
                 glPopMatrix();
@@ -783,13 +802,6 @@ void quad::draw()
             ofSetColor(255,255,255);
             if (getKinectContours)
             {
-                ofxCvContourFinder contourFinder;
-                ofxCvGrayscaleImage contourImage;
-                contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
-                contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
-                contourFinder.findContours(contourImage, kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)/2, 20, false);
-                //ofSetLineWidth(3.0);
-                //contourFinder.draw(0,0, quadKinect->kinect.width*kinectMultX, quadKinect->kinect.height*kinectMultY);
                 ofPushStyle();
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
@@ -801,22 +813,23 @@ void quad::draw()
                     ofColor pathColor(255, 255, 255, 255);
                     ofPath path;
                     for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
-                        path.lineTo(contourFinder.blobs[i].pts[j]);
+                        if (kinectContourCurved)
+                        {
+                            path.curveTo(contourFinder.blobs[i].pts[j]);
+                        }
+                        else { path.lineTo(contourFinder.blobs[i].pts[j]);}
                     }
                     path.setFilled(true);
                     path.setFillColor(pathColor);
                     path.close();
                     path.simplify(kinectContourSimplify);
                     path.draw();
-
                 }
                 glPopMatrix();
                 ofPopStyle();
-
             }
             else
             {
-            //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
