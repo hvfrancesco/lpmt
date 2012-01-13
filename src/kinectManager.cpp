@@ -57,6 +57,9 @@ ofxCvGrayscaleImage kinectManager::getThresholdDepthImage(int nearDepthTh, int f
     int nearThreshold = nearDepthTh;
     int farThreshold = farDepthTh;
 
+    //grayImage.dilate();
+    //grayImage.erode();
+
     grayThreshNear = grayImage;
     grayThreshFar = grayImage;
     thDepthImage = grayImage;
@@ -65,10 +68,12 @@ ofxCvGrayscaleImage kinectManager::getThresholdDepthImage(int nearDepthTh, int f
     cvAnd(grayThreshNear.getCvImage(), grayThreshFar.getCvImage(), thDepthImage.getCvImage(), NULL);
 
     thDepthImage.flagImageChanged();
-    thDepthImage.blurGaussian(blurVal);
-    //thDepthImage.blur(blurVal);
+
+
     thDepthImage.erode();
     thDepthImage.dilate();
+    //thDepthImage.blurGaussian(blurVal);
+    thDepthImage.blur(blurVal);
 
     return thDepthImage;
 
