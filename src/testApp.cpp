@@ -311,10 +311,11 @@ void testApp::setup()
             gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
             gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
             gui.addSlider("kinect tilt angle", kinect.kinectAngle, -30, 30);
-            gui.addSlider("kinect smoothing", quads[i].kinectBlur, 0, 10);
-            gui.addSlider("blobs min area", quads[i].kinectContourMin, 0.0, 1.0);
-            gui.addSlider("blobs max area", quads[i].kinectContourMax, 0.0, 1.0);
-            gui.addSlider("blobs simplify", quads[i].kinectContourSimplify, 0.0, 20.0);
+            gui.addSlider("kinect image blur", quads[i].kinectBlur, 0, 10);
+            gui.addSlider("blob min area", quads[i].kinectContourMin, 0.01, 1.0);
+            gui.addSlider("blob max area", quads[i].kinectContourMax, 0.0, 1.0);
+            gui.addSlider("blob contour smooth", quads[i].kinectContourSmooth, 0, 20);
+            gui.addSlider("blob simplify", quads[i].kinectContourSimplify, 0.0, 2.0);
 
         }
 

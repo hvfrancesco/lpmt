@@ -177,9 +177,10 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     nearDepthTh = 255;
     farDepthTh = 0;
     kinectBlur = 3;
-    kinectContourMin = 0.0;
+    kinectContourMin = 0.01;
     kinectContourMax = 1.0;
     kinectContourSimplify = 0.0;
+    kinectContourSmooth = 10;
     getKinectContours = false;
     kinectContourCurved = false;
 
@@ -746,29 +747,30 @@ void quad::draw()
                     poly.draw();
                     */
                     ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    poly.close();
+                    poly.simplify(kinectContourSimplify);
+                    ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
+                    //polySmoothed.close();
+                    vector<ofPoint> points = polySmoothed.getVertices();
+
                     ofPath path;
-                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
+                    for( int j=0; j<points.size(); j++ ) {
                         if (kinectContourCurved)
                         {
-                            path.curveTo(contourFinder.blobs[i].pts[j]);
+                            path.curveTo(points[j]);
                         }
-                        else { path.lineTo(contourFinder.blobs[i].pts[j]);}
+                        else { path.lineTo(points[j]);}
                     }
                     path.setFilled(true);
                     path.setFillColor(pathColor);
                     path.close();
-                    path.simplify(kinectContourSimplify);
                     path.draw();
+                    path.clear();
 
-                    ofPolyline poly(contourFinder.blobs[i].pts);
-                    poly.close();
-                    ofPolyline poly2 = poly.getSmoothed(10);
                     ofSetLineWidth(3);
-
-                    poly2.close();
-                    poly2.draw();
-
-
+                    ofSetColor(pathColor);
+                    polySmoothed.draw();
                 }
                 glPopMatrix();
                 ofPopStyle();
@@ -813,19 +815,30 @@ void quad::draw()
                 for( int i=0; i<(int)contourFinder.blobs.size(); i++ ) {
                     ofFill();
                     ofColor pathColor(255, 255, 255, 255);
+                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    poly.close();
+                    poly.simplify(kinectContourSimplify);
+                    ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
+                    //polySmoothed.close();
+                    vector<ofPoint> points = polySmoothed.getVertices();
+
                     ofPath path;
-                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
+                    for( int j=0; j<points.size(); j++ ) {
                         if (kinectContourCurved)
                         {
-                            path.curveTo(contourFinder.blobs[i].pts[j]);
+                            path.curveTo(points[j]);
                         }
-                        else { path.lineTo(contourFinder.blobs[i].pts[j]);}
+                        else { path.lineTo(points[j]);}
                     }
                     path.setFilled(true);
                     path.setFillColor(pathColor);
                     path.close();
-                    path.simplify(kinectContourSimplify);
                     path.draw();
+                    path.clear();
+
+                    ofSetLineWidth(3);
+                    ofSetColor(pathColor);
+                    polySmoothed.draw();
                 }
                 glPopMatrix();
                 ofPopStyle();

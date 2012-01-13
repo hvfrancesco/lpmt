@@ -115,6 +115,7 @@ public:
     float kinectContourMin;
     float kinectContourMax;
     float kinectContourSimplify;
+    int kinectContourSmooth;
     bool getKinectContours;
     bool kinectContourCurved;
 
