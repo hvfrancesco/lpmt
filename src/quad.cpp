@@ -182,6 +182,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     kinectContourSimplify = 0.0;
     kinectContourSmooth = 10;
     getKinectContours = false;
+    getKinectGrayImage = false;
     kinectContourCurved = false;
 
     edgeBlendBool = False;
@@ -462,6 +463,24 @@ void quad::update()
             kinectThreshImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
             kinectContourImage = kinectThreshImage;
             kinectContourFinder.findContours(kinectContourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, false);
+            kinectPath.setFilled(true);
+            for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
+                ofPolyline poly(kinectContourFinder.blobs[i].pts);
+                poly.close();
+                poly.simplify(kinectContourSimplify);
+                ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
+                //polySmoothed.close();
+                vector<ofPoint> points = polySmoothed.getVertices();
+
+                for( int j=0; j<points.size(); j++ ) {
+                    if (kinectContourCurved)
+                    {
+                        kinectPath.curveTo(points[j]);
+                    }
+                    else { kinectPath.lineTo(points[j]);}
+                }
+                kinectPath.close();
+            }
         }
 
 
@@ -732,32 +751,16 @@ void quad::draw()
                 ofPushStyle();
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
-                // ---------------------------- draw the blobs
-                ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
-                kinectPath.setFilled(true);
+                // ----------- draw the kinect path made of detected blobs
                 ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
                 kinectPath.setFillColor(pathColor);
-                for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
-                    ofPolyline poly(kinectContourFinder.blobs[i].pts);
-                    poly.close();
-                    poly.simplify(kinectContourSimplify);
-                    ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
-                    //polySmoothed.close();
-                    vector<ofPoint> points = polySmoothed.getVertices();
-
-                    for( int j=0; j<points.size(); j++ ) {
-                        if (kinectContourCurved)
-                        {
-                            kinectPath.curveTo(points[j]);
-                        }
-                        else { kinectPath.lineTo(points[j]);}
-                    }
-                    kinectPath.close();
-                }
                 kinectPath.draw();
-                kinectPath.clear();
                 glPopMatrix();
                 ofPopStyle();
+            }
+            else if (getKinectGrayImage)
+            {
+                quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
             else
             {
@@ -792,30 +795,10 @@ void quad::draw()
                 ofPushStyle();
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
-                // ---------------------------- draw the blobs
-                ofSetColor(255, 255, 255, 255);
-                kinectPath.setFilled(true);
+                // ----------- draw the kinect path made of detected blobs
                 ofColor pathColor(255, 255, 255, 255);
                 kinectPath.setFillColor(pathColor);
-                for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
-                    ofPolyline poly(kinectContourFinder.blobs[i].pts);
-                    poly.close();
-                    poly.simplify(kinectContourSimplify);
-                    ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
-                    //polySmoothed.close();
-                    vector<ofPoint> points = polySmoothed.getVertices();
-
-                    for( int j=0; j<points.size(); j++ ) {
-                        if (kinectContourCurved)
-                        {
-                            kinectPath.curveTo(points[j]);
-                        }
-                        else { kinectPath.lineTo(points[j]);}
-                    }
-                    kinectPath.close();
-                }
                 kinectPath.draw();
-                kinectPath.clear();
                 glPopMatrix();
                 ofPopStyle();
             }
@@ -829,6 +812,9 @@ void quad::draw()
         ofDisableAlphaBlending();
         maskFbo.end();
 
+
+        // clear kinect path if any
+        if(kinectBg) {kinectPath.clear();}
 
         // save actual GL coordinates
         ofPushMatrix();

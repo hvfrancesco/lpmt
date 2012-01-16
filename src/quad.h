@@ -117,6 +117,7 @@ public:
     float kinectContourSimplify;
     int kinectContourSmooth;
     bool getKinectContours;
+    bool getKinectGrayImage;
     bool kinectContourCurved;
 
     bool videoHFlip;

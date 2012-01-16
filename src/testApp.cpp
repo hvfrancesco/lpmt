@@ -302,6 +302,7 @@ void testApp::setup()
             gui.addTitle("Kinect").setNewColumn(true);
             gui.addToggle("use kinect", quads[i].kinectBg);
             gui.addToggle("show kinect image", quads[i].kinectImg);
+            gui.addToggle("show kinect gray image", quads[i].getKinectGrayImage);
             gui.addToggle("use kinect as mask", quads[i].kinectMask);
             gui.addToggle("kinect blob detection", quads[i].getKinectContours);
             gui.addToggle("blob curved contour", quads[i].kinectContourCurved);
