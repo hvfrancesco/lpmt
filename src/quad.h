@@ -167,7 +167,9 @@ public:
     ofFbo::Settings maskFboSettings;
 
     kinectManager * quadKinect;
-    ofxCvContourFinder contourFinder;
+    ofxCvGrayscaleImage kinectThreshImage;
+    ofxCvGrayscaleImage kinectContourImage;
+    ofxCvContourFinder kinectContourFinder;
 
     ofFbo targetFbo;
 

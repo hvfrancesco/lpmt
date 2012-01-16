@@ -455,10 +455,13 @@ void quad::update()
         // finds kinect blobs with OpenCV
         if (kinectBg)
         {
-            ofxCvGrayscaleImage contourImage;
-            contourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
-            contourImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
-            contourFinder.findContours(contourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, false);
+            kinectThreshImage.clear();
+            kinectContourImage.clear();
+            kinectThreshImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
+            kinectContourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
+            kinectThreshImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
+            kinectContourImage = kinectThreshImage;
+            kinectContourFinder.findContours(kinectContourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, false);
         }
 
 
@@ -732,22 +735,10 @@ void quad::draw()
                 // ---------------------------- draw the blobs
                 //ofSetColor(255,255,255,255);
                 ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
-                for( int i=0; i<(int)contourFinder.blobs.size(); i++ ) {
+                for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
                     ofFill();
-                    /* // with shape
-                    ofBeginShape();
-                    for( int j=0; j<contourFinder.blobs[i].nPts; j++ ) {
-                        ofVertex( contourFinder.blobs[i].pts[j].x, contourFinder.blobs[i].pts[j].y );
-                    }
-                    ofEndShape();
-                    */
-                    /* // with polyline
-                    ofPolyline poly(contourFinder.blobs[i].pts);
-                    poly.close();
-                    poly.draw();
-                    */
                     ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
-                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    ofPolyline poly(kinectContourFinder.blobs[i].pts);
                     poly.close();
                     poly.simplify(kinectContourSimplify);
                     ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
@@ -778,7 +769,7 @@ void quad::draw()
             }
             else
             {
-                quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+                kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
 
@@ -812,10 +803,10 @@ void quad::draw()
                 // ---------------------------- draw the blobs
                 //ofSetColor(255,255,255,255);
                 ofSetColor(255, 255, 255, 255);
-                for( int i=0; i<(int)contourFinder.blobs.size(); i++ ) {
+                for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
                     ofFill();
                     ofColor pathColor(255, 255, 255, 255);
-                    ofPolyline poly(contourFinder.blobs[i].pts);
+                    ofPolyline poly(kinectContourFinder.blobs[i].pts);
                     poly.close();
                     poly.simplify(kinectContourSimplify);
                     ofPolyline polySmoothed = poly.getSmoothed(kinectContourSmooth);
@@ -845,7 +836,7 @@ void quad::draw()
             }
             else
             {
-            quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur).draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+            kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
         ofDisableSmoothing();
