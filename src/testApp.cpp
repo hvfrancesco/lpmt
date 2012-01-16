@@ -42,6 +42,8 @@ void testApp::setup()
 {
 
     bKinectOk = kinect.setup();
+    bCloseKinect = false;
+    bOpenKinect = false;
     //kinect.startThread(false, false);
 
     // camera stuff
@@ -317,6 +319,8 @@ void testApp::setup()
             gui.addSlider("blob max area", quads[i].kinectContourMax, 0.0, 1.0);
             gui.addSlider("blob contour smooth", quads[i].kinectContourSmooth, 0, 20);
             gui.addSlider("blob simplify", quads[i].kinectContourSimplify, 0.0, 2.0);
+            gui.addButton("close connection", bCloseKinect);
+            gui.addButton("reopen connection", bOpenKinect);
 
         }
 
@@ -429,6 +433,21 @@ void testApp::prepare()
         {
             bVideoLoad = false;
             openVideoFile();
+        }
+
+        // check if kinect close button on GUI is pressed
+        if(bCloseKinect)
+        {
+            bCloseKinect = false;
+            kinect.kinect.setCameraTiltAngle(0);
+            kinect.kinect.close();
+        }
+
+        // check if kinect close button on GUI is pressed
+        if(bOpenKinect)
+        {
+            bOpenKinect = false;
+            kinect.kinect.open();
         }
 
 

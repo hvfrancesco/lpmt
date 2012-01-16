@@ -462,7 +462,9 @@ void quad::update()
             kinectContourImage.allocate(quadKinect->kinect.width, quadKinect->kinect.height);
             kinectThreshImage = quadKinect->getThresholdDepthImage(nearDepthTh, farDepthTh, kinectBlur);
             kinectContourImage = kinectThreshImage;
-            kinectContourFinder.findContours(kinectContourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, false);
+            kinectContourFinder.findContours(kinectContourImage, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMin, (quadKinect->kinect.width*quadKinect->kinect.height)*kinectContourMax, 20, true);
+            // clear kinect path if any
+            kinectPath.clear();
             kinectPath.setFilled(true);
             for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
                 ofPolyline poly(kinectContourFinder.blobs[i].pts);
@@ -811,10 +813,6 @@ void quad::draw()
         ofNoFill();
         ofDisableAlphaBlending();
         maskFbo.end();
-
-
-        // clear kinect path if any
-        if(kinectBg) {kinectPath.clear();}
 
         // save actual GL coordinates
         ofPushMatrix();

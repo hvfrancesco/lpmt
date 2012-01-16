@@ -136,6 +136,8 @@ public:
 
     kinectManager kinect;
     bool bKinectOk;
+    bool bCloseKinect;
+    bool bOpenKinect;
 
 
 };
