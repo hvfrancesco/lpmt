@@ -170,6 +170,7 @@ public:
     ofxCvGrayscaleImage kinectThreshImage;
     ofxCvGrayscaleImage kinectContourImage;
     ofxCvContourFinder kinectContourFinder;
+    ofPath kinectPath;
 
     ofFbo targetFbo;
 

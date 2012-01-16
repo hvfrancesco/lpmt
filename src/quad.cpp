@@ -733,11 +733,11 @@ void quad::draw()
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
                 // ---------------------------- draw the blobs
-                //ofSetColor(255,255,255,255);
                 ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                kinectPath.setFilled(true);
+                ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                kinectPath.setFillColor(pathColor);
                 for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
-                    ofFill();
-                    ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
                     ofPolyline poly(kinectContourFinder.blobs[i].pts);
                     poly.close();
                     poly.simplify(kinectContourSimplify);
@@ -745,27 +745,19 @@ void quad::draw()
                     //polySmoothed.close();
                     vector<ofPoint> points = polySmoothed.getVertices();
 
-                    ofPath path;
                     for( int j=0; j<points.size(); j++ ) {
                         if (kinectContourCurved)
                         {
-                            path.curveTo(points[j]);
+                            kinectPath.curveTo(points[j]);
                         }
-                        else { path.lineTo(points[j]);}
+                        else { kinectPath.lineTo(points[j]);}
                     }
-                    path.setFilled(true);
-                    path.setFillColor(pathColor);
-                    path.close();
-                    path.draw();
-                    path.clear();
-
-                    ofSetLineWidth(3);
-                    ofSetColor(pathColor);
-                    polySmoothed.draw();
+                    kinectPath.close();
                 }
+                kinectPath.draw();
+                kinectPath.clear();
                 glPopMatrix();
                 ofPopStyle();
-
             }
             else
             {
@@ -801,11 +793,11 @@ void quad::draw()
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
                 // ---------------------------- draw the blobs
-                //ofSetColor(255,255,255,255);
                 ofSetColor(255, 255, 255, 255);
+                kinectPath.setFilled(true);
+                ofColor pathColor(255, 255, 255, 255);
+                kinectPath.setFillColor(pathColor);
                 for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
-                    ofFill();
-                    ofColor pathColor(255, 255, 255, 255);
                     ofPolyline poly(kinectContourFinder.blobs[i].pts);
                     poly.close();
                     poly.simplify(kinectContourSimplify);
@@ -813,24 +805,17 @@ void quad::draw()
                     //polySmoothed.close();
                     vector<ofPoint> points = polySmoothed.getVertices();
 
-                    ofPath path;
                     for( int j=0; j<points.size(); j++ ) {
                         if (kinectContourCurved)
                         {
-                            path.curveTo(points[j]);
+                            kinectPath.curveTo(points[j]);
                         }
-                        else { path.lineTo(points[j]);}
+                        else { kinectPath.lineTo(points[j]);}
                     }
-                    path.setFilled(true);
-                    path.setFillColor(pathColor);
-                    path.close();
-                    path.draw();
-                    path.clear();
-
-                    ofSetLineWidth(3);
-                    ofSetColor(pathColor);
-                    polySmoothed.draw();
+                    kinectPath.close();
                 }
+                kinectPath.draw();
+                kinectPath.clear();
                 glPopMatrix();
                 ofPopStyle();
             }
