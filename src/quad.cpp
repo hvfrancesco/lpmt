@@ -219,6 +219,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     bHighlightMaskPoint = False;
     highlightedMaskPoint = -1;
 
+    bDeform = False;
 
     //This sets up my Bezier Surface
     bBezier = False;
@@ -228,6 +229,12 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     // prepare bezier surface evaluator with control points
     bezierSurfaceSetup();
+
+    // prepare grid surface evaluator
+    bGrid = False;
+    gridRows = 6;
+    gridColumns = 8;
+    gridSurfaceSetup();
 
 }
 
@@ -481,7 +488,14 @@ void quad::draw()
     if (isOn)
     {
         // recalculates bezier surface
-        bezierSurfaceUpdate();
+        if(bBezier)
+        {
+            bezierSurfaceUpdate();
+        }
+        if(bGrid)
+        {
+            gridSurfaceUpdate();
+        }
 
         quadFbo.begin();
         ofClear(0.0,0.0,0.0,0.0);
@@ -792,7 +806,7 @@ void quad::draw()
                     else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
                     else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                 }
-                if(!bBezier)
+                if(!bDeform)
                 {
                     quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                     shaderBlend->end();
@@ -879,7 +893,7 @@ void quad::draw()
                         else if(blendMode == 2) glBlendFunc(GL_DST_COLOR, GL_SRC_COLOR); // subtract
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
-                    if(!bBezier)
+                    if(!bDeform)
                     {
                         quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                         maskShader->end();
@@ -951,7 +965,7 @@ void quad::draw()
                         else if(blendMode == 3) glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA); // multiply
                     }
 
-                    if(!bBezier)
+                    if(!bDeform)
                     {
                         quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                     }
@@ -1064,7 +1078,8 @@ void quad::draw()
         // draws markers for bezier deform setup
         if (isActive && isBezierSetup)
         {
-            drawBezierMarkers();
+            if (bBezier) {drawBezierMarkers();}
+            else if (bGrid) {drawGridMarkers();}
         }
 
         // draws mask markers and contour in mask-setup mode
@@ -1407,9 +1422,149 @@ void quad::bezierSurfaceUpdate()
     if(bBezier)
     {
         glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
+        GLfloat texpts [2][2][2] =
+        {
+            { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
+        };
+        glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
+        glEnable(GL_MAP2_TEXTURE_COORD_2);
+        glEnable(GL_MAP2_VERTEX_3);
+        glEnable(GL_AUTO_NORMAL);
+        glMapGrid2f(20, 0, 1, 20, 0, 1);
+        glShadeModel(GL_FLAT);
     }
 
 }
+
+
+
+
+// Grid helpers --------------------------------------
+// grid setup -------------------------------------
+void quad::gridSurfaceSetup()
+{
+
+    for(int i=0; i<=gridColumns; i++)
+    {
+        vector<vector<float> > row;
+        for(int j=0; j<=gridRows; j++)
+        {
+            vector<float> column;
+            column.push_back((float)(1.0/gridColumns*i));
+            column.push_back((float)(1.0/gridRows*j));
+            column.push_back(0.0);
+            row.push_back(column);
+        }
+        gridPoints.push_back(row);
+    }
+
+
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            cout << gridPoints[j][i][0] << ", " << gridPoints[j][i][1] << ", " << gridPoints[j][i][2] << "\n";
+        }
+    }
+
+    GLfloat punti[gridRows+1][gridColumns+1][3];
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            punti[i][j][0] = gridPoints[j][i][0]*ofGetWidth();
+            punti[i][j][1] = gridPoints[j][i][1]*ofGetHeight();
+            punti[i][j][2] = 0.0;
+        }
+    }
+
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            cout << punti[i][j][0] << ", " << punti[i][j][1] << ", " << punti[i][j][2] << "\n";
+        }
+    }
+
+    //This sets up my Texture Surface
+    GLfloat texpts [2][2][2] =
+    {
+        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
+    };
+
+    // enable depth test, so we only see the front
+    glEnable(GL_DEPTH_TEST);
+    //set up bezier surface with a linear order evaluator
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridRows+1), 0, 1, (gridRows+1)*3, (gridColumns+1), &punti[0][0][0]);
+    //set up texture map for bezier surface
+    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
+    glEnable(GL_MAP2_TEXTURE_COORD_2);
+    glEnable(GL_MAP2_VERTEX_3);
+    glEnable(GL_AUTO_NORMAL);
+    glMapGrid2f(20, 0, 1, 20, 0, 1);
+    glShadeModel(GL_FLAT);
+}
+
+
+void quad::gridSurfaceUpdate()
+{
+    // TODO: to optimize this try to limit recalculation to cases when it's really needed
+    //This sets up my Grid Surface
+    GLfloat punti[gridRows+1][gridColumns+1][3];
+    for(int i=0; i<=gridColumns; i++)
+    {
+        for(int j=0; j<=gridRows; j++)
+        {
+            punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
+            punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
+            punti[i][j][2] = 0.0;
+        }
+    }
+
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 2, 0, 1, (gridRows+1)*3, 2, &punti[0][0][0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridRows+1), 0, 1, (gridRows+1)*3, (gridColumns+1), &punti[0][0][0]);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, (gridRows+1)*3, 4, &punti[0][0][0]);
+    GLfloat texpts [2][2][2] =
+    {
+        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
+    };
+    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
+    glEnable(GL_MAP2_TEXTURE_COORD_2);
+    glEnable(GL_MAP2_VERTEX_3);
+    glEnable(GL_AUTO_NORMAL);
+    glMapGrid2f(20, 0, 1, 20, 0, 1);
+    glShadeModel(GL_FLAT);
+
+
+}
+
+
+void quad::drawGridMarkers()
+{
+    ofSetColor(220,200,0,255);
+    ofSetLineWidth(1.5);
+
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            ofVec3f punto;
+            punto.x = gridPoints[j][i][0]*ofGetWidth();
+            punto.y = gridPoints[j][i][1]*ofGetHeight();
+            punto.z = 0.0;
+            punto = findWarpedPoint(dst, src, punto);
+            if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
+            {
+                ofFill();
+            }
+            ofCircle(punto.x, punto.y, 3.6);
+            ofNoFill();
+        }
+    }
+}
+
+
+
 
 
 // Mask helpers --------------------------------------

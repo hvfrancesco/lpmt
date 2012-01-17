@@ -240,8 +240,10 @@ void testApp::setup()
         gui.addTitle("Mask");
         gui.addToggle("mask on/off", quads[i].bMask);
         gui.addToggle("invert mask", quads[i].maskInvert);
-        gui.addTitle("Bezier deformation");
-        gui.addToggle("use bezier deform.", quads[i].bBezier);
+        gui.addTitle("Surface deformation");
+        gui.addToggle("surface deform.", quads[i].bDeform);
+        gui.addToggle("use bezier", quads[i].bBezier);
+        gui.addToggle("use grid", quads[i].bGrid);
         gui.addButton("spherize light", bQuadBezierSpherize);
         gui.addButton("spherize strong", bQuadBezierSpherizeStrong);
         gui.addButton("reset bezier warp", bQuadBezierReset);

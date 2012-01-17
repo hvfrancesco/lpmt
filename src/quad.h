@@ -208,6 +208,8 @@ public:
     bool bHighlightMaskPoint;
     int highlightedMaskPoint;
 
+    bool bDeform;
+
     bool isBezierSetup;
     bool bHighlightCtrlPoint;
     int highlightedCtrlPointRow;
@@ -215,6 +217,15 @@ public:
     float bezierPoints[4][4][3];
     bool bBezier;
     float bezierCtrlPoints[4][4][3];
+
+    bool bGrid;
+    vector<vector<vector<float> > > gridPoints;
+    vector<vector<vector<float> > > gridCtrlPoints;
+    int gridRows;
+    int gridColumns;
+    void gridSurfaceSetup();
+    void gridSurfaceUpdate();
+    void drawGridMarkers();
 
     void bezierSurfaceSetup();
     void bezierSurfaceUpdate();
