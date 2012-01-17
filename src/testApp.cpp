@@ -1061,6 +1061,9 @@ void testApp::mouseMoved(int x, int y )
         int whichPointRow = -1;
         int whichPointCol = -1;
         ofVec3f warped;
+
+        if(quads[activeQuad].bBezier)
+        {
         for(int i = 0; i < 4; i++)
         {
             for (int j = 0; j < 4; j++)
@@ -1077,8 +1080,30 @@ void testApp::mouseMoved(int x, int y )
                     smallestDist = dist;
                 }
             }
-
         }
+        }
+
+        else if(quads[activeQuad].bGrid)
+        {
+        for(int i = 0; i <= quads[activeQuad].gridRows; i++)
+        {
+            for (int j = 0; j <= quads[activeQuad].gridColumns; j++)
+            {
+                warped = quads[activeQuad].getWarpedPoint(x,y);
+                float distx = (float)quads[activeQuad].gridPoints[i][j][0] * ofGetWidth() - (float)warped.x;
+                float disty = (float)quads[activeQuad].gridPoints[i][j][1] * ofGetHeight() - (float)warped.y;
+                float dist  = sqrt( distx * distx + disty * disty);
+
+                if(dist < smallestDist && dist < 20.0)
+                {
+                    whichPointRow = i;
+                    whichPointCol = j;
+                    smallestDist = dist;
+                }
+            }
+        }
+        }
+
         if(whichPointRow >= 0)
             {
                 quads[activeQuad].bHighlightCtrlPoint = True;
@@ -1142,10 +1167,20 @@ void testApp::mouseDragged(int x, int y, int button)
 
     else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint)
     {
+        if(quads[activeQuad].bBezier)
+        {
         ofVec3f punto;
         punto = quads[activeQuad].getWarpedPoint(x,y);
         quads[activeQuad].bezierPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
         quads[activeQuad].bezierPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetHeight();
+        }
+        else if(quads[activeQuad].bGrid)
+        {
+        ofVec3f punto;
+        punto = quads[activeQuad].getWarpedPoint(x,y);
+        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
+        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetHeight();
+        }
     }
 }
 

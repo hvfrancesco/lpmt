@@ -1436,9 +1436,6 @@ void quad::bezierSurfaceUpdate()
 
 }
 
-
-
-
 // Grid helpers --------------------------------------
 // grid setup -------------------------------------
 void quad::gridSurfaceSetup()
