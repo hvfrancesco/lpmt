@@ -232,8 +232,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     // prepare grid surface evaluator
     bGrid = False;
-    gridRows = 8;
-    gridColumns = 6;
+    gridColumns = 8;
+    gridRows = 6;
     gridSurfaceSetup();
 
 }
@@ -1444,45 +1444,28 @@ void quad::bezierSurfaceUpdate()
 void quad::gridSurfaceSetup()
 {
 
-    for(int i=0; i<=gridColumns; i++)
+    for(int i=0; i<=gridRows; i++)
     {
         vector<vector<float> > row;
-        for(int j=0; j<=gridRows; j++)
+        for(int j=0; j<=gridColumns; j++)
         {
             vector<float> column;
-            column.push_back((float)(1.0/gridRows*j));
-            column.push_back((float)(1.0/gridColumns*i));
+            column.push_back((float)(1.0/gridColumns*j));
+            column.push_back((float)(1.0/gridRows*i));
             column.push_back(0.0);
             row.push_back(column);
         }
         gridPoints.push_back(row);
     }
 
-
-    for(int i=0; i<=gridColumns; i++)
+    GLfloat punti[gridRows+1][gridColumns+1][3];
+    for(int i=0; i<=gridRows; i++)
     {
-        for(int j=0; j<=gridRows; j++)
-        {
-            cout << gridPoints[i][j][0] << ", " << gridPoints[i][j][1] << ", " << gridPoints[i][j][2] << "\n";
-        }
-    }
-
-    GLfloat punti[gridColumns+1][gridRows+1][3];
-    for(int i=0; i<=gridColumns; i++)
-    {
-        for(int j=0; j<=gridRows; j++)
+        for(int j=0; j<=gridColumns; j++)
         {
             punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
             punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
             punti[i][j][2] = 0.0;
-        }
-    }
-
-    for(int i=0; i<=gridColumns; i++)
-    {
-        for(int j=0; j<=gridRows; j++)
-        {
-            cout << punti[i][j][0] << ", " << punti[i][j][1] << ", " << punti[i][j][2] << "\n";
         }
     }
 
@@ -1495,7 +1478,7 @@ void quad::gridSurfaceSetup()
     // enable depth test, so we only see the front
     glEnable(GL_DEPTH_TEST);
     //set up bezier surface with a linear order evaluator
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridRows+1), 0, 1, (gridRows+1)*3, (gridColumns+1), &punti[0][0][0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
     //set up texture map for bezier surface
     glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
     glEnable(GL_MAP2_TEXTURE_COORD_2);
@@ -1510,10 +1493,29 @@ void quad::gridSurfaceUpdate()
 {
     // TODO: to optimize this try to limit recalculation to cases when it's really needed
     //This sets up my Grid Surface
-    GLfloat punti[gridColumns+1][gridRows+1][3];
-    for(int i=0; i<=gridColumns; i++)
+
+    if(gridPoints.size() != (gridRows+1) || gridPoints[0].size() != (gridColumns+1))
     {
-        for(int j=0; j<=gridRows; j++)
+        gridPoints.clear();
+        for(int i=0; i<=gridRows; i++)
+           {
+               vector<vector<float> > row;
+               for(int j=0; j<=gridColumns; j++)
+                   {
+                       vector<float> column;
+                       column.push_back((float)(1.0/gridColumns*j));
+                       column.push_back((float)(1.0/gridRows*i));
+                       column.push_back(0.0);
+                       row.push_back(column);
+           }
+           gridPoints.push_back(row);
+           }
+    }
+
+    GLfloat punti[gridRows+1][gridColumns+1][3];
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
         {
             punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
             punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
@@ -1521,9 +1523,9 @@ void quad::gridSurfaceUpdate()
         }
     }
 
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 2, 0, 1, (gridRows+1)*3, 2, &punti[0][0][0]);
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridRows+1), 0, 1, (gridRows+1)*3, (gridColumns+1), &punti[0][0][0]);
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, (gridRows+1)*3, 4, &punti[0][0][0]);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 2, 0, 1, (gridColumns+1)*3, 2, &punti[0][0][0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, (gridColumns+1)*3, 4, &punti[0][0][0]);
     GLfloat texpts [2][2][2] =
     {
         { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
@@ -1544,9 +1546,9 @@ void quad::drawGridMarkers()
     ofSetColor(0,200,220,255);
     ofSetLineWidth(1.5);
 
-    for(int i=0; i<=gridColumns; i++)
+    for(int i=0; i<=gridRows; i++)
     {
-        for(int j=0; j<=gridRows; j++)
+        for(int j=0; j<=gridColumns; j++)
         {
             ofVec3f punto;
             punto.x = gridPoints[i][j][0]*ofGetWidth();

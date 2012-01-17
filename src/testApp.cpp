@@ -244,6 +244,8 @@ void testApp::setup()
         gui.addToggle("surface deform.", quads[i].bDeform);
         gui.addToggle("use bezier", quads[i].bBezier);
         gui.addToggle("use grid", quads[i].bGrid);
+        gui.addSlider("grid rows", quads[i].gridRows, 2, 12);
+        gui.addSlider("grid columns", quads[i].gridColumns, 2, 16);
         gui.addButton("spherize light", bQuadBezierSpherize);
         gui.addButton("spherize strong", bQuadBezierSpherizeStrong);
         gui.addButton("reset bezier warp", bQuadBezierReset);
