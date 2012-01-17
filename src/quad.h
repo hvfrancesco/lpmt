@@ -207,13 +207,13 @@ public:
     bool bHighlightMaskPoint;
     int highlightedMaskPoint;
 
-    bool isGridSetup;
+    bool isBezierSetup;
     bool bHighlightCtrlPoint;
     int highlightedCtrlPointRow;
     int highlightedCtrlPointCol;
-    float gridPoints[4][4][3];
+    float bezierPoints[4][4][3];
     bool bBezier;
-    float ctrlPoints[4][4][3];
+    float bezierCtrlPoints[4][4][3];
 
 
 };

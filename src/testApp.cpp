@@ -926,7 +926,7 @@ void testApp::keyPressed(int key)
             {
                 if (quads[i].initialized)
                 {
-                    quads[i].isGridSetup = !quads[i].isGridSetup;
+                    quads[i].isBezierSetup = !quads[i].isBezierSetup;
                 }
             }
         }
@@ -1062,8 +1062,8 @@ void testApp::mouseMoved(int x, int y )
             for (int j = 0; j < 4; j++)
             {
                 warped = quads[activeQuad].getWarpedPoint(x,y);
-                float distx = (float)quads[activeQuad].gridPoints[i][j][0] * ofGetWidth() - (float)warped.x;
-                float disty = (float)quads[activeQuad].gridPoints[i][j][1] * ofGetHeight() - (float)warped.y;
+                float distx = (float)quads[activeQuad].bezierPoints[i][j][0] * ofGetWidth() - (float)warped.x;
+                float disty = (float)quads[activeQuad].bezierPoints[i][j][1] * ofGetHeight() - (float)warped.y;
                 float dist  = sqrt( distx * distx + disty * disty);
 
                 if(dist < smallestDist && dist < 20.0)
@@ -1140,8 +1140,8 @@ void testApp::mouseDragged(int x, int y, int button)
     {
         ofVec3f punto;
         punto = quads[activeQuad].getWarpedPoint(x,y);
-        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
-        quads[activeQuad].gridPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetHeight();
+        quads[activeQuad].bezierPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][0] = (float)punto.x/ofGetWidth();
+        quads[activeQuad].bezierPoints[quads[activeQuad].highlightedCtrlPointRow][quads[activeQuad].highlightedCtrlPointCol][1] = (float)punto.y/ofGetHeight();
     }
 }
 
@@ -1337,7 +1337,7 @@ void testApp::quadBezierSpherize(int q)
     float h = (float)ofGetHeight();
     float k = (sqrt(2)-1)*4/3;
     quads[q].bBezier = true;
-    quads[q].gridPoints =
+    quads[q].bezierPoints =
     {
         {   {0*h/w+(0.5*(w/h-1))*h/w, 0, 0},          {0.5*k*h/w+(0.5*(w/h-1))*h/w, -0.5*k, 0},    {(1.0*h/w)-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, -0.5*k, 0},    {1.0*h/w+(0.5*(w/h-1))*h/w, 0, 0}    },
         {   {0*h/w-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0},        {0*h/w+(0.5*(w/h-1))*h/w, 0, 0},  {1.0*h/w+(0.5*(w/h-1))*h/w, 0, 0},  {1.0*h/w+(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0}  },
@@ -1345,7 +1345,7 @@ void testApp::quadBezierSpherize(int q)
         {   {0*h/w+(0.5*(w/h-1))*h/w, 1.0, 0},        {0.5*k*h/w+(0.5*(w/h-1))*h/w, 1.0+0.5*k, 0},  {(1.0*h/w)-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 1.0+0.5*k, 0},  {1.0*h/w+(0.5*(w/h-1))*h/w, 1.0, 0}  }
     };
 
-  /*  quads[q].gridPoints =
+  /*  quads[q].bezierPoints =
     {
         {   {(0.5*w/h-0.5)*h/w, 0, 0},  {0.5*(k+w/h-1)*h/w, -0.5*k, 0},    {0.5*(1-k+w/h)*h/w, -0.5*k, 0},    {1.0*h/w+(0.5*(w/h-1))*h/w, 0, 0}    },
         {   {0*h/w-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0},        {0*h/w+(0.5*(w/h-1))*h/w, 0, 0},  {1.0*h/w+(0.5*(w/h-1))*h/w, 0, 0},  {1.0*h/w+(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0}  },
@@ -1361,7 +1361,7 @@ void testApp::quadBezierSpherizeStrong(int q)
     float h = (float)ofGetHeight();
     float k = (sqrt(2)-1)*4/3;
     quads[q].bBezier = true;
-    quads[q].gridPoints =
+    quads[q].bezierPoints =
     {
         {   {0*h/w+(0.5*(w/h-1))*h/w, 0, 0},  {0.5*k*h/w+(0.5*(w/h-1))*h/w, -0.5*k, 0},    {(1.0*h/w)-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, -0.5*k, 0},    {1.0*h/w+(0.5*(w/h-1))*h/w, 0, 0}    },
         {   {0*h/w-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0},        {0*h/w-(0.5*k*h/w)+(0.5*(w/h-1))*h/w, -0.5*k, 0},  {1.0*h/w+(0.5*k*h/w)+(0.5*(w/h-1))*h/w, -0.5*k, 0},  {1.0*h/w+(0.5*k*h/w)+(0.5*(w/h-1))*h/w, 0.5*k, 0}  },
@@ -1374,7 +1374,7 @@ void testApp::quadBezierSpherizeStrong(int q)
 void testApp::quadBezierReset(int q)
 {
     quads[q].bBezier = true;
-    quads[q].gridPoints =
+    quads[q].bezierPoints =
     {
         {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
         {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },

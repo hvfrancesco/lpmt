@@ -7,8 +7,8 @@
 #include <vector>
 #include <string>
 
-//GLfloat ctrlPoints[4][4][3];
-//float ctrlPoints[4][4][3];
+//GLfloat bezierCtrlPoints[4][4][3];
+//float bezierCtrlPoints[4][4][3];
 
 // a func for reading a dir content to a vector of strings
 int quad::getdir (string dir, vector<string> &files)
@@ -222,11 +222,11 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     //This sets up my Bezier Surface
     bBezier = False;
-    isGridSetup = False;
+    isBezierSetup = False;
     highlightedCtrlPointRow = -1;
     highlightedCtrlPointCol = -1;
 
-    gridPoints =
+    bezierPoints =
     {
         {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
         {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
@@ -235,12 +235,12 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     };
 
     //This sets up my Bezier Surface
-    ctrlPoints =
+    bezierCtrlPoints =
     {
-        {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
-        {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
-        {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
-        {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
+        {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+        {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
     };
 
     //This sets up my Texture Surface
@@ -252,7 +252,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     // enable depth test, so we only see the front
     glEnable(GL_DEPTH_TEST);
     //set up bezier surface
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
     //set up texture map for bezier surface
     glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
     glEnable(GL_MAP2_TEXTURE_COORD_2);
@@ -274,15 +274,15 @@ void quad::update()
 
         /*
         // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        float ctrlPoints[4][4][3];
-        ctrlPoints =
+        float bezierCtrlPoints[4][4][3];
+        bezierCtrlPoints =
         {
-            {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
-            {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
-            {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
-            {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
+            {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+            {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
         };
-        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
+        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
         */
 
         // solid colors ---------------------------------------------------------------
@@ -526,16 +526,16 @@ void quad::draw()
     {
 
         // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        ctrlPoints =
+        bezierCtrlPoints =
         {
-            {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
-            {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
-            {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
-            {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
+            {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+            {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
         };
         if(bBezier)
         {
-        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
+        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
         }
 
         quadFbo.begin();
@@ -1117,7 +1117,7 @@ void quad::draw()
         ofPopMatrix();
 
         // draws markers for bezier deform setup
-        if (isActive && isGridSetup)
+        if (isActive && isBezierSetup)
         {
             ofSetColor(220,200,0,255);
             ofSetLineWidth(1.5);
@@ -1126,9 +1126,9 @@ void quad::draw()
                 for(unsigned int j = 0; j < 4; j++)
                 {
                     ofVec3f punto;
-                    punto.x = ctrlPoints[i][j][0];
-                    punto.y = ctrlPoints[i][j][1];
-                    punto.z = ctrlPoints[i][j][2];
+                    punto.x = bezierCtrlPoints[i][j][0];
+                    punto.y = bezierCtrlPoints[i][j][1];
+                    punto.z = bezierCtrlPoints[i][j][2];
                     punto = findWarpedPoint(dst, src, punto);
 
                     if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
@@ -1143,162 +1143,162 @@ void quad::draw()
             ofVec3f puntoA;
             ofVec3f puntoB;
             //
-            puntoA.x = ctrlPoints[0][0][0];
-            puntoA.y = ctrlPoints[0][0][1];
-            puntoA.z = ctrlPoints[0][0][2];
-            puntoB.x = ctrlPoints[0][1][0];
-            puntoB.y = ctrlPoints[0][1][1];
-            puntoB.z = ctrlPoints[0][1][2];
+            puntoA.x = bezierCtrlPoints[0][0][0];
+            puntoA.y = bezierCtrlPoints[0][0][1];
+            puntoA.z = bezierCtrlPoints[0][0][2];
+            puntoB.x = bezierCtrlPoints[0][1][0];
+            puntoB.y = bezierCtrlPoints[0][1][1];
+            puntoB.z = bezierCtrlPoints[0][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[0][0][0];
-            puntoA.y = ctrlPoints[0][0][1];
-            puntoA.z = ctrlPoints[0][0][2];
-            puntoB.x = ctrlPoints[1][0][0];
-            puntoB.y = ctrlPoints[1][0][1];
-            puntoB.z = ctrlPoints[1][0][2];
+            puntoA.x = bezierCtrlPoints[0][0][0];
+            puntoA.y = bezierCtrlPoints[0][0][1];
+            puntoA.z = bezierCtrlPoints[0][0][2];
+            puntoB.x = bezierCtrlPoints[1][0][0];
+            puntoB.y = bezierCtrlPoints[1][0][1];
+            puntoB.z = bezierCtrlPoints[1][0][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[0][0][0];
-            puntoA.y = ctrlPoints[0][0][1];
-            puntoA.z = ctrlPoints[0][0][2];
-            puntoB.x = ctrlPoints[1][1][0];
-            puntoB.y = ctrlPoints[1][1][1];
-            puntoB.z = ctrlPoints[1][1][2];
+            puntoA.x = bezierCtrlPoints[0][0][0];
+            puntoA.y = bezierCtrlPoints[0][0][1];
+            puntoA.z = bezierCtrlPoints[0][0][2];
+            puntoB.x = bezierCtrlPoints[1][1][0];
+            puntoB.y = bezierCtrlPoints[1][1][1];
+            puntoB.z = bezierCtrlPoints[1][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[0][3][0];
-            puntoA.y = ctrlPoints[0][3][1];
-            puntoA.z = ctrlPoints[0][3][2];
-            puntoB.x = ctrlPoints[1][3][0];
-            puntoB.y = ctrlPoints[1][3][1];
-            puntoB.z = ctrlPoints[1][3][2];
+            puntoA.x = bezierCtrlPoints[0][3][0];
+            puntoA.y = bezierCtrlPoints[0][3][1];
+            puntoA.z = bezierCtrlPoints[0][3][2];
+            puntoB.x = bezierCtrlPoints[1][3][0];
+            puntoB.y = bezierCtrlPoints[1][3][1];
+            puntoB.z = bezierCtrlPoints[1][3][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[0][3][0];
-            puntoA.y = ctrlPoints[0][3][1];
-            puntoA.z = ctrlPoints[0][3][2];
-            puntoB.x = ctrlPoints[0][2][0];
-            puntoB.y = ctrlPoints[0][2][1];
-            puntoB.z = ctrlPoints[0][2][2];
+            puntoA.x = bezierCtrlPoints[0][3][0];
+            puntoA.y = bezierCtrlPoints[0][3][1];
+            puntoA.z = bezierCtrlPoints[0][3][2];
+            puntoB.x = bezierCtrlPoints[0][2][0];
+            puntoB.y = bezierCtrlPoints[0][2][1];
+            puntoB.z = bezierCtrlPoints[0][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[0][3][0];
-            puntoA.y = ctrlPoints[0][3][1];
-            puntoA.z = ctrlPoints[0][3][2];
-            puntoB.x = ctrlPoints[1][2][0];
-            puntoB.y = ctrlPoints[1][2][1];
-            puntoB.z = ctrlPoints[1][2][2];
+            puntoA.x = bezierCtrlPoints[0][3][0];
+            puntoA.y = bezierCtrlPoints[0][3][1];
+            puntoA.z = bezierCtrlPoints[0][3][2];
+            puntoB.x = bezierCtrlPoints[1][2][0];
+            puntoB.y = bezierCtrlPoints[1][2][1];
+            puntoB.z = bezierCtrlPoints[1][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][0][0];
-            puntoA.y = ctrlPoints[3][0][1];
-            puntoA.z = ctrlPoints[3][0][2];
-            puntoB.x = ctrlPoints[3][1][0];
-            puntoB.y = ctrlPoints[3][1][1];
-            puntoB.z = ctrlPoints[3][1][2];
+            puntoA.x = bezierCtrlPoints[3][0][0];
+            puntoA.y = bezierCtrlPoints[3][0][1];
+            puntoA.z = bezierCtrlPoints[3][0][2];
+            puntoB.x = bezierCtrlPoints[3][1][0];
+            puntoB.y = bezierCtrlPoints[3][1][1];
+            puntoB.z = bezierCtrlPoints[3][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][0][0];
-            puntoA.y = ctrlPoints[3][0][1];
-            puntoA.z = ctrlPoints[3][0][2];
-            puntoB.x = ctrlPoints[2][0][0];
-            puntoB.y = ctrlPoints[2][0][1];
-            puntoB.z = ctrlPoints[2][0][2];
+            puntoA.x = bezierCtrlPoints[3][0][0];
+            puntoA.y = bezierCtrlPoints[3][0][1];
+            puntoA.z = bezierCtrlPoints[3][0][2];
+            puntoB.x = bezierCtrlPoints[2][0][0];
+            puntoB.y = bezierCtrlPoints[2][0][1];
+            puntoB.z = bezierCtrlPoints[2][0][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][0][0];
-            puntoA.y = ctrlPoints[3][0][1];
-            puntoA.z = ctrlPoints[3][0][2];
-            puntoB.x = ctrlPoints[2][1][0];
-            puntoB.y = ctrlPoints[2][1][1];
-            puntoB.z = ctrlPoints[2][1][2];
+            puntoA.x = bezierCtrlPoints[3][0][0];
+            puntoA.y = bezierCtrlPoints[3][0][1];
+            puntoA.z = bezierCtrlPoints[3][0][2];
+            puntoB.x = bezierCtrlPoints[2][1][0];
+            puntoB.y = bezierCtrlPoints[2][1][1];
+            puntoB.z = bezierCtrlPoints[2][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][3][0];
-            puntoA.y = ctrlPoints[3][3][1];
-            puntoA.z = ctrlPoints[3][3][2];
-            puntoB.x = ctrlPoints[3][2][0];
-            puntoB.y = ctrlPoints[3][2][1];
-            puntoB.z = ctrlPoints[3][2][2];
+            puntoA.x = bezierCtrlPoints[3][3][0];
+            puntoA.y = bezierCtrlPoints[3][3][1];
+            puntoA.z = bezierCtrlPoints[3][3][2];
+            puntoB.x = bezierCtrlPoints[3][2][0];
+            puntoB.y = bezierCtrlPoints[3][2][1];
+            puntoB.z = bezierCtrlPoints[3][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][3][0];
-            puntoA.y = ctrlPoints[3][3][1];
-            puntoA.z = ctrlPoints[3][3][2];
-            puntoB.x = ctrlPoints[2][3][0];
-            puntoB.y = ctrlPoints[2][3][1];
-            puntoB.z = ctrlPoints[2][3][2];
+            puntoA.x = bezierCtrlPoints[3][3][0];
+            puntoA.y = bezierCtrlPoints[3][3][1];
+            puntoA.z = bezierCtrlPoints[3][3][2];
+            puntoB.x = bezierCtrlPoints[2][3][0];
+            puntoB.y = bezierCtrlPoints[2][3][1];
+            puntoB.z = bezierCtrlPoints[2][3][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[3][3][0];
-            puntoA.y = ctrlPoints[3][3][1];
-            puntoA.z = ctrlPoints[3][3][2];
-            puntoB.x = ctrlPoints[2][2][0];
-            puntoB.y = ctrlPoints[2][2][1];
-            puntoB.z = ctrlPoints[2][2][2];
+            puntoA.x = bezierCtrlPoints[3][3][0];
+            puntoA.y = bezierCtrlPoints[3][3][1];
+            puntoA.z = bezierCtrlPoints[3][3][2];
+            puntoB.x = bezierCtrlPoints[2][2][0];
+            puntoB.y = bezierCtrlPoints[2][2][1];
+            puntoB.z = bezierCtrlPoints[2][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[1][2][0];
-            puntoA.y = ctrlPoints[1][2][1];
-            puntoA.z = ctrlPoints[1][2][2];
-            puntoB.x = ctrlPoints[2][2][0];
-            puntoB.y = ctrlPoints[2][2][1];
-            puntoB.z = ctrlPoints[2][2][2];
+            puntoA.x = bezierCtrlPoints[1][2][0];
+            puntoA.y = bezierCtrlPoints[1][2][1];
+            puntoA.z = bezierCtrlPoints[1][2][2];
+            puntoB.x = bezierCtrlPoints[2][2][0];
+            puntoB.y = bezierCtrlPoints[2][2][1];
+            puntoB.z = bezierCtrlPoints[2][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[1][2][0];
-            puntoA.y = ctrlPoints[1][2][1];
-            puntoA.z = ctrlPoints[1][2][2];
-            puntoB.x = ctrlPoints[1][1][0];
-            puntoB.y = ctrlPoints[1][1][1];
-            puntoB.z = ctrlPoints[1][1][2];
+            puntoA.x = bezierCtrlPoints[1][2][0];
+            puntoA.y = bezierCtrlPoints[1][2][1];
+            puntoA.z = bezierCtrlPoints[1][2][2];
+            puntoB.x = bezierCtrlPoints[1][1][0];
+            puntoB.y = bezierCtrlPoints[1][1][1];
+            puntoB.z = bezierCtrlPoints[1][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[2][1][0];
-            puntoA.y = ctrlPoints[2][1][1];
-            puntoA.z = ctrlPoints[2][1][2];
-            puntoB.x = ctrlPoints[1][1][0];
-            puntoB.y = ctrlPoints[1][1][1];
-            puntoB.z = ctrlPoints[1][1][2];
+            puntoA.x = bezierCtrlPoints[2][1][0];
+            puntoA.y = bezierCtrlPoints[2][1][1];
+            puntoA.z = bezierCtrlPoints[2][1][2];
+            puntoB.x = bezierCtrlPoints[1][1][0];
+            puntoB.y = bezierCtrlPoints[1][1][1];
+            puntoB.z = bezierCtrlPoints[1][1][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
             //
-            puntoA.x = ctrlPoints[2][1][0];
-            puntoA.y = ctrlPoints[2][1][1];
-            puntoA.z = ctrlPoints[2][1][2];
-            puntoB.x = ctrlPoints[2][2][0];
-            puntoB.y = ctrlPoints[2][2][1];
-            puntoB.z = ctrlPoints[2][2][2];
+            puntoA.x = bezierCtrlPoints[2][1][0];
+            puntoA.y = bezierCtrlPoints[2][1][1];
+            puntoA.z = bezierCtrlPoints[2][1][2];
+            puntoB.x = bezierCtrlPoints[2][2][0];
+            puntoB.y = bezierCtrlPoints[2][2][1];
+            puntoB.z = bezierCtrlPoints[2][2][2];
             puntoA = findWarpedPoint(dst, src, puntoA);
             puntoB = findWarpedPoint(dst, src, puntoB);
             ofLine(puntoA,puntoB);
