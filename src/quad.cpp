@@ -232,8 +232,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     // prepare grid surface evaluator
     bGrid = False;
-    gridRows = 6;
-    gridColumns = 8;
+    gridRows = 8;
+    gridColumns = 6;
     gridSurfaceSetup();
 
 }
@@ -1450,8 +1450,8 @@ void quad::gridSurfaceSetup()
         for(int j=0; j<=gridRows; j++)
         {
             vector<float> column;
-            column.push_back((float)(1.0/gridColumns*i));
             column.push_back((float)(1.0/gridRows*j));
+            column.push_back((float)(1.0/gridColumns*i));
             column.push_back(0.0);
             row.push_back(column);
         }
@@ -1459,28 +1459,28 @@ void quad::gridSurfaceSetup()
     }
 
 
-    for(int i=0; i<=gridRows; i++)
+    for(int i=0; i<=gridColumns; i++)
     {
-        for(int j=0; j<=gridColumns; j++)
+        for(int j=0; j<=gridRows; j++)
         {
-            cout << gridPoints[j][i][0] << ", " << gridPoints[j][i][1] << ", " << gridPoints[j][i][2] << "\n";
+            cout << gridPoints[i][j][0] << ", " << gridPoints[i][j][1] << ", " << gridPoints[i][j][2] << "\n";
         }
     }
 
-    GLfloat punti[gridRows+1][gridColumns+1][3];
-    for(int i=0; i<=gridRows; i++)
+    GLfloat punti[gridColumns+1][gridRows+1][3];
+    for(int i=0; i<=gridColumns; i++)
     {
-        for(int j=0; j<=gridColumns; j++)
+        for(int j=0; j<=gridRows; j++)
         {
-            punti[i][j][0] = gridPoints[j][i][0]*ofGetWidth();
-            punti[i][j][1] = gridPoints[j][i][1]*ofGetHeight();
+            punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
+            punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
             punti[i][j][2] = 0.0;
         }
     }
 
-    for(int i=0; i<=gridRows; i++)
+    for(int i=0; i<=gridColumns; i++)
     {
-        for(int j=0; j<=gridColumns; j++)
+        for(int j=0; j<=gridRows; j++)
         {
             cout << punti[i][j][0] << ", " << punti[i][j][1] << ", " << punti[i][j][2] << "\n";
         }
@@ -1510,7 +1510,7 @@ void quad::gridSurfaceUpdate()
 {
     // TODO: to optimize this try to limit recalculation to cases when it's really needed
     //This sets up my Grid Surface
-    GLfloat punti[gridRows+1][gridColumns+1][3];
+    GLfloat punti[gridColumns+1][gridRows+1][3];
     for(int i=0; i<=gridColumns; i++)
     {
         for(int j=0; j<=gridRows; j++)
@@ -1541,23 +1541,23 @@ void quad::gridSurfaceUpdate()
 
 void quad::drawGridMarkers()
 {
-    ofSetColor(220,200,0,255);
+    ofSetColor(0,200,220,255);
     ofSetLineWidth(1.5);
 
-    for(int i=0; i<=gridRows; i++)
+    for(int i=0; i<=gridColumns; i++)
     {
-        for(int j=0; j<=gridColumns; j++)
+        for(int j=0; j<=gridRows; j++)
         {
             ofVec3f punto;
-            punto.x = gridPoints[j][i][0]*ofGetWidth();
-            punto.y = gridPoints[j][i][1]*ofGetHeight();
+            punto.x = gridPoints[i][j][0]*ofGetWidth();
+            punto.y = gridPoints[i][j][1]*ofGetHeight();
             punto.z = 0.0;
             punto = findWarpedPoint(dst, src, punto);
             if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
             {
                 ofFill();
             }
-            ofCircle(punto.x, punto.y, 3.6);
+            ofCircle(punto.x, punto.y, 3.0);
             ofNoFill();
         }
     }
