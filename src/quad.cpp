@@ -226,41 +226,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     highlightedCtrlPointRow = -1;
     highlightedCtrlPointCol = -1;
 
-    bezierPoints =
-    {
-        {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
-        {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
-        {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
-        {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
-    };
-
-    //This sets up my Bezier Surface
-    bezierCtrlPoints =
-    {
-        {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
-        {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
-        {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
-        {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
-    };
-
-    //This sets up my Texture Surface
-    GLfloat texpts [2][2][2] =
-    {
-        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
-    };
-
-    // enable depth test, so we only see the front
-    glEnable(GL_DEPTH_TEST);
-    //set up bezier surface
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
-    //set up texture map for bezier surface
-    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
-    glEnable(GL_MAP2_TEXTURE_COORD_2);
-    glEnable(GL_MAP2_VERTEX_3);
-    glEnable(GL_AUTO_NORMAL);
-    glMapGrid2f(20, 0, 1, 20, 0, 1);
-    glShadeModel(GL_FLAT);
-
+    // prepare bezier surface evaluator with control points
+    bezierSurfaceSetup();
 
 }
 
@@ -271,19 +238,6 @@ void quad::update()
     {
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
-
-        /*
-        // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        float bezierCtrlPoints[4][4][3];
-        bezierCtrlPoints =
-        {
-            {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
-            {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
-            {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
-            {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
-        };
-        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
-        */
 
         // solid colors ---------------------------------------------------------------
         // calculates transition between two solid colors
@@ -466,7 +420,8 @@ void quad::update()
             // clear kinect path if any
             kinectPath.clear();
             kinectPath.setFilled(true);
-            for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ ) {
+            for( int i=0; i<(int)kinectContourFinder.blobs.size(); i++ )
+            {
                 ofPolyline poly(kinectContourFinder.blobs[i].pts);
                 poly.close();
                 poly.simplify(kinectContourSimplify);
@@ -474,19 +429,20 @@ void quad::update()
                 //polySmoothed.close();
                 vector<ofPoint> points = polySmoothed.getVertices();
 
-                for( int j=0; j<points.size(); j++ ) {
+                for( int j=0; j<points.size(); j++ )
+                {
                     if (kinectContourCurved)
                     {
                         kinectPath.curveTo(points[j]);
                     }
-                    else { kinectPath.lineTo(points[j]);}
+                    else
+                    {
+                        kinectPath.lineTo(points[j]);
+                    }
                 }
                 kinectPath.close();
             }
         }
-
-
-
 
         //we set matrix to the default - 0 translation
         //and 1.0 scale for x y z and w
@@ -524,19 +480,8 @@ void quad::draw()
 {
     if (isOn)
     {
-
-        // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        bezierCtrlPoints =
-        {
-            {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
-            {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
-            {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
-            {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
-        };
-        if(bBezier)
-        {
-        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
-        }
+        // recalculates bezier surface
+        bezierSurfaceUpdate();
 
         quadFbo.begin();
         ofClear(0.0,0.0,0.0,0.0);
@@ -806,7 +751,7 @@ void quad::draw()
             }
             else
             {
-            kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
+                kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
         ofDisableSmoothing();
@@ -1119,232 +1064,14 @@ void quad::draw()
         // draws markers for bezier deform setup
         if (isActive && isBezierSetup)
         {
-            ofSetColor(220,200,0,255);
-            ofSetLineWidth(1.5);
-            for(unsigned int i = 0; i < 4; i++)
-            {
-                for(unsigned int j = 0; j < 4; j++)
-                {
-                    ofVec3f punto;
-                    punto.x = bezierCtrlPoints[i][j][0];
-                    punto.y = bezierCtrlPoints[i][j][1];
-                    punto.z = bezierCtrlPoints[i][j][2];
-                    punto = findWarpedPoint(dst, src, punto);
-
-                    if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
-                    {
-                        ofFill();
-                    }
-                    ofCircle(punto.x, punto.y, 3.6);
-                    ofNoFill();
-                }
-            }
-            ofSetLineWidth(1.2);
-            ofVec3f puntoA;
-            ofVec3f puntoB;
-            //
-            puntoA.x = bezierCtrlPoints[0][0][0];
-            puntoA.y = bezierCtrlPoints[0][0][1];
-            puntoA.z = bezierCtrlPoints[0][0][2];
-            puntoB.x = bezierCtrlPoints[0][1][0];
-            puntoB.y = bezierCtrlPoints[0][1][1];
-            puntoB.z = bezierCtrlPoints[0][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[0][0][0];
-            puntoA.y = bezierCtrlPoints[0][0][1];
-            puntoA.z = bezierCtrlPoints[0][0][2];
-            puntoB.x = bezierCtrlPoints[1][0][0];
-            puntoB.y = bezierCtrlPoints[1][0][1];
-            puntoB.z = bezierCtrlPoints[1][0][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[0][0][0];
-            puntoA.y = bezierCtrlPoints[0][0][1];
-            puntoA.z = bezierCtrlPoints[0][0][2];
-            puntoB.x = bezierCtrlPoints[1][1][0];
-            puntoB.y = bezierCtrlPoints[1][1][1];
-            puntoB.z = bezierCtrlPoints[1][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[0][3][0];
-            puntoA.y = bezierCtrlPoints[0][3][1];
-            puntoA.z = bezierCtrlPoints[0][3][2];
-            puntoB.x = bezierCtrlPoints[1][3][0];
-            puntoB.y = bezierCtrlPoints[1][3][1];
-            puntoB.z = bezierCtrlPoints[1][3][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[0][3][0];
-            puntoA.y = bezierCtrlPoints[0][3][1];
-            puntoA.z = bezierCtrlPoints[0][3][2];
-            puntoB.x = bezierCtrlPoints[0][2][0];
-            puntoB.y = bezierCtrlPoints[0][2][1];
-            puntoB.z = bezierCtrlPoints[0][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[0][3][0];
-            puntoA.y = bezierCtrlPoints[0][3][1];
-            puntoA.z = bezierCtrlPoints[0][3][2];
-            puntoB.x = bezierCtrlPoints[1][2][0];
-            puntoB.y = bezierCtrlPoints[1][2][1];
-            puntoB.z = bezierCtrlPoints[1][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][0][0];
-            puntoA.y = bezierCtrlPoints[3][0][1];
-            puntoA.z = bezierCtrlPoints[3][0][2];
-            puntoB.x = bezierCtrlPoints[3][1][0];
-            puntoB.y = bezierCtrlPoints[3][1][1];
-            puntoB.z = bezierCtrlPoints[3][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][0][0];
-            puntoA.y = bezierCtrlPoints[3][0][1];
-            puntoA.z = bezierCtrlPoints[3][0][2];
-            puntoB.x = bezierCtrlPoints[2][0][0];
-            puntoB.y = bezierCtrlPoints[2][0][1];
-            puntoB.z = bezierCtrlPoints[2][0][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][0][0];
-            puntoA.y = bezierCtrlPoints[3][0][1];
-            puntoA.z = bezierCtrlPoints[3][0][2];
-            puntoB.x = bezierCtrlPoints[2][1][0];
-            puntoB.y = bezierCtrlPoints[2][1][1];
-            puntoB.z = bezierCtrlPoints[2][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][3][0];
-            puntoA.y = bezierCtrlPoints[3][3][1];
-            puntoA.z = bezierCtrlPoints[3][3][2];
-            puntoB.x = bezierCtrlPoints[3][2][0];
-            puntoB.y = bezierCtrlPoints[3][2][1];
-            puntoB.z = bezierCtrlPoints[3][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][3][0];
-            puntoA.y = bezierCtrlPoints[3][3][1];
-            puntoA.z = bezierCtrlPoints[3][3][2];
-            puntoB.x = bezierCtrlPoints[2][3][0];
-            puntoB.y = bezierCtrlPoints[2][3][1];
-            puntoB.z = bezierCtrlPoints[2][3][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[3][3][0];
-            puntoA.y = bezierCtrlPoints[3][3][1];
-            puntoA.z = bezierCtrlPoints[3][3][2];
-            puntoB.x = bezierCtrlPoints[2][2][0];
-            puntoB.y = bezierCtrlPoints[2][2][1];
-            puntoB.z = bezierCtrlPoints[2][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[1][2][0];
-            puntoA.y = bezierCtrlPoints[1][2][1];
-            puntoA.z = bezierCtrlPoints[1][2][2];
-            puntoB.x = bezierCtrlPoints[2][2][0];
-            puntoB.y = bezierCtrlPoints[2][2][1];
-            puntoB.z = bezierCtrlPoints[2][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[1][2][0];
-            puntoA.y = bezierCtrlPoints[1][2][1];
-            puntoA.z = bezierCtrlPoints[1][2][2];
-            puntoB.x = bezierCtrlPoints[1][1][0];
-            puntoB.y = bezierCtrlPoints[1][1][1];
-            puntoB.z = bezierCtrlPoints[1][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[2][1][0];
-            puntoA.y = bezierCtrlPoints[2][1][1];
-            puntoA.z = bezierCtrlPoints[2][1][2];
-            puntoB.x = bezierCtrlPoints[1][1][0];
-            puntoB.y = bezierCtrlPoints[1][1][1];
-            puntoB.z = bezierCtrlPoints[1][1][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-            //
-            puntoA.x = bezierCtrlPoints[2][1][0];
-            puntoA.y = bezierCtrlPoints[2][1][1];
-            puntoA.z = bezierCtrlPoints[2][1][2];
-            puntoB.x = bezierCtrlPoints[2][2][0];
-            puntoB.y = bezierCtrlPoints[2][2][1];
-            puntoB.z = bezierCtrlPoints[2][2][2];
-            puntoA = findWarpedPoint(dst, src, puntoA);
-            puntoB = findWarpedPoint(dst, src, puntoB);
-            ofLine(puntoA,puntoB);
-
+            drawBezierMarkers();
         }
 
         // draws mask markers and contour in mask-setup mode
         if (isActive && isMaskSetup)
         {
-            if (maskPoints.size()>0)
-            {
-                ofPolyline contour;
-                for(unsigned int i = 0; i < maskPoints.size(); i++)
-                {
-                    ofVec3f contourPoint;
-                    contourPoint.x = maskPoints[i].x;
-                    contourPoint.y = maskPoints[i].y;
-                    contourPoint.z = 0;
-                    contourPoint = findWarpedPoint(dst, src, contourPoint);
-                    contour.addVertex(contourPoint);
-                }
-                ofSetLineWidth(1.6);
-                contour.close();
-                contour.draw();
-
-                for(unsigned int i = 0; i < maskPoints.size(); i++)
-                {
-                    ofVec3f punto;
-                    punto.x = maskPoints[i].x;
-                    punto.y = maskPoints[i].y;
-                    punto.z = 0.0;
-                    punto = findWarpedPoint(dst, src, punto);
-                    ofSetColor(100,139,150,255);
-                    ofSetLineWidth(1.0);
-                    if(bHighlightMaskPoint && highlightedMaskPoint == i)
-                    {
-                        ofFill();
-                    }
-                    ofCircle(punto.x, punto.y, 4);
-                    ofNoFill();
-                    ofCircle(punto.x, punto.y, 10);
-                }
-            }
+            drawMaskMarkers();
         }
-
-
 
 
         if (isSetup)
@@ -1436,4 +1163,290 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
     videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
     video.play();
     loadedVideo = videoName;
+}
+
+// Bezier helpers --------------------------------------
+// Bezier setup -------------------------------------
+void quad::bezierSurfaceSetup()
+{
+    bezierPoints =
+    {
+        {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
+        {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
+        {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
+        {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
+    };
+
+    //This sets up my Bezier Surface
+    bezierCtrlPoints =
+    {
+        {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+        {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
+    };
+
+    //This sets up my Texture Surface
+    GLfloat texpts [2][2][2] =
+    {
+        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
+    };
+
+    // enable depth test, so we only see the front
+    glEnable(GL_DEPTH_TEST);
+    //set up bezier surface with a 4th order evaluator
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
+    //set up texture map for bezier surface
+    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
+    glEnable(GL_MAP2_TEXTURE_COORD_2);
+    glEnable(GL_MAP2_VERTEX_3);
+    glEnable(GL_AUTO_NORMAL);
+    glMapGrid2f(20, 0, 1, 20, 0, 1);
+    glShadeModel(GL_FLAT);
+}
+
+// Bezier markers ----------------------------------------------
+void quad::drawBezierMarkers()
+{
+    ofSetColor(220,200,0,255);
+    ofSetLineWidth(1.5);
+    for(unsigned int i = 0; i < 4; i++)
+    {
+        for(unsigned int j = 0; j < 4; j++)
+        {
+            ofVec3f punto;
+            punto.x = bezierCtrlPoints[i][j][0];
+            punto.y = bezierCtrlPoints[i][j][1];
+            punto.z = bezierCtrlPoints[i][j][2];
+            punto = findWarpedPoint(dst, src, punto);
+
+            if(bHighlightCtrlPoint && highlightedCtrlPointRow == i && highlightedCtrlPointCol == j)
+            {
+                ofFill();
+            }
+            ofCircle(punto.x, punto.y, 3.6);
+            ofNoFill();
+        }
+    }
+    ofSetLineWidth(1.2);
+    ofVec3f puntoA;
+    ofVec3f puntoB;
+    //
+    puntoA.x = bezierCtrlPoints[0][0][0];
+    puntoA.y = bezierCtrlPoints[0][0][1];
+    puntoA.z = bezierCtrlPoints[0][0][2];
+    puntoB.x = bezierCtrlPoints[0][1][0];
+    puntoB.y = bezierCtrlPoints[0][1][1];
+    puntoB.z = bezierCtrlPoints[0][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[0][0][0];
+    puntoA.y = bezierCtrlPoints[0][0][1];
+    puntoA.z = bezierCtrlPoints[0][0][2];
+    puntoB.x = bezierCtrlPoints[1][0][0];
+    puntoB.y = bezierCtrlPoints[1][0][1];
+    puntoB.z = bezierCtrlPoints[1][0][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[0][0][0];
+    puntoA.y = bezierCtrlPoints[0][0][1];
+    puntoA.z = bezierCtrlPoints[0][0][2];
+    puntoB.x = bezierCtrlPoints[1][1][0];
+    puntoB.y = bezierCtrlPoints[1][1][1];
+    puntoB.z = bezierCtrlPoints[1][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[0][3][0];
+    puntoA.y = bezierCtrlPoints[0][3][1];
+    puntoA.z = bezierCtrlPoints[0][3][2];
+    puntoB.x = bezierCtrlPoints[1][3][0];
+    puntoB.y = bezierCtrlPoints[1][3][1];
+    puntoB.z = bezierCtrlPoints[1][3][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[0][3][0];
+    puntoA.y = bezierCtrlPoints[0][3][1];
+    puntoA.z = bezierCtrlPoints[0][3][2];
+    puntoB.x = bezierCtrlPoints[0][2][0];
+    puntoB.y = bezierCtrlPoints[0][2][1];
+    puntoB.z = bezierCtrlPoints[0][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[0][3][0];
+    puntoA.y = bezierCtrlPoints[0][3][1];
+    puntoA.z = bezierCtrlPoints[0][3][2];
+    puntoB.x = bezierCtrlPoints[1][2][0];
+    puntoB.y = bezierCtrlPoints[1][2][1];
+    puntoB.z = bezierCtrlPoints[1][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][0][0];
+    puntoA.y = bezierCtrlPoints[3][0][1];
+    puntoA.z = bezierCtrlPoints[3][0][2];
+    puntoB.x = bezierCtrlPoints[3][1][0];
+    puntoB.y = bezierCtrlPoints[3][1][1];
+    puntoB.z = bezierCtrlPoints[3][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][0][0];
+    puntoA.y = bezierCtrlPoints[3][0][1];
+    puntoA.z = bezierCtrlPoints[3][0][2];
+    puntoB.x = bezierCtrlPoints[2][0][0];
+    puntoB.y = bezierCtrlPoints[2][0][1];
+    puntoB.z = bezierCtrlPoints[2][0][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][0][0];
+    puntoA.y = bezierCtrlPoints[3][0][1];
+    puntoA.z = bezierCtrlPoints[3][0][2];
+    puntoB.x = bezierCtrlPoints[2][1][0];
+    puntoB.y = bezierCtrlPoints[2][1][1];
+    puntoB.z = bezierCtrlPoints[2][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][3][0];
+    puntoA.y = bezierCtrlPoints[3][3][1];
+    puntoA.z = bezierCtrlPoints[3][3][2];
+    puntoB.x = bezierCtrlPoints[3][2][0];
+    puntoB.y = bezierCtrlPoints[3][2][1];
+    puntoB.z = bezierCtrlPoints[3][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][3][0];
+    puntoA.y = bezierCtrlPoints[3][3][1];
+    puntoA.z = bezierCtrlPoints[3][3][2];
+    puntoB.x = bezierCtrlPoints[2][3][0];
+    puntoB.y = bezierCtrlPoints[2][3][1];
+    puntoB.z = bezierCtrlPoints[2][3][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[3][3][0];
+    puntoA.y = bezierCtrlPoints[3][3][1];
+    puntoA.z = bezierCtrlPoints[3][3][2];
+    puntoB.x = bezierCtrlPoints[2][2][0];
+    puntoB.y = bezierCtrlPoints[2][2][1];
+    puntoB.z = bezierCtrlPoints[2][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[1][2][0];
+    puntoA.y = bezierCtrlPoints[1][2][1];
+    puntoA.z = bezierCtrlPoints[1][2][2];
+    puntoB.x = bezierCtrlPoints[2][2][0];
+    puntoB.y = bezierCtrlPoints[2][2][1];
+    puntoB.z = bezierCtrlPoints[2][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[1][2][0];
+    puntoA.y = bezierCtrlPoints[1][2][1];
+    puntoA.z = bezierCtrlPoints[1][2][2];
+    puntoB.x = bezierCtrlPoints[1][1][0];
+    puntoB.y = bezierCtrlPoints[1][1][1];
+    puntoB.z = bezierCtrlPoints[1][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[2][1][0];
+    puntoA.y = bezierCtrlPoints[2][1][1];
+    puntoA.z = bezierCtrlPoints[2][1][2];
+    puntoB.x = bezierCtrlPoints[1][1][0];
+    puntoB.y = bezierCtrlPoints[1][1][1];
+    puntoB.z = bezierCtrlPoints[1][1][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+    //
+    puntoA.x = bezierCtrlPoints[2][1][0];
+    puntoA.y = bezierCtrlPoints[2][1][1];
+    puntoA.z = bezierCtrlPoints[2][1][2];
+    puntoB.x = bezierCtrlPoints[2][2][0];
+    puntoB.y = bezierCtrlPoints[2][2][1];
+    puntoB.z = bezierCtrlPoints[2][2][2];
+    puntoA = findWarpedPoint(dst, src, puntoA);
+    puntoB = findWarpedPoint(dst, src, puntoB);
+    ofLine(puntoA,puntoB);
+
+}
+
+void quad::bezierSurfaceUpdate()
+{
+    // TODO: to optimize this try to limit recalculation to cases when it's really needed
+    bezierCtrlPoints =
+    {
+        {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+        {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+        {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
+    };
+    if(bBezier)
+    {
+        glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
+    }
+
+}
+
+
+// Mask helpers --------------------------------------
+void quad::drawMaskMarkers()
+{
+    if (maskPoints.size()>0)
+    {
+        ofPolyline contour;
+        for(unsigned int i = 0; i < maskPoints.size(); i++)
+        {
+            ofVec3f contourPoint;
+            contourPoint.x = maskPoints[i].x;
+            contourPoint.y = maskPoints[i].y;
+            contourPoint.z = 0;
+            contourPoint = findWarpedPoint(dst, src, contourPoint);
+            contour.addVertex(contourPoint);
+        }
+        ofSetLineWidth(1.6);
+        contour.close();
+        contour.draw();
+
+        for(unsigned int i = 0; i < maskPoints.size(); i++)
+        {
+            ofVec3f punto;
+            punto.x = maskPoints[i].x;
+            punto.y = maskPoints[i].y;
+            punto.z = 0.0;
+            punto = findWarpedPoint(dst, src, punto);
+            ofSetColor(100,139,150,255);
+            ofSetLineWidth(1.0);
+            if(bHighlightMaskPoint && highlightedMaskPoint == i)
+            {
+                ofFill();
+            }
+            ofCircle(punto.x, punto.y, 4);
+            ofNoFill();
+            ofCircle(punto.x, punto.y, 10);
+        }
+    }
 }

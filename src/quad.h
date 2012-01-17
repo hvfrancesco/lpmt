@@ -201,6 +201,7 @@ public:
     void allocateFbo(int w, int h);
 
     void maskAddPoint(int x, int y);
+    void drawMaskMarkers();
 
     vector<ofPoint> maskPoints;
     ofVec3f getWarpedPoint(int x, int y);
@@ -214,6 +215,10 @@ public:
     float bezierPoints[4][4][3];
     bool bBezier;
     float bezierCtrlPoints[4][4][3];
+
+    void bezierSurfaceSetup();
+    void bezierSurfaceUpdate();
+    void drawBezierMarkers();
 
 
 };
