@@ -244,10 +244,8 @@ void testApp::setup()
         gui.addToggle("surface deform.", quads[i].bDeform);
         gui.addToggle("use bezier", quads[i].bBezier);
         gui.addToggle("use grid", quads[i].bGrid);
-        GLint value ;
-        ::glGetIntegerv(GL_MAX_EVAL_ORDER, &value) ;
-        gui.addSlider("grid rows", quads[i].gridRows, 2, value-1);
-        gui.addSlider("grid columns", quads[i].gridColumns, 2, value-1);
+        gui.addSlider("grid rows", quads[i].gridRows, 2, 15);
+        gui.addSlider("grid columns", quads[i].gridColumns, 2, 20);
         gui.addButton("spherize light", bQuadBezierSpherize);
         gui.addButton("spherize strong", bQuadBezierSpherizeStrong);
         gui.addButton("reset bezier warp", bQuadBezierReset);

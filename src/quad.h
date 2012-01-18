@@ -220,12 +220,14 @@ public:
 
     bool bGrid;
     vector<vector<vector<float> > > gridPoints;
-    vector<GLfloat> gridCtrlPoints;
+    //vector<GLfloat> gridCtrlPoints;
     int gridRows;
     int gridColumns;
     void gridSurfaceSetup();
     void gridSurfaceUpdate();
     void drawGridMarkers();
+
+    ofMesh gridMesh;
 
     void bezierSurfaceSetup();
     void bezierSurfaceUpdate();

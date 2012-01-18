@@ -816,44 +816,63 @@ void quad::draw()
                 }
                 else
                 {
+
+
                     targetFbo.begin();
                     ofClear(0.0,0.0,0.0,0.0);
                     quadFbo.draw(0+quadDispX,0+quadDispY,quadW,quadH);
                     shaderBlend->end();
                     targetFbo.end();
 
-                    targetFbo.getTextureReference().bind();
-
-                    glMatrixMode(GL_TEXTURE);
-                    glPushMatrix();//to scale the texture
-                    glLoadIdentity();
-
-                    ofTextureData texData = targetFbo.getTextureReference().getTextureData();
-                    if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                    if(bBezier)
                     {
-                        glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
+                        targetFbo.getTextureReference().bind();
+
+                        glMatrixMode(GL_TEXTURE);
+                        glPushMatrix();//to scale the texture
+                        glLoadIdentity();
+
+                        ofTextureData texData = targetFbo.getTextureReference().getTextureData();
+                        if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                        {
+                            glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
+                        }
+                        else
+                        {
+                            glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        }
+                        glMatrixMode(GL_MODELVIEW);
+
+                        glEnable(GL_MAP2_VERTEX_3);
+                        glEnable(GL_AUTO_NORMAL);
+                        // this tries to prevent the double alpha problem
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                        //draw the bezier shape
+                        glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+                        glDisable(GL_BLEND);
+                        glDisable(GL_MAP2_VERTEX_3);
+                        glDisable(GL_AUTO_NORMAL);
+
+                        targetFbo.getTextureReference().unbind();
+                        glMatrixMode(GL_TEXTURE);
+                        glPopMatrix();// texture scale pop matrix
+                        glMatrixMode(GL_MODELVIEW);
                     }
-                    else
+                    else if(bGrid)
                     {
-                        glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                        targetFbo.getTextureReference().bind();
+                        gridMesh.drawFaces();
+                        targetFbo.getTextureReference().unbind();
+                        if(isActive && isBezierSetup)
+                        {
+                            ofPushStyle();
+                            ofSetColor(255,255,255,200);
+                            gridMesh.drawWireframe();
+                            ofPopStyle();
+                        }
                     }
-                    glMatrixMode(GL_MODELVIEW);
 
-                    glEnable(GL_MAP2_VERTEX_3);
-                    glEnable(GL_AUTO_NORMAL);
-                    // this tries to prevent the double alpha problem
-                    glEnable(GL_BLEND);
-                    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-                    //draw the bezier shape
-                    glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-                    glDisable(GL_BLEND);
-                    glDisable(GL_MAP2_VERTEX_3);
-                    glDisable(GL_AUTO_NORMAL);
-
-                    targetFbo.getTextureReference().unbind();
-                    glMatrixMode(GL_TEXTURE);
-                    glPopMatrix();// texture scale pop matrix
-                    glMatrixMode(GL_MODELVIEW);
                 }
 
                 if(bBlendModes)
@@ -861,13 +880,11 @@ void quad::draw()
                     glDisable(GL_BLEND);
                 }
                 ofDisableAlphaBlending();
-
             }
         }
 
         else
         {
-
             if(bMask)
             {
                 if(quadFbo.getWidth()>0)
@@ -909,37 +926,55 @@ void quad::draw()
                         maskShader->end();
                         targetFbo.end();
 
-                        targetFbo.getTextureReference().bind();
 
-                        glMatrixMode(GL_TEXTURE);
-                        glPushMatrix();//to scale the texture
-                        glLoadIdentity();
-
-                        ofTextureData texData = targetFbo.getTextureReference().getTextureData();
-                        if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                        if(bBezier)
                         {
-                            glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
-                        }
-                        else
-                        {
-                            glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
-                        }
-                        glMatrixMode(GL_MODELVIEW);
-                        glEnable(GL_MAP2_VERTEX_3);
-                        glEnable(GL_AUTO_NORMAL);
-                        // this tries to prevent the double alpha problem
-                        glEnable(GL_BLEND);
-                        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-                        //draw the bezier shape
-                        glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-                        glDisable(GL_BLEND);
-                        glDisable(GL_MAP2_VERTEX_3);
-                        glDisable(GL_AUTO_NORMAL);
+                            targetFbo.getTextureReference().bind();
 
-                        targetFbo.getTextureReference().unbind();
-                        glMatrixMode(GL_TEXTURE);
-                        glPopMatrix();// texture scale pop matrix
-                        glMatrixMode(GL_MODELVIEW);
+                            glMatrixMode(GL_TEXTURE);
+                            glPushMatrix();//to scale the texture
+                            glLoadIdentity();
+
+                            ofTextureData texData = targetFbo.getTextureReference().getTextureData();
+                            if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                            {
+                                glScalef(targetFbo.getTextureReference().getWidth(), targetFbo.getTextureReference().getHeight(), 1.0f);
+                            }
+                            else
+                            {
+                                glScalef(targetFbo.getTextureReference().getWidth() / texData.tex_w, targetFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                            }
+                            glMatrixMode(GL_MODELVIEW);
+                            glEnable(GL_MAP2_VERTEX_3);
+                            glEnable(GL_AUTO_NORMAL);
+                            // this tries to prevent the double alpha problem
+                            glEnable(GL_BLEND);
+                            glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+                            //draw the bezier shape
+                            glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+                            glDisable(GL_BLEND);
+                            glDisable(GL_MAP2_VERTEX_3);
+                            glDisable(GL_AUTO_NORMAL);
+
+                            targetFbo.getTextureReference().unbind();
+                            glMatrixMode(GL_TEXTURE);
+                            glPopMatrix();// texture scale pop matrix
+                            glMatrixMode(GL_MODELVIEW);
+                        }
+                        else if(bGrid)
+                        {
+                            targetFbo.getTextureReference().bind();
+                            gridMesh.drawFaces();
+                            targetFbo.getTextureReference().unbind();
+                            if(isActive && isBezierSetup)
+                            {
+                                ofPushStyle();
+                                ofSetColor(255,255,255,200);
+                                gridMesh.drawWireframe();
+                                ofPopStyle();
+                            }
+                        }
+
                     }
 
                     if(bBlendModes)
@@ -974,35 +1009,52 @@ void quad::draw()
                     }
                     else
                     {
-                        quadFbo.getTextureReference().bind();
 
-                        glMatrixMode(GL_TEXTURE);
-                        glPushMatrix();//to scale the texture
-                        glLoadIdentity();
-
-                        ofTextureData texData = quadFbo.getTextureReference().getTextureData();
-                        if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                        if(bBezier)
                         {
-                            glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                            quadFbo.getTextureReference().bind();
+
+                            glMatrixMode(GL_TEXTURE);
+                            glPushMatrix();//to scale the texture
+                            glLoadIdentity();
+
+                            ofTextureData texData = quadFbo.getTextureReference().getTextureData();
+                            if(texData.textureTarget == GL_TEXTURE_RECTANGLE_ARB)
+                            {
+                                glScalef(quadFbo.getTextureReference().getWidth(), quadFbo.getTextureReference().getHeight(), 1.0f);
+                            }
+                            else
+                            {
+                                glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                            }
+                            glMatrixMode(GL_MODELVIEW);
+                            //draw the bezier shape
+                            glEnable(GL_MAP2_VERTEX_3);
+                            glEnable(GL_AUTO_NORMAL);
+
+                            glEvalMesh2(GL_FILL, 0, 20, 0, 20);
+
+                            glDisable(GL_MAP2_VERTEX_3);
+                            glDisable(GL_AUTO_NORMAL);
+
+                            quadFbo.getTextureReference().unbind();
+                            glMatrixMode(GL_TEXTURE);
+                            glPopMatrix();// texture scale pop matrix
+                            glMatrixMode(GL_MODELVIEW);
                         }
-                        else
+                        else if(bGrid)
                         {
-                            glScalef(quadFbo.getTextureReference().getWidth() / texData.tex_w, quadFbo.getTextureReference().getHeight() / texData.tex_h, 1.0f);
+                            quadFbo.getTextureReference().bind();
+                            gridMesh.drawFaces();
+                            quadFbo.getTextureReference().unbind();
+                            if(isActive && isBezierSetup)
+                            {
+                                ofPushStyle();
+                                ofSetColor(255,255,255,200);
+                                gridMesh.drawWireframe();
+                                ofPopStyle();
+                            }
                         }
-                        glMatrixMode(GL_MODELVIEW);
-                        //draw the bezier shape
-                        glEnable(GL_MAP2_VERTEX_3);
-                        glEnable(GL_AUTO_NORMAL);
-
-                        glEvalMesh2(GL_FILL, 0, 20, 0, 20);
-
-                        glDisable(GL_MAP2_VERTEX_3);
-                        glDisable(GL_AUTO_NORMAL);
-
-                        quadFbo.getTextureReference().unbind();
-                        glMatrixMode(GL_TEXTURE);
-                        glPopMatrix();// texture scale pop matrix
-                        glMatrixMode(GL_MODELVIEW);
                     }
 
                     if(bBlendModes)
@@ -1081,8 +1133,14 @@ void quad::draw()
         // draws markers for bezier deform setup
         if (isActive && isBezierSetup)
         {
-            if (bBezier) {drawBezierMarkers();}
-            else if (bGrid) {drawGridMarkers();}
+            if (bBezier)
+            {
+                drawBezierMarkers();
+            }
+            else if (bGrid)
+            {
+                drawGridMarkers();
+            }
         }
 
         // draws mask markers and contour in mask-setup mode
@@ -1444,6 +1502,10 @@ void quad::bezierSurfaceUpdate()
 void quad::gridSurfaceSetup()
 {
 
+    gridMesh.clearVertices();
+    gridMesh.clearIndices();
+    gridMesh.clearTexCoords();
+
     for(int i=0; i<=gridRows; i++)
     {
         vector<vector<float> > row;
@@ -1458,47 +1520,38 @@ void quad::gridSurfaceSetup()
         gridPoints.push_back(row);
     }
 
-    gridCtrlPoints.clear();
-    for(int i=0; i<=gridRows; i++)
-    {
 
-        for(int j=0; j<=gridColumns; j++)
-        {
-            gridCtrlPoints.push_back(gridPoints[i][j][0]*ofGetWidth());
-            gridCtrlPoints.push_back(gridPoints[i][j][1]*ofGetHeight());
-            gridCtrlPoints.push_back(0.0);
-        }
-    }
-
-    GLfloat punti[gridRows+1][gridColumns+1][3];
     for(int i=0; i<=gridRows; i++)
     {
         for(int j=0; j<=gridColumns; j++)
         {
-            punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
-            punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
-            punti[i][j][2] = 0.0;
+            gridMesh.addTexCoord(ofVec2f((gridPoints[i][j][0]*ofGetWidth()), (gridPoints[i][j][1]*ofGetHeight())));
         }
     }
 
-    //This sets up my Texture Surface
-    GLfloat texpts [2][2][2] =
-    {
-        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
-    };
 
-    // enable depth test, so we only see the front
-    glEnable(GL_DEPTH_TEST);
-    //set up bezier surface with a linear order evaluator
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &gridCtrlPoints[0]);
-    //set up texture map for bezier surface
-    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
-    glEnable(GL_MAP2_TEXTURE_COORD_2);
-    glEnable(GL_MAP2_VERTEX_3);
-    glEnable(GL_AUTO_NORMAL);
-    glMapGrid2f(20, 0, 1, 20, 0, 1);
-    glShadeModel(GL_FLAT);
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            gridMesh.addVertex(ofVec3f((gridPoints[i][j][0]*ofGetWidth()), (gridPoints[i][j][1]*ofGetHeight()), (0.0)));
+        }
+    }
+
+    for(int i=0; i<gridRows; i++)
+    {
+        for(int j=0; j<gridColumns; j++)
+        {
+
+            gridMesh.addIndex((i*(gridColumns+1)+j)); //a
+            gridMesh.addIndex((i*(gridColumns+1)+j+1)); //b
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j+1));  //c
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j+1)); //c
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j)); //d
+            gridMesh.addIndex((i*(gridColumns+1)+j)); //a
+
+        }
+    }
 }
 
 
@@ -1506,79 +1559,66 @@ void quad::gridSurfaceUpdate()
 {
     // TODO: to optimize this try to limit recalculation to cases when it's really needed
     //This sets up my Grid Surface
+    gridMesh.clearVertices();
+    gridMesh.clearIndices();
 
     if(gridPoints.size() != (gridRows+1) || gridPoints[0].size() != (gridColumns+1))
     {
+        gridMesh.clearTexCoords();
         gridPoints.clear();
         for(int i=0; i<=gridRows; i++)
-           {
-               vector<vector<float> > row;
-               for(int j=0; j<=gridColumns; j++)
-                   {
-                       vector<float> column;
-                       column.push_back((float)(1.0/gridColumns*j));
-                       column.push_back((float)(1.0/gridRows*i));
-                       column.push_back(0.0);
-                       row.push_back(column);
-           }
-           gridPoints.push_back(row);
-           }
-    }
-
-
-    gridCtrlPoints.clear();
-    for(int i=0; i<=gridRows; i++)
-    {
-
-        for(int j=0; j<=gridColumns; j++)
         {
-            gridCtrlPoints.push_back(gridPoints[i][j][0]*ofGetWidth());
-            gridCtrlPoints.push_back(gridPoints[i][j][1]*ofGetHeight());
-            gridCtrlPoints.push_back(0.0);
+            vector<vector<float> > row;
+            for(int j=0; j<=gridColumns; j++)
+            {
+                vector<float> column;
+                column.push_back((float)(1.0/gridColumns*j));
+                column.push_back((float)(1.0/gridRows*i));
+                column.push_back(0.0);
+                row.push_back(column);
+            }
+            gridPoints.push_back(row);
         }
+        for(int i=0; i<=gridRows; i++)
+        {
+            for(int j=0; j<=gridColumns; j++)
+            {
+                gridMesh.addTexCoord(ofVec2f((gridPoints[i][j][0]*ofGetWidth()), (gridPoints[i][j][1]*ofGetHeight())));
+            }
+        }
+
     }
 
-/*
-    GLfloat punti[gridRows+1][gridColumns+1][3];
     for(int i=0; i<=gridRows; i++)
     {
         for(int j=0; j<=gridColumns; j++)
         {
-            punti[i][j][0] = gridPoints[i][j][0]*ofGetWidth();
-            punti[i][j][1] = gridPoints[i][j][1]*ofGetHeight();
-            punti[i][j][2] = 0.0;
+            gridMesh.addVertex(ofVec3f((gridPoints[i][j][0]*ofGetWidth()), (gridPoints[i][j][1]*ofGetHeight()), (0.0)));
         }
     }
-*/
 
-    GLfloat punti[(gridRows+1)*(gridColumns+1)*3];
-    for(int i=0; i<=gridRows; i++)
+    for(int i=0; i<gridRows; i++)
     {
-        for(int j=0; j<=gridColumns; j++)
+        for(int j=0; j<gridColumns; j++)
         {
-            punti[i*j+j] = gridPoints[i][j][0]*ofGetWidth();
-            punti[i*j+j+1] = gridPoints[i][j][1]*ofGetHeight();
-            punti[i*j+j+2] = 0.0;
+
+            gridMesh.addIndex((i*(gridColumns+1)+j)); //a
+            gridMesh.addIndex((i*(gridColumns+1)+j+1)); //b
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j+1));  //c
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j+1)); //c
+            gridMesh.addIndex(((i+1)*(gridColumns+1)+j)); //d
+            gridMesh.addIndex((i*(gridColumns+1)+j)); //a
+
         }
     }
 
+    /*
+    quadFbo.getTextureReference().bind();
+    gridMesh.drawFaces();
+    quadFbo.getTextureReference().unbind();
+    */
 
-
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0]);
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &gridCtrlPoints[0]);
-
-
-    GLfloat texpts [2][2][2] =
-    {
-        { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }
-    };
-    glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
-    glEnable(GL_MAP2_TEXTURE_COORD_2);
-    glEnable(GL_MAP2_VERTEX_3);
-    glEnable(GL_AUTO_NORMAL);
-    glMapGrid2f(20, 0, 1, 20, 0, 1);
-    glShadeModel(GL_FLAT);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &gridCtrlPoints[0]);
 
 
 }
