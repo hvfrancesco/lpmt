@@ -243,6 +243,7 @@ void quad::update()
 {
     if (isOn)
     {
+
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
@@ -487,6 +488,7 @@ void quad::draw()
 {
     if (isOn)
     {
+
         // recalculates bezier surface
         if(bBezier)
         {
@@ -496,6 +498,7 @@ void quad::draw()
         {
             gridSurfaceUpdate();
         }
+
 
         quadFbo.begin();
         ofClear(0.0,0.0,0.0,0.0);
@@ -1455,6 +1458,18 @@ void quad::gridSurfaceSetup()
         gridPoints.push_back(row);
     }
 
+    gridCtrlPoints.clear();
+    for(int i=0; i<=gridRows; i++)
+    {
+
+        for(int j=0; j<=gridColumns; j++)
+        {
+            gridCtrlPoints.push_back(gridPoints[i][j][0]*ofGetWidth());
+            gridCtrlPoints.push_back(gridPoints[i][j][1]*ofGetHeight());
+            gridCtrlPoints.push_back(0.0);
+        }
+    }
+
     GLfloat punti[gridRows+1][gridColumns+1][3];
     for(int i=0; i<=gridRows; i++)
     {
@@ -1475,7 +1490,8 @@ void quad::gridSurfaceSetup()
     // enable depth test, so we only see the front
     glEnable(GL_DEPTH_TEST);
     //set up bezier surface with a linear order evaluator
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &gridCtrlPoints[0]);
     //set up texture map for bezier surface
     glMap2f(GL_MAP2_TEXTURE_COORD_2, 0, 1, 2, 2, 0, 1, 4, 2, &texpts[0][0][0]);
     glEnable(GL_MAP2_TEXTURE_COORD_2);
@@ -1509,6 +1525,20 @@ void quad::gridSurfaceUpdate()
            }
     }
 
+
+    gridCtrlPoints.clear();
+    for(int i=0; i<=gridRows; i++)
+    {
+
+        for(int j=0; j<=gridColumns; j++)
+        {
+            gridCtrlPoints.push_back(gridPoints[i][j][0]*ofGetWidth());
+            gridCtrlPoints.push_back(gridPoints[i][j][1]*ofGetHeight());
+            gridCtrlPoints.push_back(0.0);
+        }
+    }
+
+/*
     GLfloat punti[gridRows+1][gridColumns+1][3];
     for(int i=0; i<=gridRows; i++)
     {
@@ -1519,10 +1549,26 @@ void quad::gridSurfaceUpdate()
             punti[i][j][2] = 0.0;
         }
     }
+*/
 
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 2, 0, 1, (gridColumns+1)*3, 2, &punti[0][0][0]);
-    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
-    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, (gridColumns+1)*3, 4, &punti[0][0][0]);
+    GLfloat punti[(gridRows+1)*(gridColumns+1)*3];
+    for(int i=0; i<=gridRows; i++)
+    {
+        for(int j=0; j<=gridColumns; j++)
+        {
+            punti[i*j+j] = gridPoints[i][j][0]*ofGetWidth();
+            punti[i*j+j+1] = gridPoints[i][j][1]*ofGetHeight();
+            punti[i*j+j+2] = 0.0;
+        }
+    }
+
+
+
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0][0][0]);
+    //glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &punti[0]);
+    glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, (gridColumns+1), 0, 1, (gridColumns+1)*3, (gridRows+1), &gridCtrlPoints[0]);
+
+
     GLfloat texpts [2][2][2] =
     {
         { {0, 0}, {1, 0} }, { {0, 1}, {1, 1} }

@@ -220,7 +220,7 @@ public:
 
     bool bGrid;
     vector<vector<vector<float> > > gridPoints;
-    vector<vector<vector<float> > > gridCtrlPoints;
+    vector<GLfloat> gridCtrlPoints;
     int gridRows;
     int gridColumns;
     void gridSurfaceSetup();
