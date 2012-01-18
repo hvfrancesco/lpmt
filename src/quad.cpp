@@ -232,7 +232,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     // prepare grid surface evaluator
     bGrid = False;
-    gridColumns = 8;
+    gridColumns = 7;
     gridRows = 6;
     gridSurfaceSetup();
 
