@@ -190,9 +190,10 @@ public:
 
     void draw();
 
-    //void gaussian_elimination(float *input, int n);
-
-    //void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
+    void gaussian_elimination(float *input, int n);
+    void findHomography(ofPoint src[4], ofPoint dst[4], float homography[16]);
+    ofMatrix4x4 findVectorHomography(ofPoint src[4], ofPoint dst[4]);
+    ofPoint findWarpedPoint(ofPoint src[4], ofPoint dst[4], ofPoint point);
 
     void loadImageFromFile(string imgName, string imgPath);
 

@@ -243,7 +243,10 @@
 		<Unit filename="src/ball.h">
 			<Option virtualFolder="src" />
 		</Unit>
-		<Unit filename="src/homography.h">
+		<Unit filename="src/deform.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/homography.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/kinectManager.cpp">
@@ -253,6 +256,9 @@
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/main.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/markers.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/parseOSC.h">
@@ -268,6 +274,9 @@
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/testApp.h">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/utils.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Extensions>

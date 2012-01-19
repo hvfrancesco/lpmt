@@ -69,11 +69,16 @@ ofxCvGrayscaleImage kinectManager::getThresholdDepthImage(int nearDepthTh, int f
 
     thDepthImage.flagImageChanged();
 
+    // blur filter
+    thDepthImage.blur(blurVal);
 
+
+    // morphology filter
     thDepthImage.erode();
     thDepthImage.dilate();
     //thDepthImage.blurGaussian(blurVal);
-    thDepthImage.blur(blurVal);
+
+
 
     return thDepthImage;
 
