@@ -1,0 +1,1082 @@
+<positions>
+    <element name="alpha_0">
+        <x>0</x>
+        <y>722</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_1">
+        <x>0</x>
+        <y>1872</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_10">
+        <x>0</x>
+        <y>12222</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_11">
+        <x>0</x>
+        <y>13372</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_12">
+        <x>0</x>
+        <y>14522</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_13">
+        <x>0</x>
+        <y>15672</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_14">
+        <x>0</x>
+        <y>16822</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_15">
+        <x>0</x>
+        <y>17972</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_16">
+        <x>0</x>
+        <y>19122</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_17">
+        <x>0</x>
+        <y>20272</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_18">
+        <x>0</x>
+        <y>21422</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_19">
+        <x>0</x>
+        <y>22572</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_2">
+        <x>0</x>
+        <y>3022</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_20">
+        <x>0</x>
+        <y>23722</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_21">
+        <x>0</x>
+        <y>24872</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_22">
+        <x>0</x>
+        <y>26022</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_23">
+        <x>0</x>
+        <y>27172</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_24">
+        <x>0</x>
+        <y>28322</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_25">
+        <x>0</x>
+        <y>29472</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_26">
+        <x>0</x>
+        <y>30622</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_27">
+        <x>0</x>
+        <y>31772</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_28">
+        <x>0</x>
+        <y>32922</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_29">
+        <x>0</x>
+        <y>34072</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_3">
+        <x>0</x>
+        <y>4172</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_30">
+        <x>0</x>
+        <y>35222</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_31">
+        <x>0</x>
+        <y>36372</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_32">
+        <x>0</x>
+        <y>37522</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_33">
+        <x>0</x>
+        <y>38672</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_34">
+        <x>0</x>
+        <y>39822</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_35">
+        <x>0</x>
+        <y>40972</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_4">
+        <x>0</x>
+        <y>5322</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_5">
+        <x>0</x>
+        <y>6472</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_6">
+        <x>0</x>
+        <y>7622</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_7">
+        <x>0</x>
+        <y>8772</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_8">
+        <x>0</x>
+        <y>9922</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="alpha_9">
+        <x>0</x>
+        <y>11072</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_0">
+        <x>0</x>
+        <y>492</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_1">
+        <x>0</x>
+        <y>1642</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_10">
+        <x>0</x>
+        <y>11992</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_11">
+        <x>0</x>
+        <y>13142</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_12">
+        <x>0</x>
+        <y>14292</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_13">
+        <x>0</x>
+        <y>15442</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_14">
+        <x>0</x>
+        <y>16592</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_15">
+        <x>0</x>
+        <y>17742</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_16">
+        <x>0</x>
+        <y>18892</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_17">
+        <x>0</x>
+        <y>20042</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_18">
+        <x>0</x>
+        <y>21192</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_19">
+        <x>0</x>
+        <y>22342</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_2">
+        <x>0</x>
+        <y>2792</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_20">
+        <x>0</x>
+        <y>23492</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_21">
+        <x>0</x>
+        <y>24642</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_22">
+        <x>0</x>
+        <y>25792</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_23">
+        <x>0</x>
+        <y>26942</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_24">
+        <x>0</x>
+        <y>28092</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_25">
+        <x>0</x>
+        <y>29242</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_26">
+        <x>0</x>
+        <y>30392</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_27">
+        <x>0</x>
+        <y>31542</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_28">
+        <x>0</x>
+        <y>32692</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_29">
+        <x>0</x>
+        <y>33842</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_3">
+        <x>0</x>
+        <y>3942</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_30">
+        <x>0</x>
+        <y>34992</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_31">
+        <x>0</x>
+        <y>36142</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_32">
+        <x>0</x>
+        <y>37292</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_33">
+        <x>0</x>
+        <y>38442</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_34">
+        <x>0</x>
+        <y>39592</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_35">
+        <x>0</x>
+        <y>40742</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_4">
+        <x>0</x>
+        <y>5092</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_5">
+        <x>0</x>
+        <y>6242</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_6">
+        <x>0</x>
+        <y>7392</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_7">
+        <x>0</x>
+        <y>8542</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_8">
+        <x>0</x>
+        <y>9692</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_9">
+        <x>0</x>
+        <y>10842</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_0">
+        <x>0</x>
+        <y>310</y>
+        <width>800</width>
+        <height>152</height>
+    </element>
+    <element name="green_1">
+        <x>0</x>
+        <y>1412</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_10">
+        <x>0</x>
+        <y>11762</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_11">
+        <x>0</x>
+        <y>12912</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_12">
+        <x>0</x>
+        <y>14062</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_13">
+        <x>0</x>
+        <y>15212</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_14">
+        <x>0</x>
+        <y>16362</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_15">
+        <x>0</x>
+        <y>17512</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_16">
+        <x>0</x>
+        <y>18662</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_17">
+        <x>0</x>
+        <y>19812</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_18">
+        <x>0</x>
+        <y>20962</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_19">
+        <x>0</x>
+        <y>22112</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_2">
+        <x>0</x>
+        <y>2562</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_20">
+        <x>0</x>
+        <y>23262</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_21">
+        <x>0</x>
+        <y>24412</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_22">
+        <x>0</x>
+        <y>25562</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_23">
+        <x>0</x>
+        <y>26712</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_24">
+        <x>0</x>
+        <y>27862</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_25">
+        <x>0</x>
+        <y>29012</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_26">
+        <x>0</x>
+        <y>30162</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_27">
+        <x>0</x>
+        <y>31312</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_28">
+        <x>0</x>
+        <y>32462</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_29">
+        <x>0</x>
+        <y>33612</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_3">
+        <x>0</x>
+        <y>3712</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_30">
+        <x>0</x>
+        <y>34762</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_31">
+        <x>0</x>
+        <y>35912</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_32">
+        <x>0</x>
+        <y>37062</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_33">
+        <x>0</x>
+        <y>38212</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_34">
+        <x>0</x>
+        <y>39362</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_35">
+        <x>0</x>
+        <y>40512</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_4">
+        <x>0</x>
+        <y>4862</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_5">
+        <x>0</x>
+        <y>6012</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_6">
+        <x>0</x>
+        <y>7162</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_7">
+        <x>0</x>
+        <y>8312</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_8">
+        <x>0</x>
+        <y>9462</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_9">
+        <x>0</x>
+        <y>10612</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_0">
+        <x>0</x>
+        <y>80</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_1">
+        <x>0</x>
+        <y>1182</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_10">
+        <x>0</x>
+        <y>11532</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_11">
+        <x>0</x>
+        <y>12682</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_12">
+        <x>0</x>
+        <y>13832</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_13">
+        <x>0</x>
+        <y>14982</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_14">
+        <x>0</x>
+        <y>16132</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_15">
+        <x>0</x>
+        <y>17282</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_16">
+        <x>0</x>
+        <y>18432</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_17">
+        <x>0</x>
+        <y>19582</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_18">
+        <x>0</x>
+        <y>20732</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_19">
+        <x>0</x>
+        <y>21882</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_2">
+        <x>0</x>
+        <y>2332</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_20">
+        <x>0</x>
+        <y>23032</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_21">
+        <x>0</x>
+        <y>24182</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_22">
+        <x>0</x>
+        <y>25332</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_23">
+        <x>0</x>
+        <y>26482</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_24">
+        <x>0</x>
+        <y>27632</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_25">
+        <x>0</x>
+        <y>28782</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_26">
+        <x>0</x>
+        <y>29932</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_27">
+        <x>0</x>
+        <y>31082</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_28">
+        <x>0</x>
+        <y>32232</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_29">
+        <x>0</x>
+        <y>33382</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_3">
+        <x>0</x>
+        <y>3482</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_30">
+        <x>0</x>
+        <y>34532</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_31">
+        <x>0</x>
+        <y>35682</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_32">
+        <x>0</x>
+        <y>36832</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_33">
+        <x>0</x>
+        <y>37982</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_34">
+        <x>0</x>
+        <y>39132</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_35">
+        <x>0</x>
+        <y>40282</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_4">
+        <x>0</x>
+        <y>4632</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_5">
+        <x>0</x>
+        <y>5782</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_6">
+        <x>0</x>
+        <y>6932</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_7">
+        <x>0</x>
+        <y>8082</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_8">
+        <x>0</x>
+        <y>9232</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_9">
+        <x>0</x>
+        <y>10382</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_0">
+        <x>0</x>
+        <y>952</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_1">
+        <x>0</x>
+        <y>2102</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_10">
+        <x>0</x>
+        <y>12452</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_11">
+        <x>0</x>
+        <y>13602</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_12">
+        <x>0</x>
+        <y>14752</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_13">
+        <x>0</x>
+        <y>15902</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_14">
+        <x>0</x>
+        <y>17052</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_15">
+        <x>0</x>
+        <y>18202</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_16">
+        <x>0</x>
+        <y>19352</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_17">
+        <x>0</x>
+        <y>20502</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_18">
+        <x>0</x>
+        <y>21652</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_19">
+        <x>0</x>
+        <y>22802</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_2">
+        <x>0</x>
+        <y>3252</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_20">
+        <x>0</x>
+        <y>23952</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_21">
+        <x>0</x>
+        <y>25102</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_22">
+        <x>0</x>
+        <y>26252</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_23">
+        <x>0</x>
+        <y>27402</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_24">
+        <x>0</x>
+        <y>28552</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_25">
+        <x>0</x>
+        <y>29702</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_26">
+        <x>0</x>
+        <y>30852</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_27">
+        <x>0</x>
+        <y>32002</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_28">
+        <x>0</x>
+        <y>33152</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_29">
+        <x>0</x>
+        <y>34302</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_3">
+        <x>0</x>
+        <y>4402</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_30">
+        <x>0</x>
+        <y>35452</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_31">
+        <x>0</x>
+        <y>36602</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_32">
+        <x>0</x>
+        <y>37752</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_33">
+        <x>0</x>
+        <y>38902</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_34">
+        <x>0</x>
+        <y>40052</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_35">
+        <x>0</x>
+        <y>41202</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_4">
+        <x>0</x>
+        <y>5552</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_5">
+        <x>0</x>
+        <y>6702</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_6">
+        <x>0</x>
+        <y>7852</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_7">
+        <x>0</x>
+        <y>9002</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_8">
+        <x>0</x>
+        <y>10152</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_9">
+        <x>0</x>
+        <y>11302</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+</positions>

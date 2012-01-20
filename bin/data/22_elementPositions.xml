@@ -1,0 +1,32 @@
+<positions>
+    <element name="alpha_22">
+        <x>0</x>
+        <y>770</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="blu_22">
+        <x>0</x>
+        <y>540</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="green_22">
+        <x>0</x>
+        <y>310</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="red_22">
+        <x>0</x>
+        <y>80</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+    <element name="switch_22">
+        <x>0</x>
+        <y>1000</y>
+        <width>800</width>
+        <height>200</height>
+    </element>
+</positions>

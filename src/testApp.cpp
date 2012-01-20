@@ -142,6 +142,10 @@ void testApp::setup()
     bGui = 1;
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
+    // timeline off at start
+    bTimeline = false;
+    timeline.hide();
+
 
     // camera stuff
     /*
@@ -191,6 +195,30 @@ void testApp::setup()
     quads[3].layer = 3;
 
 
+    // timeline stuff
+    timeline.setup();
+
+	timeline.setPageName("0"); //changes the first page name
+	timeline.addKeyframes("red_0", "0_red.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("green_0", "0_green.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("blu_0", "0_blu.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("alpha_0", "0_alpha.xml", ofRange(0, 1.0));
+	timeline.addTriggers("switch_0", "0_switch.xml");
+
+
+for(int i = 1; i < 36; i++)
+    {
+    timeline.addPage(ofToString(i), true);
+    timeline.addKeyframes("red_"+ofToString(i), ofToString(i)+"_red.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("green_"+ofToString(i), ofToString(i)+"_green.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("blu_"+ofToString(i), ofToString(i)+"_blu.xml", ofRange(0, 1.0));
+	timeline.addKeyframes("alpha_"+ofToString(i), ofToString(i)+"_alpha.xml", ofRange(0, 1.0));
+	timeline.addTriggers("switch_"+ofToString(i), ofToString(i)+"_switch.xml");
+    }
+
+    timeline.setLoopType(OF_LOOP_NORMAL);
+	timeline.setDurationInFrames(300);
+    ofAddListener(ofxTLEvents.trigger, this, &testApp::timelineTriggerReceived);
 
     // GUI STUFF ---------------------------------------------------
 
@@ -346,6 +374,7 @@ void testApp::setup()
     // then we set displayed gui page to the one corresponding to active quad and show the gui
     gui.setPage((activeQuad*3)+2);
     gui.show();
+    timeline.setCurrentPage(ofToString(activeQuad));
 
 }
 
@@ -520,7 +549,6 @@ void testApp::dostuff()
                 }
             }
         }
-
     }
 }
 
@@ -571,6 +599,11 @@ void testApp::draw()
             // draws gui
             gui.draw();
         }
+    }
+
+    if (bTimeline)
+    {
+        timeline.draw();
     }
 
     if (bSplash)
@@ -983,6 +1016,13 @@ void testApp::keyPressed(int key)
         ofSystemAlertDialog(buf);
     }
 
+    // toggle timeline
+    if(key == 't')
+    {
+        bTimeline = !bTimeline;
+        timeline.toggleShow();
+    }
+
 }
 
 //--------------------------------------------------------------
@@ -1277,6 +1317,7 @@ void testApp::mouseReleased()
 
 void testApp::windowResized(int w, int h)
 {
+            timeline.setWidth(w);
             for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
@@ -1470,7 +1511,10 @@ ofImage testApp::loadImageFromFile()
 
 }
 
-
+//--------------------------------------------------------------
+void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
+	cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
+}
 
 
 
