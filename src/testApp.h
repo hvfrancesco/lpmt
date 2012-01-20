@@ -144,6 +144,7 @@ public:
     // timeline
     ofxTimeline timeline;
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
+	bool useTimeline;
 
 
 };

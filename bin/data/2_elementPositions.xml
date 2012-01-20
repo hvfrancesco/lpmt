@@ -1,31 +1,31 @@
 <positions>
     <element name="alpha_2">
         <x>0</x>
-        <y>770</y>
+        <y>429</y>
         <width>800</width>
         <height>200</height>
     </element>
     <element name="blu_2">
         <x>0</x>
-        <y>540</y>
+        <y>338</y>
         <width>800</width>
-        <height>200</height>
+        <height>61</height>
     </element>
     <element name="green_2">
         <x>0</x>
-        <y>310</y>
+        <y>211</y>
         <width>800</width>
-        <height>200</height>
+        <height>97</height>
     </element>
     <element name="red_2">
         <x>0</x>
         <y>80</y>
         <width>800</width>
-        <height>200</height>
+        <height>101</height>
     </element>
     <element name="switch_2">
         <x>0</x>
-        <y>1000</y>
+        <y>659</y>
         <width>800</width>
         <height>200</height>
     </element>

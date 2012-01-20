@@ -142,9 +142,7 @@ void testApp::setup()
     bGui = 1;
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
-    // timeline off at start
-    bTimeline = false;
-    timeline.hide();
+    useTimeline = false;
 
 
     // camera stuff
@@ -206,7 +204,7 @@ void testApp::setup()
 	timeline.addTriggers("switch_0", "0_switch.xml");
 
 
-for(int i = 1; i < 36; i++)
+    for(int i = 1; i < 4; i++)
     {
     timeline.addPage(ofToString(i), true);
     timeline.addKeyframes("red_"+ofToString(i), ofToString(i)+"_red.xml", ofRange(0, 1.0));
@@ -248,6 +246,7 @@ for(int i = 1; i < 36; i++)
         gui.addPage("surface "+ofToString(i)+" - 1/3");
         gui.addTitle("surface "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
+        gui.addToggle("use timeline", useTimeline);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
@@ -374,7 +373,12 @@ for(int i = 1; i < 36; i++)
     // then we set displayed gui page to the one corresponding to active quad and show the gui
     gui.setPage((activeQuad*3)+2);
     gui.show();
+    // timeline off at start
     timeline.setCurrentPage(ofToString(activeQuad));
+    bTimeline = false;
+    timeline.hide();
+    timeline.disable();
+
 
 }
 
@@ -1021,6 +1025,42 @@ void testApp::keyPressed(int key)
     {
         bTimeline = !bTimeline;
         timeline.toggleShow();
+        if(bTimeline)
+        {
+            timeline.enable();
+            bStarted = False;
+            gui.hide();
+            bGui = false;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                quads[i].isOn = False;
+                    if (quads[i].videoBg && quads[i].video.isLoaded())
+                    {
+                        quads[i].video.setVolume(0);
+                        quads[i].video.stop();
+                    }
+                }
+            }
+        }
+        else
+        {
+            timeline.disable();
+            bStarted = True;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isOn = True;
+                    if (quads[i].videoBg && quads[i].video.isLoaded())
+                    {
+                        quads[i].video.setVolume(quads[i].videoVolume);
+                        quads[i].video.play();
+                    }
+                }
+            }
+        }
     }
 
 }
@@ -1035,7 +1075,7 @@ void testApp::keyReleased(int key)
 void testApp::mouseMoved(int x, int y )
 {
 
-    if (isSetup && !bGui && !maskSetup && !gridSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup && !bTimeline)
     {
         float smallestDist = 1.0;
         whichCorner = -1;
@@ -1065,7 +1105,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (maskSetup && !gridSetup)
+    else if (maskSetup && !gridSetup && !bTimeline)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPoint = -1;
@@ -1095,7 +1135,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (gridSetup && !maskSetup)
+    else if (gridSetup && !maskSetup && !bTimeline)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPointRow = -1;
@@ -1162,7 +1202,7 @@ void testApp::mouseMoved(int x, int y )
 //--------------------------------------------------------------
 void testApp::mouseDragged(int x, int y, int button)
 {
-    if (isSetup && !bGui && !maskSetup && !gridSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup && !bTimeline)
     {
 
         float scaleX = (float)x / ofGetWidth();
@@ -1197,7 +1237,7 @@ void testApp::mouseDragged(int x, int y, int button)
             }
         }
     }
-    else if(maskSetup && quads[activeQuad].bHighlightMaskPoint)
+    else if(maskSetup && quads[activeQuad].bHighlightMaskPoint && !bTimeline)
     {
         ofVec3f punto;
         punto = quads[activeQuad].getWarpedPoint(x,y);
@@ -1205,7 +1245,7 @@ void testApp::mouseDragged(int x, int y, int button)
         quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].y = punto.y;
     }
 
-    else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint)
+    else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint && !bTimeline)
     {
         if(quads[activeQuad].bBezier)
         {
@@ -1236,7 +1276,7 @@ void testApp::mousePressed(int x, int y, int button)
         bSplash = !bSplash;
     }
 
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !bTimeline)
     {
 
         if(maskSetup && !gridSetup) {
@@ -1275,7 +1315,7 @@ void testApp::mousePressed(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mouseReleased()
 {
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !bTimeline)
     {
 
     if (whichCorner >= 0)
@@ -1515,6 +1555,7 @@ ofImage testApp::loadImageFromFile()
 void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
 	cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
 }
+
 
 
 
