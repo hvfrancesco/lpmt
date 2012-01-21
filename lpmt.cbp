@@ -240,6 +240,9 @@
 		<Unit filename="config.make">
 			<Option virtualFolder="build config" />
 		</Unit>
+		<Unit filename="src/appUtils.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="src/ball.h">
 			<Option virtualFolder="src" />
 		</Unit>
@@ -270,13 +273,19 @@
 		<Unit filename="src/quad.h">
 			<Option virtualFolder="src" />
 		</Unit>
+		<Unit filename="src/quadUtils.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="src/testApp.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/testApp.h">
 			<Option virtualFolder="src/" />
 		</Unit>
-		<Unit filename="src/utils.cpp">
+		<Unit filename="src/timeline.cpp">
+			<Option virtualFolder="src/" />
+		</Unit>
+		<Unit filename="src/xmlSetup.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
 		<Extensions>
