@@ -27,12 +27,13 @@ void testApp::timelineSetup(int duration){
 void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
     vector<string> triggerParts = ofSplitString(trigger.triggerGroupName, "_", true, true);
 	//cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
-	cout << "Trigger from " << triggerParts[1] << " says " << trigger.triggerName << endl;
-	//switch (trigger.triggerName)
-	//{
-	//    case("img_on"):
+	cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
-	//}
+	    if(trigger.triggerName == "img_on"){ quads[ofToInt(triggerParts[1])].imgBg=true; }
+	    else if (trigger.triggerName == "img_off"){ quads[ofToInt(triggerParts[1])].imgBg=false; }
+        else if (trigger.triggerName == "col_on"){ quads[ofToInt(triggerParts[1])].colorBg=true; }
+        else if (trigger.triggerName == "col_off"){ quads[ofToInt(triggerParts[1])].colorBg=false; }
+
 }
 
 //--------------------------------------------------------------

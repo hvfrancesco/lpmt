@@ -17,6 +17,13 @@ CVS/
 /bin/projection_mapping*
 /bin/lpmt*
 /bin/data/_*.xml
+/bin/data/*red*.xml
+/bin/data/*green*.xml
+/bin/data/*blu*.xml
+/bin/data/*alpha*.xml
+/bin/data/*trigger*.xml
+/bin/data/*elementPositions*.xml
+/bin/data/default*.xml
 /bin/data/video/house*
 .frag
 .xml
