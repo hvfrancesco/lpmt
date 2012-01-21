@@ -145,6 +145,7 @@ public:
     ofxTimeline timeline;
     int timelineDurationFrames;
     void timelineSetup(int duration);
+    void timelineUpdate();
     void timelineAddQuadPage(int i);
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
 	bool useTimeline;

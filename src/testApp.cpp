@@ -469,6 +469,12 @@ void testApp::prepare()
         // kinect update
         kinect.update();
 
+        //timeline update
+        if(useTimeline)
+        {
+            timelineUpdate();
+        }
+
         // loops through initialized quads and runs update, setting the border color as well
         for(int j = 0; j < 36; j++)
         {

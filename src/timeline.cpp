@@ -24,16 +24,44 @@ void testApp::timelineSetup(int duration){
 }
 
 //--------------------------------------------------------------
+void testApp::timelineUpdate()
+{
+            for(int j = 0; j < 36; j++)
+            {
+                if (quads[j].initialized)
+                {
+                    quads[j].timelineRed = timeline.getKeyframeValue("red_"+ofToString(j));
+                    quads[j].timelineGreen = timeline.getKeyframeValue("green_"+ofToString(j));
+                    quads[j].timelineBlu = timeline.getKeyframeValue("blu_"+ofToString(j));
+                    quads[j].timelineAlpha = timeline.getKeyframeValue("alpha_"+ofToString(j));
+                }
+            }
+}
+
+//--------------------------------------------------------------
 void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
     vector<string> triggerParts = ofSplitString(trigger.triggerGroupName, "_", true, true);
+
+    if(useTimeline)
+    {
 	//cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
 	cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
-	    if(trigger.triggerName == "img_on"){ quads[ofToInt(triggerParts[1])].imgBg=true; }
+	    if (trigger.triggerName == "on"){ quads[ofToInt(triggerParts[1])].isOn=true; }
+        else if (trigger.triggerName == "off"){ quads[ofToInt(triggerParts[1])].isOn=false; }
+	    else if(trigger.triggerName == "img_on"){ quads[ofToInt(triggerParts[1])].imgBg=true; }
 	    else if (trigger.triggerName == "img_off"){ quads[ofToInt(triggerParts[1])].imgBg=false; }
         else if (trigger.triggerName == "col_on"){ quads[ofToInt(triggerParts[1])].colorBg=true; }
         else if (trigger.triggerName == "col_off"){ quads[ofToInt(triggerParts[1])].colorBg=false; }
-
+        else if (trigger.triggerName == "video_on"){ quads[ofToInt(triggerParts[1])].videoBg=true; }
+        else if (trigger.triggerName == "video_off"){ quads[ofToInt(triggerParts[1])].videoBg=false; }
+        else if (trigger.triggerName == "cam_on"){ quads[ofToInt(triggerParts[1])].camBg=true; }
+        else if (trigger.triggerName == "cam_off"){ quads[ofToInt(triggerParts[1])].camBg=false; }
+        else if (trigger.triggerName == "mask_on"){ quads[ofToInt(triggerParts[1])].bMask=true; }
+        else if (trigger.triggerName == "mask_off"){ quads[ofToInt(triggerParts[1])].bMask=false; }
+        else if (trigger.triggerName == "mask_invert_on"){ quads[ofToInt(triggerParts[1])].maskInvert=true; }
+        else if (trigger.triggerName == "mask_invert_off"){ quads[ofToInt(triggerParts[1])].maskInvert=false; }
+    }
 }
 
 //--------------------------------------------------------------

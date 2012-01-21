@@ -53,6 +53,11 @@ public:
     ofFloatColor colorGreenscreen;
     ofFloatColor kinectColorize;
 
+    float timelineRed;
+    float timelineGreen;
+    float timelineBlu;
+    float timelineAlpha;
+
     int bgAlpha;
 
     // camera stuff
