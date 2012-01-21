@@ -143,8 +143,9 @@ public:
 
     // timeline
     ofxTimeline timeline;
-    int timelineDurationFrames;
-    void timelineSetup(int duration);
+    float timelineDurationSeconds;
+    float timelinePreviousDuration;
+    void timelineSetup(float duration);
     void timelineUpdate();
     void timelineAddQuadPage(int i);
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);

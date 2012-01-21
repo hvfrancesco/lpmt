@@ -1,7 +1,7 @@
 #include "testApp.h"
 
 //--------------------------------------------------------------
-void testApp::timelineSetup(int duration){
+void testApp::timelineSetup(float duration){
 
     timeline.setup();
 
@@ -19,7 +19,8 @@ void testApp::timelineSetup(int duration){
     }
 
     timeline.setLoopType(OF_LOOP_NORMAL);
-	timeline.setDurationInFrames(duration);
+	//timeline.setDurationInFrames(duration);
+	timeline.setDurationInSeconds(duration);
     ofAddListener(ofxTLEvents.trigger, this, &testApp::timelineTriggerReceived);
 }
 
@@ -30,10 +31,16 @@ void testApp::timelineUpdate()
             {
                 if (quads[j].initialized)
                 {
-                    quads[j].timelineRed = timeline.getKeyframeValue("red_"+ofToString(j));
-                    quads[j].timelineGreen = timeline.getKeyframeValue("green_"+ofToString(j));
-                    quads[j].timelineBlu = timeline.getKeyframeValue("blu_"+ofToString(j));
-                    quads[j].timelineAlpha = timeline.getKeyframeValue("alpha_"+ofToString(j));
+                    if(quads[j].bTimelineColor)
+                    {
+                        quads[j].timelineRed = timeline.getKeyframeValue("red_"+ofToString(j));
+                        quads[j].timelineGreen = timeline.getKeyframeValue("green_"+ofToString(j));
+                        quads[j].timelineBlu = timeline.getKeyframeValue("blu_"+ofToString(j));
+                    }
+                    if(quads[j].bTimelineAlpha)
+                    {
+                        quads[j].timelineAlpha = timeline.getKeyframeValue("alpha_"+ofToString(j));
+                    }
                 }
             }
 }
@@ -45,7 +52,7 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
     if(useTimeline)
     {
 	//cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
-	cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
+	//cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
 	    if (trigger.triggerName == "on"){ quads[ofToInt(triggerParts[1])].isOn=true; }
         else if (trigger.triggerName == "off"){ quads[ofToInt(triggerParts[1])].isOn=false; }

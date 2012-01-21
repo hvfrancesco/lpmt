@@ -58,6 +58,9 @@ public:
     float timelineBlu;
     float timelineAlpha;
 
+    bool bTimelineColor;
+    bool bTimelineAlpha;
+
     int bgAlpha;
 
     // camera stuff

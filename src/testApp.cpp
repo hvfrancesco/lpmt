@@ -144,7 +144,7 @@ void testApp::setup()
 
     //timeline defaults
     useTimeline = false;
-    timelineDurationFrames = 300;
+    timelineDurationSeconds = timelinePreviousDuration = 10.0;
 
 
     // camera stuff
@@ -195,7 +195,7 @@ void testApp::setup()
     quads[3].layer = 3;
 
     // timeline stuff initialization
-    timelineSetup(timelineDurationFrames);
+    timelineSetup(timelineDurationSeconds);
 
     // GUI STUFF ---------------------------------------------------
 
@@ -226,6 +226,9 @@ void testApp::setup()
         gui.addTitle("surface "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
         gui.addToggle("use timeline", useTimeline);
+        gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
+        gui.addToggle("use timeline col", quads[i].bTimelineColor);
+        gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
@@ -470,6 +473,11 @@ void testApp::prepare()
         kinect.update();
 
         //timeline update
+        if(timelineDurationSeconds != timelinePreviousDuration)
+        {
+            timelinePreviousDuration = timelineDurationSeconds;
+            timeline.setDurationInSeconds(timelineDurationSeconds);
+        }
         if(useTimeline)
         {
             timelineUpdate();
