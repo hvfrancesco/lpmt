@@ -2,6 +2,8 @@ LPMT - Little Projection-Mapping Tool
 ---------------------------------------
 (C) 2011, HVA - Hermanitos Verdes Architetti / Modena, Italy
 
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=hv_francesco&url=https://github.com/hvfrancesco/lpmt&title=LPMT Little Projection-Mapping Tool&language=&tags=github&category=software)
+
 
 LPMT is a little projection-mapping tool for use in our office,
 it is developed in C++ using OpenFrameworks.
