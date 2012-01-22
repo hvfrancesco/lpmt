@@ -226,23 +226,39 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     highlightedCtrlPointRow = -1;
     highlightedCtrlPointCol = -1;
 
-    gridPoints =
+	float tmp_gridPoints[][4][3] =
     {
         {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
         {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
         {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
         {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
     };
+	
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int k = 0; k < 3; ++k) {
+				gridPoints[i][j][k] = tmp_gridPoints[i][j][k];
+			}
+		}
+	}
+	
 
-    //This sets up my Bezier Surface
-    ctrlPoints =
-    {
+	
+    float tmp_ctrlPoints[][4][3] = {
         {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
         {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
         {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
         {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
     };
 
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int k = 0; k < 3; ++k) {
+				ctrlPoints[i][j][k] = tmp_ctrlPoints[i][j][k];
+			}
+		}
+	}
+	
     //This sets up my Texture Surface
     GLfloat texpts [2][2][2] =
     {
@@ -424,7 +440,7 @@ void quad::update()
                 if (slideshowName != "." && slideshowName != "..")
                 {
                     // we scan the img dir for images
-                    string slidesDir = string("./data/slideshow/");
+                    string slidesDir = ofToDataPath("slideshow/",true);
                     slidesDir += slideshowName;
                     // make two arrays, one for imgs names and one for images
                     slidesnames = vector<string>();
@@ -524,15 +540,24 @@ void quad::draw()
 {
     if (isOn)
     {
-
+        
         // TODO: to optimize this try to limit recalculation to cases when it's really needed
-        ctrlPoints =
+        float tmp_ctrlPoints[4][4][3]  =
         {
             {   {gridPoints[0][0][0]*ofGetWidth(), gridPoints[0][0][1]*ofGetHeight(), 0}, {gridPoints[0][1][0]*ofGetWidth(), gridPoints[0][1][1]*ofGetHeight(), 0}, {gridPoints[0][2][0]*ofGetWidth(), gridPoints[0][2][1]*ofGetHeight(), 0}, {gridPoints[0][3][0]*ofGetWidth(), gridPoints[0][3][1]*ofGetHeight(), 0} },
             {   {gridPoints[1][0][0]*ofGetWidth(), gridPoints[1][0][1]*ofGetHeight(), 0}, {gridPoints[1][1][0]*ofGetWidth(), gridPoints[1][1][1]*ofGetHeight(), 0}, {gridPoints[1][2][0]*ofGetWidth(), gridPoints[1][2][1]*ofGetHeight(), 0}, {gridPoints[1][3][0]*ofGetWidth(), gridPoints[1][3][1]*ofGetHeight(), 0}  },
             {   {gridPoints[2][0][0]*ofGetWidth(), gridPoints[2][0][1]*ofGetHeight(), 0}, {gridPoints[2][1][0]*ofGetWidth(), gridPoints[2][1][1]*ofGetHeight(), 0}, {gridPoints[2][2][0]*ofGetWidth(), gridPoints[2][2][1]*ofGetHeight(), 0}, {gridPoints[2][3][0]*ofGetWidth(), gridPoints[2][3][1]*ofGetHeight(), 0}  },
             {   {gridPoints[3][0][0]*ofGetWidth(), gridPoints[3][0][1]*ofGetHeight(), 0}, {gridPoints[3][1][0]*ofGetWidth(), gridPoints[3][1][1]*ofGetHeight(), 0}, {gridPoints[3][2][0]*ofGetWidth(), gridPoints[3][2][1]*ofGetHeight(), 0}, {gridPoints[3][3][0]*ofGetWidth(), gridPoints[3][3][1]*ofGetHeight(), 0}  }
         };
+		
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				for (int k = 0; k < 3; ++k) {
+					ctrlPoints[i][j][k] = tmp_ctrlPoints[i][j][k];
+				}
+			}
+		}
+		
         if(bBezier)
         {
         glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &ctrlPoints[0][0][0]);
