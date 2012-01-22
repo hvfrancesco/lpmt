@@ -184,8 +184,6 @@ ofPoint quad::findWarpedPoint(ofPoint src[4], ofPoint dst[4], ofPoint point) {
     ofMatrix4x4 warpMatrix;
     ofMatrix3x3 homographyMatrix;
 
-    float multMatrix[3][3];
-
     srcPoint.x = (float)point.x;
     srcPoint.y = (float)point.y;
     srcPoint.z = 1.0;
@@ -195,7 +193,11 @@ ofPoint quad::findWarpedPoint(ofPoint src[4], ofPoint dst[4], ofPoint point) {
 
     homographyMatrix.invert();
 
-    multMatrix = {{homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]}, {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]}, {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]}};
+    float multMatrix[3][3] = {
+        {homographyMatrix[0], homographyMatrix[1], homographyMatrix[2]},
+        {homographyMatrix[3], homographyMatrix[4], homographyMatrix[5]},
+        {homographyMatrix[6], homographyMatrix[7], homographyMatrix[8]},
+        };
 
 
     for (int i=0; i<3; i++) {
