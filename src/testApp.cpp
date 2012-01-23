@@ -1006,10 +1006,10 @@ void testApp::keyPressed(int key)
         if(bTimeline)
         {
             timeline.enable();
-            bStarted = False;
+            //bStarted = False;
             gui.hide();
             bGui = false;
-            for(int i = 0; i < 36; i++)
+          /*  for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -1020,13 +1020,13 @@ void testApp::keyPressed(int key)
                         quads[i].video.stop();
                     }
                 }
-            }
+            } */
         }
         else
         {
             timeline.disable();
-            bStarted = True;
-            for(int i = 0; i < 36; i++)
+            //bStarted = True;
+           /* for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -1037,7 +1037,7 @@ void testApp::keyPressed(int key)
                         quads[i].video.play();
                     }
                 }
-            }
+            } */
         }
     }
 
