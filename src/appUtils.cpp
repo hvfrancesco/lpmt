@@ -36,3 +36,83 @@ ofImage testApp::loadImageFromFile()
     }
 
 }
+
+//--------------------------------------------------------------
+void testApp::resync()
+{
+    if(useTimeline)
+    {
+        timeline.setCurrentTime(0.0);
+    }
+
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
+        {
+            // resets video to start ing point
+            if (quads[i].videoBg && quads[i].video.isLoaded())
+            {
+                quads[i].video.setPosition(0.0);
+            }
+            // resets slideshow to first slide
+            if (quads[i].slideshowBg)
+            {
+                quads[i].currentSlide = 0;
+                quads[i].slideTimer = 0;
+            }
+            // reset trans colors
+            if (quads[i].colorBg && quads[i].transBg)
+            {
+                quads[i].transCounter = 0;
+                quads[i].transUp = True;
+            }
+        }
+    }
+}
+
+//--------------------------------------------------------------
+void testApp::startProjection()
+{
+    bStarted = True;
+    if(useTimeline)
+    {
+        timeline.enable();
+        timeline.play();
+    }
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
+        {
+            quads[i].isOn = True;
+            if (quads[i].videoBg && quads[i].video.isLoaded())
+            {
+                quads[i].video.setVolume(quads[i].videoVolume);
+                quads[i].video.play();
+            }
+        }
+    }
+}
+
+//--------------------------------------------------------------
+void testApp::stopProjection()
+{
+    bStarted = False;
+    if(useTimeline)
+    {
+        timeline.stop();
+        timeline.hide();
+        timeline.disable();
+    }
+    for(int i = 0; i < 36; i++)
+    {
+        if (quads[i].initialized)
+        {
+            quads[i].isOn = False;
+            if (quads[i].videoBg && quads[i].video.isLoaded())
+            {
+                quads[i].video.setVolume(0);
+                quads[i].video.stop();
+            }
+        }
+    }
+}

@@ -998,18 +998,13 @@ void testApp::keyPressed(int key)
         ofSystemAlertDialog(buf);
     }
 
-    // toggle timeline
-    if(key == OF_KEY_F10)
+    // show-hide stage when timeline is shown
+    if(key == OF_KEY_F11 && bTimeline)
     {
-        bTimeline = !bTimeline;
-        timeline.toggleShow();
-        if(bTimeline)
+        if(bStarted)
         {
-            timeline.enable();
-            //bStarted = False;
-            gui.hide();
-            bGui = false;
-          /*  for(int i = 0; i < 36; i++)
+            bStarted = false;
+            for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -1020,13 +1015,12 @@ void testApp::keyPressed(int key)
                         quads[i].video.stop();
                     }
                 }
-            } */
+            }
         }
-        else
+        else if(!bStarted)
         {
-            timeline.disable();
-            //bStarted = True;
-           /* for(int i = 0; i < 36; i++)
+            bStarted = true;
+            for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
                 {
@@ -1037,16 +1031,36 @@ void testApp::keyPressed(int key)
                         quads[i].video.play();
                     }
                 }
-            } */
+            }
         }
     }
 
+
+    // toggle timeline
+    if(key == OF_KEY_F10)
+    {
+        bTimeline = !bTimeline;
+        timeline.toggleShow();
+        if(bTimeline)
+        {
+            timeline.enable();
+            gui.hide();
+            bGui = false;
+        }
+        else
+        {
+            timeline.disable();
+        }
+    }
+
+    // toggle timeline playing
     if(key == OF_KEY_F12)
     {
         timeline.togglePlay();
     }
 
-    if(key == OF_KEY_F11)
+    // toggle timeline BPM grid drawing
+    if(key == OF_KEY_F9 && bTimeline)
     {
         timeline.toggleDrawBPMGrid();
     }
@@ -1357,71 +1371,6 @@ void testApp::windowResized(int w, int h)
             }
 }
 
-
-
-//--------------------------------------------------------------
-void testApp::resync()
-{
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            // resets video to start ing point
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setPosition(0.0);
-            }
-            // resets slideshow to first slide
-            if (quads[i].slideshowBg)
-            {
-                quads[i].currentSlide = 0;
-                quads[i].slideTimer = 0;
-            }
-            // reset trans colors
-            if (quads[i].colorBg && quads[i].transBg)
-            {
-                quads[i].transCounter = 0;
-                quads[i].transUp = True;
-            }
-        }
-    }
-}
-
-//--------------------------------------------------------------
-void testApp::startProjection()
-{
-    bStarted = True;
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            quads[i].isOn = True;
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setVolume(quads[i].videoVolume);
-                quads[i].video.play();
-            }
-        }
-    }
-}
-
-//--------------------------------------------------------------
-void testApp::stopProjection()
-{
-    bStarted = False;
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            quads[i].isOn = False;
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setVolume(0);
-                quads[i].video.stop();
-            }
-        }
-    }
-}
 
 
 //---------------------------------------------------------------

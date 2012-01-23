@@ -22,6 +22,8 @@ void testApp::timelineSetup(float duration){
 	//timeline.setDurationInFrames(duration);
 	timeline.setDurationInSeconds(duration);
     ofAddListener(ofxTLEvents.trigger, this, &testApp::timelineTriggerReceived);
+    timeline.enableSnapToBPM(60.0);
+    timeline.collapseAllElements();
 }
 
 //--------------------------------------------------------------
