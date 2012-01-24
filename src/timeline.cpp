@@ -64,8 +64,13 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (trigger.triggerName == "col_off"){ quads[ofToInt(triggerParts[1])].colorBg=false; }
         else if (trigger.triggerName == "video_on"){ quads[ofToInt(triggerParts[1])].videoBg=true; }
         else if (trigger.triggerName == "video_off"){ quads[ofToInt(triggerParts[1])].videoBg=false; }
+        else if (trigger.triggerName == "slide_on"){ quads[ofToInt(triggerParts[1])].slideshowBg=true; }
+        else if (trigger.triggerName == "slide_off"){ quads[ofToInt(triggerParts[1])].slideshowBg=false; }
+        else if (trigger.triggerName == "slide_new"){ quads[ofToInt(triggerParts[1])].currentSlide+=1; }
         else if (trigger.triggerName == "cam_on"){ quads[ofToInt(triggerParts[1])].camBg=true; }
         else if (trigger.triggerName == "cam_off"){ quads[ofToInt(triggerParts[1])].camBg=false; }
+        else if (trigger.triggerName == "kinect_on"){ quads[ofToInt(triggerParts[1])].kinectBg=true; }
+        else if (trigger.triggerName == "kinect_off"){ quads[ofToInt(triggerParts[1])].kinectBg=false; }
         else if (trigger.triggerName == "mask_on"){ quads[ofToInt(triggerParts[1])].bMask=true; }
         else if (trigger.triggerName == "mask_off"){ quads[ofToInt(triggerParts[1])].bMask=false; }
         else if (trigger.triggerName == "mask_invert_on"){ quads[ofToInt(triggerParts[1])].maskInvert=true; }

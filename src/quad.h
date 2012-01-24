@@ -60,6 +60,7 @@ public:
 
     bool bTimelineColor;
     bool bTimelineAlpha;
+    bool bTimelineSlideChange;
 
     int bgAlpha;
 

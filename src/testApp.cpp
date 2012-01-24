@@ -229,6 +229,7 @@ void testApp::setup()
         gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
         gui.addToggle("use timeline col", quads[i].bTimelineColor);
         gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
+        gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);

@@ -220,6 +220,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
 
     bTimelineColor = false;
     bTimelineAlpha = false;
+    bTimelineSlideChange = false;
 
 }
 
@@ -652,7 +653,11 @@ void quad::draw()
                 // if slide showing time has elapsed it switches to next slide
                 if (slideTimer > slideFramesDuration )
                 {
-                    currentSlide += 1;
+                    // check if we are using timeline to change slides
+                    if(!bTimelineSlideChange)
+                    {
+                        currentSlide += 1;
+                    }
                     slideTimer = 0;
                 }
                 slideTimer += 1;
