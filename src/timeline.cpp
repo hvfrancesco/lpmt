@@ -56,25 +56,28 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
 	//cout << "Trigger from " << trigger.triggerGroupName << " says color " << trigger.triggerName << endl;
 	//cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
-	    if (trigger.triggerName == "on"){ quads[ofToInt(triggerParts[1])].isOn=true; }
-        else if (trigger.triggerName == "off"){ quads[ofToInt(triggerParts[1])].isOn=false; }
-	    else if(trigger.triggerName == "img_on"){ quads[ofToInt(triggerParts[1])].imgBg=true; }
-	    else if (trigger.triggerName == "img_off"){ quads[ofToInt(triggerParts[1])].imgBg=false; }
-        else if (trigger.triggerName == "col_on"){ quads[ofToInt(triggerParts[1])].colorBg=true; }
-        else if (trigger.triggerName == "col_off"){ quads[ofToInt(triggerParts[1])].colorBg=false; }
-        else if (trigger.triggerName == "video_on"){ quads[ofToInt(triggerParts[1])].videoBg=true; }
-        else if (trigger.triggerName == "video_off"){ quads[ofToInt(triggerParts[1])].videoBg=false; }
-        else if (trigger.triggerName == "slide_on"){ quads[ofToInt(triggerParts[1])].slideshowBg=true; }
-        else if (trigger.triggerName == "slide_off"){ quads[ofToInt(triggerParts[1])].slideshowBg=false; }
-        else if (trigger.triggerName == "slide_new"){ quads[ofToInt(triggerParts[1])].currentSlide+=1; }
-        else if (trigger.triggerName == "cam_on"){ quads[ofToInt(triggerParts[1])].camBg=true; }
-        else if (trigger.triggerName == "cam_off"){ quads[ofToInt(triggerParts[1])].camBg=false; }
-        else if (trigger.triggerName == "kinect_on"){ quads[ofToInt(triggerParts[1])].kinectBg=true; }
-        else if (trigger.triggerName == "kinect_off"){ quads[ofToInt(triggerParts[1])].kinectBg=false; }
-        else if (trigger.triggerName == "mask_on"){ quads[ofToInt(triggerParts[1])].bMask=true; }
-        else if (trigger.triggerName == "mask_off"){ quads[ofToInt(triggerParts[1])].bMask=false; }
-        else if (trigger.triggerName == "mask_invert_on"){ quads[ofToInt(triggerParts[1])].maskInvert=true; }
-        else if (trigger.triggerName == "mask_invert_off"){ quads[ofToInt(triggerParts[1])].maskInvert=false; }
+        string tlMsg = trigger.triggerName;
+        int tlQuad = ofToInt(triggerParts[1]);
+
+	    if (tlMsg == "on"){ quads[tlQuad].isOn=true; }
+        else if (tlMsg == "off"){ quads[tlQuad].isOn=false; }
+	    else if(tlMsg == "img_on"){ quads[tlQuad].imgBg=true; }
+	    else if (tlMsg == "img_off"){ quads[tlQuad].imgBg=false; }
+        else if (tlMsg == "col_on"){ quads[tlQuad].colorBg=true; }
+        else if (tlMsg == "col_off"){ quads[tlQuad].colorBg=false; }
+        else if (tlMsg == "video_on"){ quads[tlQuad].videoBg=true; }
+        else if (tlMsg == "video_off"){ quads[tlQuad].videoBg=false; }
+        else if (tlMsg == "slide_on"){ quads[tlQuad].slideshowBg=true; }
+        else if (tlMsg == "slide_off"){ quads[tlQuad].slideshowBg=false; }
+        else if (tlMsg == "slide_new"){ quads[tlQuad].currentSlide+=1; }
+        else if (tlMsg == "cam_on"){ quads[tlQuad].camBg=true; }
+        else if (tlMsg == "cam_off"){ quads[tlQuad].camBg=false; }
+        else if (tlMsg == "kinect_on"){ quads[tlQuad].kinectBg=true; }
+        else if (tlMsg == "kinect_off"){ quads[tlQuad].kinectBg=false; }
+        else if (tlMsg == "mask_on"){ quads[tlQuad].bMask=true; }
+        else if (tlMsg == "mask_off"){ quads[tlQuad].bMask=false; }
+        else if (tlMsg == "mask_invert_on"){ quads[tlQuad].maskInvert=true; }
+        else if (tlMsg == "mask_invert_off"){ quads[tlQuad].maskInvert=false; }
     }
 }
 
