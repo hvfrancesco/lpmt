@@ -5,15 +5,15 @@ void testApp::timelineSetup(float duration){
 
     timeline.setup();
 
-	timeline.setPageName("0"); //changes the first page name
-	timeline.addKeyframes("red_0", "0_red.xml", ofRange(0, 1.0));
-	timeline.addKeyframes("green_0", "0_green.xml", ofRange(0, 1.0));
-	timeline.addKeyframes("blu_0", "0_blu.xml", ofRange(0, 1.0));
-	timeline.addKeyframes("alpha_0", "0_alpha.xml", ofRange(0, 1.0));
-	timeline.addTriggers("trigger_0", "0_trigger.xml");
+	timeline.setPageName("main"); //changes the first page name
+	//timeline.addKeyframes("red_0", "0_red.xml", ofRange(0, 1.0));
+	//timeline.addKeyframes("green_0", "0_green.xml", ofRange(0, 1.0));
+	//timeline.addKeyframes("blu_0", "0_blu.xml", ofRange(0, 1.0));
+	//timeline.addKeyframes("alpha_0", "0_alpha.xml", ofRange(0, 1.0));
+	timeline.addTriggers("trigger_main", "main_trigger.xml");
 
 
-    for(int i = 1; i < 4; i++)
+    for(int i = 0; i < 4; i++)
     {
         timelineAddQuadPage(i);
     }
@@ -57,6 +57,8 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
 	//cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
         string tlMsg = trigger.triggerName;
+        if(triggerParts[1] != "main")
+        {
         int tlQuad = ofToInt(triggerParts[1]);
 
 	    if (tlMsg == "on"){ quads[tlQuad].isOn=true; }
@@ -78,6 +80,7 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (tlMsg == "mask_off"){ quads[tlQuad].bMask=false; }
         else if (tlMsg == "mask_invert_on"){ quads[tlQuad].maskInvert=true; }
         else if (tlMsg == "mask_invert_off"){ quads[tlQuad].maskInvert=false; }
+        }
     }
 }
 
