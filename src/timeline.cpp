@@ -6,10 +6,6 @@ void testApp::timelineSetup(float duration){
     timeline.setup();
 
 	timeline.setPageName("main"); //changes the first page name
-	//timeline.addKeyframes("red_0", "0_red.xml", ofRange(0, 1.0));
-	//timeline.addKeyframes("green_0", "0_green.xml", ofRange(0, 1.0));
-	//timeline.addKeyframes("blu_0", "0_blu.xml", ofRange(0, 1.0));
-	//timeline.addKeyframes("alpha_0", "0_alpha.xml", ofRange(0, 1.0));
 	timeline.addTriggers("trigger_main", "main_trigger.xml");
 
 
@@ -57,9 +53,19 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
 	//cout << "Trigger from " << ofToInt(triggerParts[1]) << " says " << trigger.triggerName << endl;
 
         string tlMsg = trigger.triggerName;
+        string tlMsgParameter = "";
+
         if(triggerParts[1] != "main")
         {
         int tlQuad = ofToInt(triggerParts[1]);
+
+        //check if we have a message with a parameter, parameters are given using a colon ':' as separator
+        if (ofIsStringInString(tlMsg,":"))
+        {
+            vector<string> tlMsgParts = ofSplitString(tlMsg, ":", true, true);
+            tlMsg = tlMsgParts[0];
+            tlMsgParameter = tlMsgParts[1];
+        }
 
 	    if (tlMsg == "on"){ quads[tlQuad].isOn=true; }
         else if (tlMsg == "off"){ quads[tlQuad].isOn=false; }
@@ -72,6 +78,7 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (tlMsg == "slide_on"){ quads[tlQuad].slideshowBg=true; }
         else if (tlMsg == "slide_off"){ quads[tlQuad].slideshowBg=false; }
         else if (tlMsg == "slide_new"){ quads[tlQuad].currentSlide+=1; }
+        else if (tlMsg == "slide_num" && tlMsgParameter != ""){ quads[tlQuad].currentSlide=ofToInt(tlMsgParameter); }
         else if (tlMsg == "cam_on"){ quads[tlQuad].camBg=true; }
         else if (tlMsg == "cam_off"){ quads[tlQuad].camBg=false; }
         else if (tlMsg == "kinect_on"){ quads[tlQuad].kinectBg=true; }
@@ -80,6 +87,11 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (tlMsg == "mask_off"){ quads[tlQuad].bMask=false; }
         else if (tlMsg == "mask_invert_on"){ quads[tlQuad].maskInvert=true; }
         else if (tlMsg == "mask_invert_off"){ quads[tlQuad].maskInvert=false; }
+        else { cout << "unknown trigger command '" << tlMsg << "' on surface " << tlQuad << endl;}
+        }
+        else
+        {
+          // main timeline page
         }
     }
 }
