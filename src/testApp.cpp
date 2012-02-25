@@ -1571,8 +1571,25 @@ void testApp::setXml()
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:ON",quads[i].edgeBlendBool);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:EXPONENT",quads[i].edgeBlendExponent);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:GAMMA",quads[i].edgeBlendGamma);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:LUMINANCE", quads[i].edgeBlendLuminance);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:SIN",quads[i].edgeBlendAmountSin);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:DX",quads[i].edgeBlendAmountDx);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:TOP",quads[i].edgeBlendAmountTop);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:BOTTOM",quads[i].edgeBlendAmountBottom);
+
+            //mask stuff
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:ON",quads[i].bMask);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:INVERT_MASK",quads[i].maskInvert);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:N_POINTS",(int)quads[i].maskPoints.size());
+            if (quads[i].maskPoints.size() > 0)
+            {
+                for(int j=0; j<quads[i].maskPoints.size(); j++)
+                {
+                    XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":X",quads[i].maskPoints[j].x);
+                    XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":Y",quads[i].maskPoints[j].y);
+                }
+            }
+
         }
     }
 }
@@ -1684,8 +1701,29 @@ void testApp::getXml()
         quads[i].edgeBlendBool = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:ON", 0);
         quads[i].edgeBlendExponent = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:EXPONENT", 1.0);
         quads[i].edgeBlendGamma = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:GAMMA", 1.8);
+        quads[i].edgeBlendLuminance = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:LUMINANCE", 0.0);
         quads[i].edgeBlendAmountSin = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:SIN", 0.3);
         quads[i].edgeBlendAmountDx = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:DX", 0.3);
+        quads[i].edgeBlendAmountTop = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:TOP", 0.0);
+        quads[i].edgeBlendAmountBottom = XML.getValue("QUADS:QUAD_"+ofToString(i)+":EDGE_BLENDING:AMOUNT:BOTTOM", 0.0);
+
+        //mask stuff
+        quads[i].bMask = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:ON", 0);
+        quads[i].maskInvert = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:INVERT_MASK", 0);
+        int nOfMaskPoints =  XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:N_POINTS", 0);
+        quads[i].maskPoints.clear();
+        if (nOfMaskPoints > 0)
+        {
+            for(int j=0; j<nOfMaskPoints; j++)
+            {
+                ofPoint tempMaskPoint;
+                tempMaskPoint.x = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":X", 0);
+                tempMaskPoint.y = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":Y", 0);
+                quads[i].maskPoints.push_back(tempMaskPoint);
+            }
+        }
+
+
 
         quads[i].isOn = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IS_ON",0);
 
