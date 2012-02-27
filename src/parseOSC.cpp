@@ -63,19 +63,6 @@ void testApp::parseOsc()
 	quads[activeQuad].corners[3].y = osc_coord_y;
     }
 
-    // change active quad
-    else if ( m.getAddress() == "/active/set" )
-    {
-        // argument is int32
-        int osc_activequad = m.getArgAsInt32( 0 );
-        if (osc_activequad <= nOfQuads-1)
-        {
-            quads[activeQuad].isActive = False;
-            activeQuad = osc_activequad;
-            quads[activeQuad].isActive = True;
-            gui.setPage((activeQuad*3)+2);
-        }
-    }
 
     // resync
     else if ( m.getAddress() == "/projection/resync" )
@@ -172,10 +159,66 @@ void testApp::parseOsc()
         mpeSetup();
     }
 
+//------------------------------------------------------
+// active quad stuff
+//------------------------------------------------------
+
+    // change active quad
+    else if ( m.getAddress() == "/active/set" )
+    {
+        // argument is int32
+        int osc_activequad = m.getArgAsInt32( 0 );
+        if (osc_activequad <= nOfQuads-1)
+        {
+            quads[activeQuad].isActive = False;
+            activeQuad = osc_activequad;
+            quads[activeQuad].isActive = True;
+            gui.setPage((activeQuad*3)+2);
+        }
+    }
+
+    // on/off
+    else if ( m.getAddress() == "/active/show" )
+    {
+        // argument is int32
+        int osc_quad_isOn = m.getArgAsInt32( 0 );
+        if(osc_quad_isOn == 0) {quads[activeQuad].isOn = false;}
+        else if(osc_quad_isOn == 1) {quads[activeQuad].isOn = true;}
+    }
+
+
+
     // img stuff on active quad
     else if ( m.getAddress() == "/active/img" )
     {
         quads[activeQuad].imgBg = !quads[activeQuad].imgBg;
+    }
+
+    // img on/off
+    else if ( m.getAddress() == "/active/img/show" )
+    {
+        // argument is int32
+        int osc_quad_imgBg = m.getArgAsInt32( 0 );
+        if(osc_quad_imgBg == 0) {quads[activeQuad].imgBg = false;}
+        else if(osc_quad_imgBg == 1) {quads[activeQuad].imgBg = true;}
+    }
+
+    // img HFlip
+    else if ( m.getAddress() == "/active/img/hmirror" )
+    {
+        // argument is int32
+        int osc_quad_imgHFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_imgHFlip == 0) {quads[activeQuad].imgHFlip = false;}
+        else if(osc_quad_imgHFlip == 1) {quads[activeQuad].imgHFlip = true;}
+    }
+
+    // img VFlip
+    else if ( m.getAddress() == "/active/img/vmirror" )
+    {
+        // argument is int32
+        int osc_quad_imgVFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_imgVFlip == 0) {quads[activeQuad].imgVFlip = false;}
+        else if(osc_quad_imgVFlip == 1) {quads[activeQuad].imgVFlip = true;}
     }
 
     else if ( m.getAddress() == "/active/img/color" )
@@ -233,10 +276,37 @@ void testApp::parseOsc()
         quads[activeQuad].imgMultY = img_mult_y;
     }
 
+
+    // blendModes on/off
+    else if ( m.getAddress() == "/active/blendmodes/show" )
+    {
+        // argument is int32
+        int osc_quad_bBlendModes = m.getArgAsInt32( 0 );
+        if(osc_quad_bBlendModes == 0) {quads[activeQuad].bBlendModes = false;}
+        else if(osc_quad_bBlendModes == 1) {quads[activeQuad].bBlendModes = true;}
+    }
+
+    // blendModes mode
+    else if ( m.getAddress() == "/active/blendmodes/mode" )
+    {
+        // argument is int32
+        int osc_quad_blendMode = m.getArgAsInt32( 0 );
+        if(osc_quad_blendMode < 4) {quads[activeQuad].blendMode = osc_quad_blendMode;}
+    }
+
     // solid color stuff
     else if ( m.getAddress() == "/active/solid" )
     {
         quads[activeQuad].colorBg = !quads[activeQuad].colorBg;
+    }
+
+    // solid on/off
+    else if ( m.getAddress() == "/active/solid/show" )
+    {
+        // argument is int32
+        int osc_quad_colorBg = m.getArgAsInt32( 0 );
+        if(osc_quad_colorBg == 0) {quads[activeQuad].colorBg = false;}
+        else if(osc_quad_colorBg == 1) {quads[activeQuad].colorBg = true;}
     }
 
     else if ( m.getAddress() == "/active/solid/color" )
@@ -283,6 +353,15 @@ void testApp::parseOsc()
     else if ( m.getAddress() == "/active/solid/trans" )
     {
         quads[activeQuad].transBg = !quads[activeQuad].transBg;
+    }
+
+    // trans on/off
+    else if ( m.getAddress() == "/active/solid/trans/show" )
+    {
+        // argument is int32
+        int osc_quad_transBg = m.getArgAsInt32( 0 );
+        if(osc_quad_transBg == 0) {quads[activeQuad].transBg = false;}
+        else if(osc_quad_transBg == 1) {quads[activeQuad].transBg = true;}
     }
 
     else if ( m.getAddress() == "/active/solid/trans/color" )
@@ -333,10 +412,44 @@ void testApp::parseOsc()
         quads[activeQuad].transDuration = trans_duration;
     }
 
+
+    // mask stuff on active quad
+    else if ( m.getAddress() == "/active/mask" )
+    {
+        quads[activeQuad].bMask = !quads[activeQuad].bMask;
+    }
+
+    // mask on/off
+    else if ( m.getAddress() == "/active/mask/show" )
+    {
+        // argument is int32
+        int osc_quad_bMask = m.getArgAsInt32( 0 );
+        if(osc_quad_bMask == 0) {quads[activeQuad].bMask = false;}
+        else if(osc_quad_bMask == 1) {quads[activeQuad].bMask = true;}
+    }
+
+    // mask invert
+    else if ( m.getAddress() == "/active/mask/invert" )
+    {
+        // argument is int32
+        int osc_quad_maskInvert = m.getArgAsInt32( 0 );
+        if(osc_quad_maskInvert == 0) {quads[activeQuad].maskInvert = false;}
+        else if(osc_quad_maskInvert == 1) {quads[activeQuad].maskInvert = true;}
+    }
+
     // img stuff on active quad
     else if ( m.getAddress() == "/active/video" )
     {
         quads[activeQuad].videoBg = !quads[activeQuad].videoBg;
+    }
+
+    // video on/off
+    else if ( m.getAddress() == "/active/video/show" )
+    {
+        // argument is int32
+        int osc_quad_videoBg = m.getArgAsInt32( 0 );
+        if(osc_quad_videoBg == 0) {quads[activeQuad].videoBg = false;}
+        else if(osc_quad_videoBg == 1) {quads[activeQuad].videoBg = true;}
     }
 
     else if ( m.getAddress() == "/active/video/color" )
