@@ -1,3 +1,5 @@
+#include "testApp.h"
+
 //--------------------------------------------------------------
 void testApp::parseOsc()
 {
@@ -68,7 +70,9 @@ void testApp::parseOsc()
         int osc_activequad = m.getArgAsInt32( 0 );
         if (osc_activequad <= nOfQuads-1)
         {
+            quads[activeQuad].isActive = False;
             activeQuad = osc_activequad;
+            quads[activeQuad].isActive = True;
             gui.setPage((activeQuad*3)+2);
         }
     }

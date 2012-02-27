@@ -17,6 +17,7 @@
 #include "ofxMostPixelsEver.h"
 #include "ofxOsc.h"
 #include "ofxTimeline.h"
+#include "ofxSimpleGuiToo.h"
 
 class testApp : public ofBaseApp
 {

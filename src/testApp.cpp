@@ -1,15 +1,12 @@
 #include "testApp.h"
 #include "stdio.h"
 #include <iostream>
-#include "ofxSimpleGuiToo.h"
 
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
 #include <vector>
 #include <string>
-
-#include "parseOSC.h"
 
 
 using namespace std;

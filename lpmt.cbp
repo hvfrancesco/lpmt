@@ -264,8 +264,8 @@
 		<Unit filename="src/markers.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>
-		<Unit filename="src/parseOSC.h">
-			<Option virtualFolder="src" />
+		<Unit filename="src/parseOSC.cpp">
+			<Option virtualFolder="src/" />
 		</Unit>
 		<Unit filename="src/quad.cpp">
 			<Option virtualFolder="src" />
