@@ -437,7 +437,177 @@ void testApp::parseOsc()
         else if(osc_quad_maskInvert == 1) {quads[activeQuad].maskInvert = true;}
     }
 
-    // img stuff on active quad
+    // deform stuff
+
+    // deform on/off
+    else if ( m.getAddress() == "/active/deform/show" )
+    {
+        // argument is int32
+        int osc_quad_bDeform = m.getArgAsInt32( 0 );
+        if(osc_quad_bDeform == 0) {quads[activeQuad].bDeform = false;}
+        else if(osc_quad_bDeform == 1) {quads[activeQuad].bDeform = true;}
+    }
+
+    // deform bezier
+    else if ( m.getAddress() == "/active/deform/bezier" )
+    {
+        // argument is int32
+        int osc_quad_bBezier = m.getArgAsInt32( 0 );
+        if(osc_quad_bBezier == 0) {quads[activeQuad].bBezier = false;}
+        else if(osc_quad_bBezier == 1) {quads[activeQuad].bBezier = true;}
+    }
+
+    // deform grid
+    else if ( m.getAddress() == "/active/deform/grid" )
+    {
+        // argument is int32
+        int osc_quad_bGrid = m.getArgAsInt32( 0 );
+        if(osc_quad_bGrid == 0) {quads[activeQuad].bGrid = false;}
+        else if(osc_quad_bGrid == 1) {quads[activeQuad].bGrid = true;}
+    }
+
+    // deform grid rows
+    else if ( m.getAddress() == "/active/deform/grid/rows" )
+    {
+        // argument is int32
+        int osc_quad_gridRows = m.getArgAsInt32( 0 );
+        if(osc_quad_gridRows >= 2 && osc_quad_gridRows <= 15) {quads[activeQuad].gridRows = osc_quad_gridRows;}
+    }
+
+    // deform grid columns
+    else if ( m.getAddress() == "/active/deform/grid/columns" )
+    {
+        // argument is int32
+        int osc_quad_gridColumns = m.getArgAsInt32( 0 );
+        if(osc_quad_gridColumns >= 2 && osc_quad_gridColumns <= 20) {quads[activeQuad].gridColumns = osc_quad_gridColumns;}
+    }
+
+    // edge-blend stuff
+    // edge-blend on/off
+    else if ( m.getAddress() == "/active/edgeblend/show" )
+    {
+        // argument is int32
+        int osc_quad_edgeBlendBool = m.getArgAsInt32( 0 );
+        if(osc_quad_edgeBlendBool == 0) {quads[activeQuad].edgeBlendBool = false;}
+        else if(osc_quad_edgeBlendBool == 1) {quads[activeQuad].edgeBlendBool = true;}
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/power" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendExponent = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendExponent = osc_quad_edgeBlendExponent;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/gamma" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendGamma = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendGamma = osc_quad_edgeBlendGamma;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/luminance" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendLuminance = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendLuminance = osc_quad_edgeBlendLuminance;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/amount/left" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendAmountSin = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendAmountSin = osc_quad_edgeBlendAmountSin;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/amount/right" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendAmountDx = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendAmountDx = osc_quad_edgeBlendAmountDx;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/amount/top" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendAmountTop = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendAmountTop = osc_quad_edgeBlendAmountTop;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/amount/bottom" )
+    {
+        // argument is float
+        float osc_quad_edgeBlendAmountBottom = m.getArgAsFloat( 0 );
+        quads[activeQuad].edgeBlendAmountBottom = osc_quad_edgeBlendAmountBottom;
+    }
+
+    else if ( m.getAddress() == "/active/edgeblend/amount" )
+    {
+        // argument is ffff
+        float osc_quad_edgeBlendAmountTop = m.getArgAsFloat( 0 );
+        float osc_quad_edgeBlendAmountDx = m.getArgAsFloat( 1 );
+        float osc_quad_edgeBlendAmountBottom = m.getArgAsFloat( 2 );
+        float osc_quad_edgeBlendAmountSin = m.getArgAsFloat( 3 );
+        quads[activeQuad].edgeBlendAmountTop = osc_quad_edgeBlendAmountTop;
+        quads[activeQuad].edgeBlendAmountDx = osc_quad_edgeBlendAmountDx;
+        quads[activeQuad].edgeBlendAmountBottom = osc_quad_edgeBlendAmountBottom;
+        quads[activeQuad].edgeBlendAmountSin = osc_quad_edgeBlendAmountSin;
+    }
+
+    // content displacement
+    // displacement X
+    else if ( m.getAddress() == "/active/placement/x" )
+    {
+        // argument is int32
+        int osc_quad_quadDispX = m.getArgAsInt32( 0 );
+        quads[activeQuad].quadDispX = osc_quad_quadDispX;
+    }
+
+    // displacement Y
+    else if ( m.getAddress() == "/active/placement/y" )
+    {
+        // argument is int32
+        int osc_quad_quadDispY = m.getArgAsInt32( 0 );
+        quads[activeQuad].quadDispY = osc_quad_quadDispY;
+    }
+
+    // displacement XY
+    else if ( m.getAddress() == "/active/placement" )
+    {
+        // argument is int32 int32
+        int osc_quad_quadDispX = m.getArgAsInt32( 0 );
+        int osc_quad_quadDispY = m.getArgAsInt32( 1 );
+        quads[activeQuad].quadDispX = osc_quad_quadDispX;
+        quads[activeQuad].quadDispY = osc_quad_quadDispY;
+    }
+
+    // displacement W
+    else if ( m.getAddress() == "/active/placement/w" )
+    {
+        // argument is int32
+        int osc_quad_quadW = m.getArgAsInt32( 0 );
+        quads[activeQuad].quadW = osc_quad_quadW;
+    }
+
+    // displacement H
+    else if ( m.getAddress() == "/active/placement/h" )
+    {
+        // argument is int32
+        int osc_quad_quadH = m.getArgAsInt32( 0 );
+        quads[activeQuad].quadH = osc_quad_quadH;
+    }
+
+    // displacement WH
+    else if ( m.getAddress() == "/active/placement/dimensions" )
+    {
+        // argument is int32 int32
+        int osc_quad_quadW = m.getArgAsInt32( 0 );
+        int osc_quad_quadH = m.getArgAsInt32( 1 );
+        quads[activeQuad].quadW = osc_quad_quadW;
+        quads[activeQuad].quadH = osc_quad_quadH;
+    }
+
+    // video stuff on active quad
     else if ( m.getAddress() == "/active/video" )
     {
         quads[activeQuad].videoBg = !quads[activeQuad].videoBg;
@@ -451,6 +621,26 @@ void testApp::parseOsc()
         if(osc_quad_videoBg == 0) {quads[activeQuad].videoBg = false;}
         else if(osc_quad_videoBg == 1) {quads[activeQuad].videoBg = true;}
     }
+
+    // video HFlip
+    else if ( m.getAddress() == "/active/video/hmirror" )
+    {
+        // argument is int32
+        int osc_quad_videoHFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_videoHFlip == 0) {quads[activeQuad].videoHFlip = false;}
+        else if(osc_quad_videoHFlip == 1) {quads[activeQuad].videoHFlip = true;}
+    }
+
+    // video VFlip
+    else if ( m.getAddress() == "/active/video/vmirror" )
+    {
+        // argument is int32
+        int osc_quad_videoVFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_videoVFlip == 0) {quads[activeQuad].videoVFlip = false;}
+        else if(osc_quad_videoVFlip == 1) {quads[activeQuad].videoVFlip = true;}
+    }
+
+
 
     else if ( m.getAddress() == "/active/video/color" )
     {
@@ -521,6 +711,278 @@ void testApp::parseOsc()
         quads[activeQuad].videoVolume = video_volume;
     }
 
+    // video loop
+    else if ( m.getAddress() == "/active/video/loop" )
+    {
+        // argument is int32
+        int osc_quad_videoLoop = m.getArgAsInt32( 0 );
+        if(osc_quad_videoLoop == 0) {quads[activeQuad].videoLoop = false;}
+        else if(osc_quad_videoLoop == 1) {quads[activeQuad].videoLoop = true;}
+    }
+
+    // video greenscreen
+    else if ( m.getAddress() == "/active/video/greenscreen" )
+    {
+        // argument is int32
+        int osc_quad_videoGreenscreen = m.getArgAsInt32( 0 );
+        if(osc_quad_videoGreenscreen == 0) {quads[activeQuad].videoGreenscreen = false;}
+        else if(osc_quad_videoGreenscreen == 1) {quads[activeQuad].videoGreenscreen = true;}
+    }
+
+    // camera stuff
+
+    else if ( m.getAddress() == "/active/cam" )
+    {
+        quads[activeQuad].camBg = !quads[activeQuad].camBg;
+    }
+
+    // video on/off
+    else if ( m.getAddress() == "/active/cam/show" )
+    {
+        // argument is int32
+        int osc_quad_camBg = m.getArgAsInt32( 0 );
+        if(osc_quad_camBg == 0) {quads[activeQuad].camBg = false;}
+        else if(osc_quad_camBg == 1) {quads[activeQuad].camBg = true;}
+    }
+
+    // video HFlip
+    else if ( m.getAddress() == "/active/cam/hmirror" )
+    {
+        // argument is int32
+        int osc_quad_camHFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_camHFlip == 0) {quads[activeQuad].camHFlip = false;}
+        else if(osc_quad_camHFlip == 1) {quads[activeQuad].camHFlip = true;}
+    }
+
+    // video VFlip
+    else if ( m.getAddress() == "/active/cam/vmirror" )
+    {
+        // argument is int32
+        int osc_quad_camVFlip = m.getArgAsInt32( 0 );
+        if(osc_quad_camVFlip == 0) {quads[activeQuad].camVFlip = false;}
+        else if(osc_quad_camVFlip == 1) {quads[activeQuad].camVFlip = true;}
+    }
+
+
+    else if ( m.getAddress() == "/active/cam/color" )
+    {
+        // arguments are ffff
+        float cam_color_r = m.getArgAsFloat( 0 );
+        float cam_color_g = m.getArgAsFloat( 1 );
+        float cam_color_b = m.getArgAsFloat( 2 );
+        float cam_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].camColorize.r = cam_color_r;
+        quads[activeQuad].camColorize.g = cam_color_g;
+        quads[activeQuad].camColorize.b = cam_color_b;
+        quads[activeQuad].camColorize.a = cam_color_a;
+    }
+
+    else if ( m.getAddress() == "/active/cam/color/1" )
+    {
+        // arguments are f
+        float cam_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].camColorize.r = cam_color_r;
+    }
+
+    else if ( m.getAddress() == "/active/cam/color/2" )
+    {
+        // arguments are f
+        float cam_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].camColorize.g = cam_color_g;
+    }
+
+    else if ( m.getAddress() == "/active/cam/color/3" )
+    {
+        // arguments are f
+        float cam_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].camColorize.b = cam_color_b;
+    }
+
+    else if ( m.getAddress() == "/active/cam/color/4" )
+    {
+        // arguments are f
+        float cam_color_a = m.getArgAsFloat( 0 );
+        quads[activeQuad].camColorize.a = cam_color_a;
+    }
+
+    else if ( m.getAddress() == "/active/cam/mult/x" )
+    {
+        // arguments are f
+        float cam_mult_x = m.getArgAsFloat( 0 );
+        quads[activeQuad].camMultX = cam_mult_x;
+    }
+
+    else if ( m.getAddress() == "/active/cam/mult/y" )
+    {
+        // arguments are f
+        float cam_mult_y = m.getArgAsFloat( 0 );
+        quads[activeQuad].camMultY = cam_mult_y;
+    }
+
+
+    // cam greenscreen
+    else if ( m.getAddress() == "/active/cam/greenscreen" )
+    {
+        // argument is int32
+        int osc_quad_camGreenscreen = m.getArgAsInt32( 0 );
+        if(osc_quad_camGreenscreen == 0) {quads[activeQuad].camGreenscreen = false;}
+        else if(osc_quad_camGreenscreen == 1) {quads[activeQuad].camGreenscreen = true;}
+    }
+
+    // greenscreen stuff
+
+    // greenscreen threshold
+    else if ( m.getAddress() == "/active/greenscreen/threshold" )
+    {
+        // argument is int32
+        int osc_quad_thresholdGreenscreen = m.getArgAsInt32( 0 );
+        quads[activeQuad].thresholdGreenscreen = osc_quad_thresholdGreenscreen;
+    }
+
+    else if ( m.getAddress() == "/active/greenscreen/color" )
+    {
+        // arguments are ffff
+        float greenscreen_color_r = m.getArgAsFloat( 0 );
+        float greenscreen_color_g = m.getArgAsFloat( 1 );
+        float greenscreen_color_b = m.getArgAsFloat( 2 );
+        float greenscreen_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].colorGreenscreen.r = greenscreen_color_r;
+        quads[activeQuad].colorGreenscreen.g = greenscreen_color_g;
+        quads[activeQuad].colorGreenscreen.b = greenscreen_color_b;
+        quads[activeQuad].colorGreenscreen.a = greenscreen_color_a;
+    }
+
+    else if ( m.getAddress() == "/active/greenscreen/color/1" )
+    {
+        // arguments are f
+        float greenscreen_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].colorGreenscreen.r = greenscreen_color_r;
+    }
+
+    else if ( m.getAddress() == "/active/greenscreen/color/2" )
+    {
+        // arguments are f
+        float greenscreen_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].colorGreenscreen.g = greenscreen_color_g;
+    }
+
+    else if ( m.getAddress() == "/active/greenscreen/color/3" )
+    {
+        // arguments are f
+        float greenscreen_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].colorGreenscreen.b = greenscreen_color_b;
+    }
+
+    else if ( m.getAddress() == "/active/greenscreen/color/4" )
+    {
+        // arguments are f
+        float greenscreen_color_a = m.getArgAsFloat( 0 );
+        quads[activeQuad].colorGreenscreen.a = greenscreen_color_a;
+    }
+
+    // slideshow stuff
+
+    else if ( m.getAddress() == "/active/slideshow" )
+    {
+        quads[activeQuad].slideshowBg = !quads[activeQuad].slideshowBg;
+    }
+
+    // slideshow on/off
+    else if ( m.getAddress() == "/active/slideshow/show" )
+    {
+        // argument is int32
+        int osc_quad_slideshowBg = m.getArgAsInt32( 0 );
+        if(osc_quad_slideshowBg == 0) {quads[activeQuad].slideshowBg = false;}
+        else if(osc_quad_slideshowBg == 1) {quads[activeQuad].slideshowBg = true;}
+    }
+
+    else if ( m.getAddress() == "/active/slideshow/folder" )
+    {
+        // argument is int32
+        int osc_quad_bgSlideshow = m.getArgAsInt32( 0 );
+        if(osc_quad_bgSlideshow <= slideshowFolders.size()) {quads[activeQuad].bgSlideshow = osc_quad_bgSlideshow;}
+    }
+
+    else if ( m.getAddress() == "/active/slideshow/fit" )
+    {
+        // argument is int32
+        int osc_quad_slideFit = m.getArgAsInt32( 0 );
+        if(osc_quad_slideFit == 0) {quads[activeQuad].slideFit = false;}
+        else if(osc_quad_slideFit == 1) {quads[activeQuad].slideFit = true;}
+    }
+
+    else if ( m.getAddress() == "/active/slideshow/keep_aspect" )
+    {
+        // argument is int32
+        int osc_quad_slideKeepAspect = m.getArgAsInt32( 0 );
+        if(osc_quad_slideKeepAspect == 0) {quads[activeQuad].slideKeepAspect = false;}
+        else if(osc_quad_slideKeepAspect == 1) {quads[activeQuad].slideKeepAspect = true;}
+    }
+
+    else if ( m.getAddress() == "/active/slideshow/duration" )
+    {
+        // arguments are f
+        float osc_quad_slideshowSpeed = m.getArgAsFloat( 0 );
+        quads[activeQuad].slideshowSpeed = osc_quad_slideshowSpeed;
+    }
+
+
+    // kinect stuff
+    else if ( m.getAddress() == "/active/kinect" )
+    {
+        quads[activeQuad].kinectBg = !quads[activeQuad].kinectBg;
+    }
+
+    // slideshow on/off
+    else if ( m.getAddress() == "/active/kinect/show" )
+    {
+        // argument is int32
+        int osc_quad_kinectBg = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectBg == 0) {quads[activeQuad].kinectBg = false;}
+        else if(osc_quad_kinectBg == 1) {quads[activeQuad].kinectBg = true;}
+    }
+
+    // kinect image
+    else if ( m.getAddress() == "/active/kinect/show/image" )
+    {
+        // argument is int32
+        int osc_quad_kinectImg = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectImg == 0) {quads[activeQuad].kinectImg = false;}
+        else if(osc_quad_kinectImg == 1) {quads[activeQuad].kinectImg = true;}
+    }
+
+    // kinect grayscale image
+    else if ( m.getAddress() == "/active/kinect/show/grayscale" )
+    {
+        // argument is int32
+        int osc_quad_getKinectGrayImage = m.getArgAsInt32( 0 );
+        if(osc_quad_getKinectGrayImage == 0) {quads[activeQuad].getKinectGrayImage = false;}
+        else if(osc_quad_getKinectGrayImage == 1) {quads[activeQuad].getKinectGrayImage = true;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/mask" )
+    {
+        // argument is int32
+        int osc_quad_kinectMask = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectMask == 0) {quads[activeQuad].kinectMask = false;}
+        else if(osc_quad_kinectMask == 1) {quads[activeQuad].kinectMask = true;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contours" )
+    {
+        // argument is int32
+        int osc_quad_getKinectContours = m.getArgAsInt32( 0 );
+        if(osc_quad_getKinectContours == 0) {quads[activeQuad].getKinectContours = false;}
+        else if(osc_quad_getKinectContours == 1) {quads[activeQuad].getKinectContours = true;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contours/curves" )
+    {
+        // argument is int32
+        int osc_quad_kinectContourCurved = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectContourCurved == 0) {quads[activeQuad].kinectContourCurved = false;}
+        else if(osc_quad_kinectContourCurved == 1) {quads[activeQuad].kinectContourCurved = true;}
+    }
 
     else
     {
