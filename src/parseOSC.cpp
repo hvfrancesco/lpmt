@@ -1023,7 +1023,7 @@ void testApp::parseOsc()
     {
         // argument is int32
         int osc_quad_kinectBlur = m.getArgAsInt32( 0 );
-        if(osc_quad_kinectBlur >= 0 && osc_quad_kinectAngle <= 10) {quads[activeQuad].kinectBlur = osc_quad_kinectBlur;}
+        if(osc_quad_kinectBlur >= 0 && osc_quad_kinectBlur <= 10) {quads[activeQuad].kinectBlur = osc_quad_kinectBlur;}
     }
 
     else if ( m.getAddress() == "/active/kinect/contour" )
