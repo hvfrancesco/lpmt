@@ -100,7 +100,7 @@ void testApp::parseOsc()
     }
 
     // toggle fullscreen
-    else if ( m.getAddress() == "/projection/fullscreen" )
+    else if ( m.getAddress() == "/projection/fullscreen/toggle" )
     {
         bFullscreen = !bFullscreen;
 
@@ -119,15 +119,74 @@ void testApp::parseOsc()
         }
     }
 
+    else if ( m.getAddress() == "/projection/fullscreen/on" )
+    {
+        bFullscreen = true;
+        ofSetFullscreen(true);
+    }
+
+    else if ( m.getAddress() == "/projection/fullscreen/off" )
+    {
+        bFullscreen = false;
+        ofSetWindowShape(WINDOW_W, WINDOW_H);
+        ofSetFullscreen(false);
+        // figure out how to put the window in the center:
+        int screenW = ofGetScreenWidth();
+        int screenH = ofGetScreenHeight();
+        ofSetWindowPosition(screenW/2-WINDOW_W/2, screenH/2-WINDOW_H/2);
+    }
+
     // toggle gui
-    else if ( m.getAddress() == "/gui" )
+    else if ( m.getAddress() == "/projection/gui/toggle" )
     {
         gui.toggleDraw();
         bGui = !bGui;
     }
 
+    else if ( m.getAddress() == "/projection/mode/masksetup/toggle" )
+    {
+        if (!bGui){
+        maskSetup = !maskSetup;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isMaskSetup = !quads[i].isMaskSetup;
+                }
+            }
+        }
+    }
+
+    else if ( m.getAddress() == "/projection/mode/masksetup/on" )
+    {
+        if (!bGui){
+        maskSetup = true;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isMaskSetup = true;
+                }
+            }
+        }
+    }
+
+    else if ( m.getAddress() == "/projection/mode/masksetup/off" )
+    {
+        if (!bGui){
+        maskSetup = false;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isMaskSetup = false;
+                }
+            }
+        }
+    }
+
     // toggle setup
-    else if ( m.getAddress() == "/setup" )
+    else if ( m.getAddress() == "/projection/mode/setup/toggle" )
     {
         if (isSetup)
         {
@@ -153,11 +212,63 @@ void testApp::parseOsc()
         }
     }
 
+    else if ( m.getAddress() == "/projection/mode/setup/on" )
+    {
+        isSetup = True;
+        for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isSetup = True;
+                }
+            }
+    }
+
+    else if ( m.getAddress() == "/projection/mode/setup/off" )
+    {
+        isSetup = False;
+        for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isSetup = False;
+            }
+        }
+    }
+
     // connects to mpe server
-    else if ( m.getAddress() == "/projection/mpe" )
+    else if ( m.getAddress() == "/projection/mpe/connect" )
     {
         mpeSetup();
     }
+
+
+    // timeline stuff
+
+    // use toggle
+    else if ( m.getAddress() == "/projection/timeline/toggle" )
+    {
+        // no argument
+        useTimeline = !useTimeline;
+    }
+
+    // use
+    else if ( m.getAddress() == "/projection/timeline/use" )
+    {
+        // argument is int32
+        int osc_timeline = m.getArgAsInt32( 0 );
+        if(osc_timeline == 0) {useTimeline = false;}
+        else if(osc_timeline == 1) {useTimeline = true;}
+    }
+
+    // timeline duration in seconds
+    else if ( m.getAddress() == "/projection/timeline/duration" )
+    {
+        // argument is float
+        float osc_timelineDurationSeconds = m.getArgAsFloat( 0 );
+        if(osc_timelineDurationSeconds >= 10.0) {timelineDurationSeconds =osc_timelineDurationSeconds;}
+    }
+
 
 //------------------------------------------------------
 // active quad stuff
@@ -186,7 +297,32 @@ void testApp::parseOsc()
         else if(osc_quad_isOn == 1) {quads[activeQuad].isOn = true;}
     }
 
+    // use timeline color
+    else if ( m.getAddress() == "/active/timeline/color" )
+    {
+        // argument is int32
+        int osc_quad_bTimelineColor = m.getArgAsInt32( 0 );
+        if(osc_quad_bTimelineColor == 0) {quads[activeQuad].bTimelineColor = false;}
+        else if(osc_quad_bTimelineColor == 1) {quads[activeQuad].bTimelineColor = true;}
+    }
 
+    // use timeline color
+    else if ( m.getAddress() == "/active/timeline/alpha" )
+    {
+        // argument is int32
+        int osc_quad_bTimelineAlpha = m.getArgAsInt32( 0 );
+        if(osc_quad_bTimelineAlpha == 0) {quads[activeQuad].bTimelineAlpha = false;}
+        else if(osc_quad_bTimelineAlpha == 1) {quads[activeQuad].bTimelineAlpha = true;}
+    }
+
+    // use timeline for slides
+    else if ( m.getAddress() == "/active/timeline/slides" )
+    {
+        // argument is int32
+        int osc_quad_bTimelineSlideChange = m.getArgAsInt32( 0 );
+        if(osc_quad_bTimelineSlideChange == 0) {quads[activeQuad].bTimelineSlideChange = false;}
+        else if(osc_quad_bTimelineSlideChange == 1) {quads[activeQuad].bTimelineSlideChange = true;}
+    }
 
     // img stuff on active quad
     else if ( m.getAddress() == "/active/img" )
@@ -201,6 +337,13 @@ void testApp::parseOsc()
         int osc_quad_imgBg = m.getArgAsInt32( 0 );
         if(osc_quad_imgBg == 0) {quads[activeQuad].imgBg = false;}
         else if(osc_quad_imgBg == 1) {quads[activeQuad].imgBg = true;}
+    }
+
+    // img load
+    else if ( m.getAddress() == "/active/img/load" )
+    {
+        // no argument
+        openImageFile();
     }
 
     // img HFlip
@@ -457,6 +600,24 @@ void testApp::parseOsc()
         else if(osc_quad_bBezier == 1) {quads[activeQuad].bBezier = true;}
     }
 
+    else if ( m.getAddress() == "/active/deform/bezier/spherize/light" )
+    {
+        // no argument
+        quadBezierSpherize(activeQuad);
+    }
+
+    else if ( m.getAddress() == "/active/deform/bezier/spherize/strong" )
+    {
+        // no argument
+        quadBezierSpherizeStrong(activeQuad);
+    }
+
+   else if ( m.getAddress() == "/active/deform/bezier/reset" )
+    {
+        // no argument
+        quadBezierReset(activeQuad);
+    }
+
     // deform grid
     else if ( m.getAddress() == "/active/deform/grid" )
     {
@@ -607,6 +768,14 @@ void testApp::parseOsc()
         quads[activeQuad].quadH = osc_quad_quadH;
     }
 
+    // displacement reset
+    else if ( m.getAddress() == "/active/placement/reset" )
+    {
+        // no argument
+        quadDimensionsReset(activeQuad);
+        quadPlacementReset(activeQuad);
+    }
+
     // video stuff on active quad
     else if ( m.getAddress() == "/active/video" )
     {
@@ -620,6 +789,13 @@ void testApp::parseOsc()
         int osc_quad_videoBg = m.getArgAsInt32( 0 );
         if(osc_quad_videoBg == 0) {quads[activeQuad].videoBg = false;}
         else if(osc_quad_videoBg == 1) {quads[activeQuad].videoBg = true;}
+    }
+
+    // video load
+    else if ( m.getAddress() == "/active/video/load" )
+    {
+        // no argument
+        openVideoFile();
     }
 
     // video HFlip
@@ -942,6 +1118,19 @@ void testApp::parseOsc()
         else if(osc_quad_kinectBg == 1) {quads[activeQuad].kinectBg = true;}
     }
 
+    else if ( m.getAddress() == "/active/kinect/open" )
+    {
+        // no argument
+        kinect.kinect.open();
+    }
+
+    else if ( m.getAddress() == "/active/kinect/close" )
+    {
+        // no argument
+        kinect.kinect.setCameraTiltAngle(0);
+        kinect.kinect.close();
+    }
+
     // kinect image
     else if ( m.getAddress() == "/active/kinect/show/image" )
     {
@@ -1119,8 +1308,6 @@ void testApp::parseOsc()
         float kinect_color_a = m.getArgAsFloat( 0 );
         quads[activeQuad].kinectColorize.a = kinect_color_a;
     }
-
-
 
 
     else
