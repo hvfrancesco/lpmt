@@ -968,7 +968,65 @@ void testApp::parseOsc()
         else if(osc_quad_kinectMask == 1) {quads[activeQuad].kinectMask = true;}
     }
 
-    else if ( m.getAddress() == "/active/kinect/contours" )
+
+    else if ( m.getAddress() == "/active/kinect/mult/x" )
+    {
+        // arguments are f
+        float kinect_mult_x = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectMultX = kinect_mult_x;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/mult/y" )
+    {
+        // arguments are f
+        float kinect_mult_y = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectMultY = kinect_mult_y;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/scale/x" )
+    {
+        // arguments are f
+        float kinect_mult_x = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectMultX = kinect_mult_x;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/scale/y" )
+    {
+        // arguments are f
+        float kinect_mult_y = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectMultY = kinect_mult_y;
+    }
+
+
+    else if ( m.getAddress() == "/active/kinect/threshold/near" )
+    {
+        // arguments are int32
+        int osc_quad_nearDepthTh = m.getArgAsInt32( 0 );
+        quads[activeQuad].nearDepthTh = osc_quad_nearDepthTh;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/threshold/far" )
+    {
+        // arguments are int32
+        int osc_quad_farDepthTh = m.getArgAsInt32( 0 );
+        quads[activeQuad].farDepthTh = osc_quad_farDepthTh;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/angle" )
+    {
+        // argument is int32
+        int osc_quad_kinectAngle = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectAngle >= -30 && osc_quad_kinectAngle <= 30) {kinect.kinectAngle = osc_quad_kinectAngle;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/blur" )
+    {
+        // argument is int32
+        int osc_quad_kinectBlur = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectBlur >= 0 && osc_quad_kinectAngle <= 10) {quads[activeQuad].kinectBlur = osc_quad_kinectBlur;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contour" )
     {
         // argument is int32
         int osc_quad_getKinectContours = m.getArgAsInt32( 0 );
@@ -976,13 +1034,94 @@ void testApp::parseOsc()
         else if(osc_quad_getKinectContours == 1) {quads[activeQuad].getKinectContours = true;}
     }
 
-    else if ( m.getAddress() == "/active/kinect/contours/curves" )
+    else if ( m.getAddress() == "/active/kinect/contour/curves" )
     {
         // argument is int32
         int osc_quad_kinectContourCurved = m.getArgAsInt32( 0 );
         if(osc_quad_kinectContourCurved == 0) {quads[activeQuad].kinectContourCurved = false;}
         else if(osc_quad_kinectContourCurved == 1) {quads[activeQuad].kinectContourCurved = true;}
     }
+
+    else if ( m.getAddress() == "/active/kinect/contour/smooth" )
+    {
+        // argument is int32
+        int osc_quad_kinectContourSmooth = m.getArgAsInt32( 0 );
+        if(osc_quad_kinectContourSmooth >= 0 && osc_quad_kinectContourSmooth <= 20) {quads[activeQuad].kinectContourSmooth = osc_quad_kinectContourSmooth;}
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contour/simplify" )
+    {
+        // argument is f
+        float osc_quad_kinectContourSimplify = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectContourSimplify = osc_quad_kinectContourSimplify;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contour/area/min" )
+    {
+        // argument is f
+        float osc_quad_kinectContourMin = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectContourMin = osc_quad_kinectContourMin;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contour/area/max" )
+    {
+        // argument is f
+        float osc_quad_kinectContourMax = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectContourMax = osc_quad_kinectContourMax;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/contour/area" )
+    {
+        // argument is f f
+        float osc_quad_kinectContourMin = m.getArgAsFloat( 0 );
+        float osc_quad_kinectContourMax = m.getArgAsFloat( 1 );
+        quads[activeQuad].kinectContourMin = osc_quad_kinectContourMin;
+        quads[activeQuad].kinectContourMax = osc_quad_kinectContourMax;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/color" )
+    {
+        // arguments are ffff
+        float kinect_color_r = m.getArgAsFloat( 0 );
+        float kinect_color_g = m.getArgAsFloat( 1 );
+        float kinect_color_b = m.getArgAsFloat( 2 );
+        float kinect_color_a = m.getArgAsFloat( 3 );
+        quads[activeQuad].kinectColorize.r = kinect_color_r;
+        quads[activeQuad].kinectColorize.g = kinect_color_g;
+        quads[activeQuad].kinectColorize.b = kinect_color_b;
+        quads[activeQuad].kinectColorize.a = kinect_color_a;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/color/1" )
+    {
+        // arguments are f
+        float kinect_color_r = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectColorize.r = kinect_color_r;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/color/2" )
+    {
+        // arguments are f
+        float kinect_color_g = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectColorize.g = kinect_color_g;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/color/3" )
+    {
+        // arguments are f
+        float kinect_color_b = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectColorize.b = kinect_color_b;
+    }
+
+    else if ( m.getAddress() == "/active/kinect/color/4" )
+    {
+        // arguments are f
+        float kinect_color_a = m.getArgAsFloat( 0 );
+        quads[activeQuad].kinectColorize.a = kinect_color_a;
+    }
+
+
+
 
     else
     {
