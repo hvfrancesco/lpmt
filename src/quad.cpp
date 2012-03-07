@@ -363,7 +363,9 @@ void quad::update()
                 if (slideshowName != "." && slideshowName != "..")
                 {
                     // we scan the img dir for images
+
                     string slidesDir = ofToDataPath("slideshow",true) + "/";
+
                     slidesDir += slideshowName;
                     // make two arrays, one for imgs names and one for images
                     slidesnames = vector<string>();

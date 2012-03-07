@@ -4,22 +4,39 @@
 // Bezier setup -------------------------------------
 void quad::bezierSurfaceSetup()
 {
-    bezierPoints =
+
+	float tmp_bezierPoints[4][4][3] =
     {
         {   {0, 0, 0},          {0.333, 0, 0},    {0.667, 0, 0},    {1.0, 0, 0}    },
         {   {0, 0.333, 0},        {0.333, 0.333, 0},  {0.667, 0.333, 0},  {1.0, 0.333, 0}  },
         {   {0, 0.667, 0},        {0.333, 0.667, 0},  {0.667, 0.667, 0},  {1.0, 0.667, 0}  },
         {   {0, 1.0, 0},        {0.333, 1.0, 0},  {0.667, 1.0, 0},  {1.0, 1.0, 0}  }
     };
-
-    //This sets up my Bezier Surface
-    bezierCtrlPoints =
-    {
+	
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int k = 0; k < 3; ++k) {
+				bezierPoints[i][j][k] = tmp_bezierPoints[i][j][k];
+			}
+		}
+	}
+	
+	//This sets up my Bezier Surface
+    float tmp_ctrlPoints[4][4][3] = {
         {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
         {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
         {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
         {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
     };
+
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			for (int k = 0; k < 3; ++k) {
+				bezierCtrlPoints[i][j][k] = tmp_ctrlPoints[i][j][k];
+			}
+		}
+	}
+	
 
     //This sets up my Texture Surface
     GLfloat texpts [2][2][2] =
@@ -37,19 +54,28 @@ void quad::bezierSurfaceSetup()
     glEnable(GL_MAP2_VERTEX_3);
     glEnable(GL_AUTO_NORMAL);
     glMapGrid2f(20, 0, 1, 20, 0, 1);
-    glShadeModel(GL_FLAT);
+    glShadeModel(GL_FLAT);    
 }
 
 void quad::bezierSurfaceUpdate()
 {
     // TODO: to optimize this try to limit recalculation to cases when it's really needed
-    bezierCtrlPoints =
-    {
-        {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
-        {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
-        {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
-        {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
-    };
+    float tmp_ctrlPoints[4][4][3]  =
+        {
+            {   {bezierPoints[0][0][0]*ofGetWidth(), bezierPoints[0][0][1]*ofGetHeight(), 0}, {bezierPoints[0][1][0]*ofGetWidth(), bezierPoints[0][1][1]*ofGetHeight(), 0}, {bezierPoints[0][2][0]*ofGetWidth(), bezierPoints[0][2][1]*ofGetHeight(), 0}, {bezierPoints[0][3][0]*ofGetWidth(), bezierPoints[0][3][1]*ofGetHeight(), 0} },
+            {   {bezierPoints[1][0][0]*ofGetWidth(), bezierPoints[1][0][1]*ofGetHeight(), 0}, {bezierPoints[1][1][0]*ofGetWidth(), bezierPoints[1][1][1]*ofGetHeight(), 0}, {bezierPoints[1][2][0]*ofGetWidth(), bezierPoints[1][2][1]*ofGetHeight(), 0}, {bezierPoints[1][3][0]*ofGetWidth(), bezierPoints[1][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[2][0][0]*ofGetWidth(), bezierPoints[2][0][1]*ofGetHeight(), 0}, {bezierPoints[2][1][0]*ofGetWidth(), bezierPoints[2][1][1]*ofGetHeight(), 0}, {bezierPoints[2][2][0]*ofGetWidth(), bezierPoints[2][2][1]*ofGetHeight(), 0}, {bezierPoints[2][3][0]*ofGetWidth(), bezierPoints[2][3][1]*ofGetHeight(), 0}  },
+            {   {bezierPoints[3][0][0]*ofGetWidth(), bezierPoints[3][0][1]*ofGetHeight(), 0}, {bezierPoints[3][1][0]*ofGetWidth(), bezierPoints[3][1][1]*ofGetHeight(), 0}, {bezierPoints[3][2][0]*ofGetWidth(), bezierPoints[3][2][1]*ofGetHeight(), 0}, {bezierPoints[3][3][0]*ofGetWidth(), bezierPoints[3][3][1]*ofGetHeight(), 0}  }
+        };
+		
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				for (int k = 0; k < 3; ++k) {
+					bezierCtrlPoints[i][j][k] = tmp_ctrlPoints[i][j][k];
+				}
+			}
+		}
+		
     if(bBezier)
     {
         glMap2f(GL_MAP2_VERTEX_3, 0, 1, 3, 4, 0, 1, 12, 4, &bezierCtrlPoints[0][0][0]);
@@ -64,7 +90,6 @@ void quad::bezierSurfaceUpdate()
         glMapGrid2f(20, 0, 1, 20, 0, 1);
         glShadeModel(GL_FLAT);
     }
-
 }
 
 
