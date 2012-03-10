@@ -1,31 +1,35 @@
 KEY COMMANDS:
 -------------
 
-‘h’ – display this help dialog
+'h' - display this help dialog
 
-‘a’ – adds new quad
-‘>’ – go to next quad
-‘<’ – go to previous quad
+'a' - adds new quad
+'>' - go to next quad
+'<' - go to previous quad
 '+' - raise active quad position in layers pile
 '-' - lower active quad position in layers pile
-‘z’ or ‘F1’ – selects first gui page for active quad settings
-‘x’ or ‘F2’ – selects second gui page for active quad settings
-‘c’ or ‘F3’ – selects gui page for active quad corner position fine-tuning
-‘q’ – fills window with active quad
-‘1’ – shows general settings page of gui
+'z' or 'F1' - selects first gui page for active quad settings
+'x' or 'F2' - selects second gui page for active quad settings
+'c' or 'F3' - selects gui page for active quad corner position fine-tuning
+'q' - fills window with active quad
+'1' - shows general settings page of gui
 
-‘m’ – toggles mask-edit mode
+'m' - toggles mask-edit mode
 
-‘g’ – toggles gui (for quad warping with mouse gui must be switched off)
-‘f’ – toggles fullscreen mode
-‘w’ – toggles cam snapshot window background
+'g' - toggles gui (for quad warping with mouse, gui must be switched off)
+'f' - toggles fullscreen mode
+'w' - toggles cam snapshot window background
+'W' - use image from disk as window background
 
-‘spacebar’ – toggles projection/setup modes
-‘r’ – resyncs all videos, color transitions and slideshows in all quads to starting point
-‘p’ – starts projection
-‘o’ – stops projection
+'spacebar' - toggles projection/setup modes
+'r' - resyncs all videos, color transitions and slideshows in all quads to starting point
+'p' - starts projection
+'o' - stops projection
 
-‘n’ – connects to a MostPixelsEver sync server
+'n' - connects to a MostPixelsEver sync server
 
-’s' – saves settings to xml (_lpmt_settings.xml in data folder)
-‘l’ – loads settings from xml file
+'s' - saves settings to xml (_lpmt_settings.xml in data folder)
+'l' - loads settings from xml file
+
+'F6' - toggles timeline setup screen
+'F8' - play/stop timeline
