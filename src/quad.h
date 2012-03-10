@@ -4,6 +4,7 @@
 #include "ofGraphics.h"
 #include "ofxOpenCv.h"
 #include "kinectManager.h"
+#include "ofxSyphon.h"
 
 #ifndef True
 #define True true
@@ -181,6 +182,9 @@ public:
     ofxCvGrayscaleImage kinectContourImage;
     ofxCvContourFinder kinectContourFinder;
     ofPath kinectPath;
+	
+	ofxSyphonClient * syphClientTex;
+	bool bSyphon;
 
     ofFbo targetFbo;
 
@@ -193,7 +197,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon);
 
     void update();
 

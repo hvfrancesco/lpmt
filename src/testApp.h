@@ -18,6 +18,7 @@
 #include "ofxOsc.h"
 #include "ofxTimeline.h"
 #include "ofxSimpleGuiToo.h"
+#include "ofxSyphon.h"
 
 class testApp : public ofBaseApp
 {
@@ -151,6 +152,9 @@ public:
     void timelineAddQuadPage(int i);
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
 	bool useTimeline;
+	
+	// syphon
+	ofxSyphonClient syphClient;
 
 
 };

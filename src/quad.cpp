@@ -7,13 +7,14 @@
 #include <string>
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon)
 {
 
     shaderBlend = &edgeBlendShader;
     maskShader = &quadMaskShader;
     camera = &camGrabber;
     quadKinect = &kinect;
+	syphClientTex = &syphon;
 
     //loads load in some truetype fonts
     //ttf.loadFont("type/frabk.ttf", 11);
@@ -161,6 +162,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     getKinectContours = false;
     getKinectGrayImage = false;
     kinectContourCurved = false;
+	
+	bSyphon = false;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -723,6 +726,13 @@ void quad::draw()
                 kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
+		
+		// syphon stuff
+		if (bSyphon)
+		{
+			ofSetColor(255, 255, 255);
+			syphClientTex->draw(0, 0);
+		}
 
         ofDisableAlphaBlending();
         quadFbo.end();
