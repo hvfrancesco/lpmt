@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		13055919150B6E9200CC7BE5 /* icona_mac.icns in Resources */ = {isa = PBXBuildFile; fileRef = 13055918150B6E9200CC7BE5 /* icona_mac.icns */; };
 		13A036DC15089C5B0016CA13 /* mpeClientTCP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036CD15089C5B0016CA13 /* mpeClientTCP.cpp */; };
 		13A036DD15089C5B0016CA13 /* mpeEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036CF15089C5B0016CA13 /* mpeEvents.cpp */; };
 		13A036DE15089C5B0016CA13 /* mpeServerTCP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036D115089C5B0016CA13 /* mpeServerTCP.cpp */; };
@@ -109,6 +110,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		13055918150B6E9200CC7BE5 /* icona_mac.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icona_mac.icns; sourceTree = SOURCE_ROOT; };
 		13A036CD15089C5B0016CA13 /* mpeClientTCP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mpeClientTCP.cpp; path = ../../../addons/ofxMostPixelsEver/src/mpeClientTCP.cpp; sourceTree = SOURCE_ROOT; };
 		13A036CE15089C5B0016CA13 /* mpeClientTCP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mpeClientTCP.h; path = ../../../addons/ofxMostPixelsEver/src/mpeClientTCP.h; sourceTree = SOURCE_ROOT; };
 		13A036CF15089C5B0016CA13 /* mpeEvents.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mpeEvents.cpp; path = ../../../addons/ofxMostPixelsEver/src/mpeEvents.cpp; sourceTree = SOURCE_ROOT; };
@@ -310,6 +312,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		13055911150B6B7E00CC7BE5 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				13055918150B6E9200CC7BE5 /* icona_mac.icns */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
 		13A0365F15089C5B0016CA13 /* ofxMostPixelsEver */ = {
 			isa = PBXGroup;
 			children = (
@@ -858,6 +868,7 @@
 		E4B69B4A0A3A1720003C02F2 = {
 			isa = PBXGroup;
 			children = (
+				13055911150B6B7E00CC7BE5 /* Resources */,
 				7B427D5214CC3DDD00D7574A /* src */,
 				E4B6FCAD0C3E899E008CF71C /* openFrameworks-Info.plist */,
 				E4EB6923138AFD0F00A09F29 /* Project.xcconfig */,
@@ -888,6 +899,7 @@
 				E4B69B590A3A1756003C02F2 /* Frameworks */,
 				E4B6FFFD0C3F9AB9008CF71C /* ShellScript */,
 				E4C2427710CC5ABF004149E2 /* CopyFiles */,
+				13055917150B6BCC00CC7BE5 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -938,6 +950,17 @@
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 /* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		13055917150B6BCC00CC7BE5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				13055919150B6E9200CC7BE5 /* icona_mac.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		E4B6FFFD0C3F9AB9008CF71C /* ShellScript */ = {
