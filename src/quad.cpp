@@ -213,6 +213,15 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     gridRows = 6;
     gridSurfaceSetup();
 
+    timelineRed = 1.0;
+    timelineGreen = 1.0;
+    timelineBlu = 1.0;
+    timelineAlpha = 1.0;
+
+    bTimelineColor = false;
+    bTimelineAlpha = false;
+    bTimelineSlideChange = false;
+
 }
 
 
@@ -492,12 +501,12 @@ void quad::draw()
             // if we have two colors it draws with calculated transition color
             if (transBg)
             {
-                ofSetColor(transColor.r * 255, transColor.g * 255, transColor.b * 255, transColor.a * 255);
+                ofSetColor(transColor.r * 255 * timelineRed, transColor.g * 255 * timelineGreen, transColor.b * 255 * timelineBlu, transColor.a * 255 * timelineAlpha);
             }
             // this in case of only one color set
             else
             {
-                ofSetColor(bgColor.r * 255, bgColor.g * 255, bgColor.b * 255, bgColor.a * 255);
+                ofSetColor(bgColor.r * 255 * timelineRed, bgColor.g * 255 * timelineGreen, bgColor.b * 255 * timelineBlu, bgColor.a * 255 * timelineAlpha);
             }
             ofRect(0, 0, ofGetWidth(), ofGetHeight());
             ofNoFill();
@@ -526,7 +535,7 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofSetColor(videoColorize.r * 255, videoColorize.g * 255, videoColorize.b * 255, videoColorize.a * 255);
+            ofSetColor(videoColorize.r * 255 * timelineRed, videoColorize.g * 255 * timelineGreen, videoColorize.b * 255 * timelineBlu, videoColorize.a * 255 * timelineAlpha);
             if (!videoLoop)
             {
                 // in no-looping mode it stops drawing video frame when video reaches the end
@@ -584,7 +593,7 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofSetColor(camColorize.r * 255, camColorize.g * 255, camColorize.b * 255, camColorize.a * 255);
+            ofSetColor(camColorize.r * 255 * timelineRed, camColorize.g * 255 * timelineGreen, camColorize.b * 255 * timelineBlu, camColorize.a * 255 * timelineAlpha);
             if (camGreenscreen)
             {
                 camAlphaTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
@@ -611,7 +620,7 @@ void quad::draw()
                 }
                 slide = slides[currentSlide];
                 // color is set according to still img colorization combo
-                ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
+                ofSetColor(imgColorize.r * 255 * timelineRed, imgColorize.g * 255 * timelineGreen, imgColorize.b * 255 * timelineBlu, imgColorize.a * 255 * timelineAlpha);
                 // default is drawing image with its size unchanged, so we set mult factors = 1.0
                 float multX = 1.0;
                 float multY = 1.0;
@@ -646,7 +655,11 @@ void quad::draw()
                 // if slide showing time has elapsed it switches to next slide
                 if (slideTimer > slideFramesDuration )
                 {
-                    currentSlide += 1;
+                    // check if we are using timeline to change slides
+                    if(!bTimelineSlideChange)
+                    {
+                        currentSlide += 1;
+                    }
                     slideTimer = 0;
                 }
                 slideTimer += 1;
@@ -676,7 +689,7 @@ void quad::draw()
                     glScalef(-1,-1,1);
                 }
             }
-            ofSetColor(imgColorize.r * 255, imgColorize.g * 255, imgColorize.b * 255, imgColorize.a * 255);
+            ofSetColor(imgColorize.r * 255 * timelineRed, imgColorize.g * 255 * timelineGreen, imgColorize.b * 255 * timelineBlu, imgColorize.a * 255 * timelineAlpha);
             img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
             if (imgHFlip || imgVFlip)
             {
@@ -687,7 +700,7 @@ void quad::draw()
         // kinect stuff
         if (kinectBg && kinectImg)
         {
-            ofSetColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+            ofSetColor(kinectColorize.r * 255 * timelineRed, kinectColorize.g * 255 * timelineGreen, kinectColorize.b * 255 * timelineBlu, kinectColorize.a * 255 * timelineAlpha);
             //quadKinect->grayImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             if (getKinectContours)
             {
@@ -695,7 +708,7 @@ void quad::draw()
                 glPushMatrix();
                 glScalef( kinectMultX, kinectMultY, 0.0 );
                 // ----------- draw the kinect path made of detected blobs
-                ofColor pathColor(kinectColorize.r * 255, kinectColorize.g * 255, kinectColorize.b * 255, kinectColorize.a * 255);
+                ofColor pathColor(kinectColorize.r * 255 * timelineRed, kinectColorize.g * 255 * timelineGreen, kinectColorize.b * 255 * timelineBlu, kinectColorize.a * 255 * timelineAlpha);
                 kinectPath.setFillColor(pathColor);
                 kinectPath.draw();
                 glPopMatrix();

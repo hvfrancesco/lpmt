@@ -16,6 +16,8 @@
 #include "ofxXmlSettings.h"
 #include "ofxMostPixelsEver.h"
 #include "ofxOsc.h"
+#include "ofxTimeline.h"
+#include "ofxSimpleGuiToo.h"
 
 class testApp : public ofBaseApp
 {
@@ -59,6 +61,7 @@ public:
     bool isSetup;
     bool bFullscreen;
     bool bGui;
+    bool bTimeline;
     bool snapshotOn;
     bool bStarted;
     bool bSplash;
@@ -138,6 +141,16 @@ public:
     bool bKinectOk;
     bool bCloseKinect;
     bool bOpenKinect;
+
+    // timeline
+    ofxTimeline timeline;
+    float timelineDurationSeconds;
+    float timelinePreviousDuration;
+    void timelineSetup(float duration);
+    void timelineUpdate();
+    void timelineAddQuadPage(int i);
+	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
+	bool useTimeline;
 
 
 };

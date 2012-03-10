@@ -1,15 +1,12 @@
 #include "testApp.h"
 #include "stdio.h"
 #include <iostream>
-#include "ofxSimpleGuiToo.h"
 
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
 #include <vector>
 #include <string>
-
-#include "parseOSC.h"
 
 
 using namespace std;
@@ -144,6 +141,10 @@ void testApp::setup()
     bGui = 1;
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
+    //timeline defaults
+    useTimeline = false;
+    timelineDurationSeconds = timelinePreviousDuration = 10.0;
+
 
     // camera stuff
     /*
@@ -192,7 +193,8 @@ void testApp::setup()
     layers[3] = 3;
     quads[3].layer = 3;
 
-
+    // timeline stuff initialization
+    timelineSetup(timelineDurationSeconds);
 
     // GUI STUFF ---------------------------------------------------
 
@@ -222,6 +224,11 @@ void testApp::setup()
         gui.addPage("surface "+ofToString(i)+" - 1/3");
         gui.addTitle("surface "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
+        gui.addToggle("use timeline", useTimeline);
+        gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
+        gui.addToggle("use timeline col", quads[i].bTimelineColor);
+        gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
+        gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
@@ -348,27 +355,15 @@ void testApp::setup()
     // then we set displayed gui page to the one corresponding to active quad and show the gui
     gui.setPage((activeQuad*3)+2);
     gui.show();
+    // timeline off at start
+    timeline.setCurrentPage(ofToString(activeQuad));
+    bTimeline = false;
+    timeline.hide();
+    timeline.disable();
+
 
 }
 
-
-void testApp::openImageFile()
-{
-    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image file", false);
-    if(dialog_result.bSuccess)
-    {
-        quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
-    }
-}
-
-void testApp::openVideoFile()
-{
-    ofFileDialogResult dialog_result = ofSystemLoadDialog("load video file", false);
-    if(dialog_result.bSuccess)
-    {
-        quads[activeQuad].loadVideoFromFile(dialog_result.getName(), dialog_result.getPath());
-    }
-}
 
 void testApp::mpeSetup()
 {
@@ -477,6 +472,17 @@ void testApp::prepare()
         // kinect update
         kinect.update();
 
+        //timeline update
+        if(timelineDurationSeconds != timelinePreviousDuration)
+        {
+            timelinePreviousDuration = timelineDurationSeconds;
+            timeline.setDurationInSeconds(timelineDurationSeconds);
+        }
+        if(useTimeline)
+        {
+            timelineUpdate();
+        }
+
         // loops through initialized quads and runs update, setting the border color as well
         for(int j = 0; j < 36; j++)
         {
@@ -522,7 +528,6 @@ void testApp::dostuff()
                 }
             }
         }
-
     }
 }
 
@@ -575,6 +580,11 @@ void testApp::draw()
         }
     }
 
+    if (bTimeline)
+    {
+        timeline.draw();
+    }
+
     if (bSplash)
     {
         ofEnableAlphaBlending();
@@ -617,7 +627,7 @@ void testApp::keyPressed(int key)
 {
 
     // moves active layer one position up
-    if ( key == '+')
+    if ( key == '+' && !bTimeline)
     {
         int position;
         int target;
@@ -643,7 +653,7 @@ void testApp::keyPressed(int key)
 
 
     // moves active layer one position down
-    if ( key == '-')
+    if ( key == '-' && !bTimeline)
     {
         int position;
         int target;
@@ -672,7 +682,7 @@ void testApp::keyPressed(int key)
 
 
     // saves quads settings to an xml file in data directory
-    if ( key == 's' || key == 'S')
+    if ( (key == 's' || key == 'S') && !bTimeline)
     {
         setXml();
         XML.saveFile("_lpmt_settings.xml");
@@ -681,7 +691,7 @@ void testApp::keyPressed(int key)
     }
 
     // loads settings and quads from default xml file
-    if (key == 'l' || key == 'L')
+    if ((key == 'l' || key == 'L') && !bTimeline)
     {
         XML.loadFile("_lpmt_settings.xml");
         getXml();
@@ -690,7 +700,7 @@ void testApp::keyPressed(int key)
     }
 
     // takes a snapshot of attached camera and uses it as window background
-    if (key == 'w')
+    if (key == 'w' && !bTimeline)
     {
         snapshotOn = !snapshotOn;
         if (snapshotOn == 1)
@@ -703,7 +713,7 @@ void testApp::keyPressed(int key)
     }
 
     // takes a snapshot from an image file and uses it as window background
-    if (key == 'W')
+    if (key == 'W' && !bTimeline)
     {
         snapshotOn = !snapshotOn;
         if (snapshotOn == 1)
@@ -717,7 +727,7 @@ void testApp::keyPressed(int key)
     }
 
     // fills window with active quad
-    if ( key =='q' || key == 'Q' )
+    if ( (key =='q' || key == 'Q') && !bTimeline)
     {
         if (isSetup)
         {
@@ -736,7 +746,7 @@ void testApp::keyPressed(int key)
     }
 
     // activates next quad
-    if ( key =='>' )
+    if ( key =='>' && !bTimeline)
     {
         if (isSetup)
         {
@@ -752,7 +762,7 @@ void testApp::keyPressed(int key)
     }
 
     // activates prev quad
-    if ( key =='<' )
+    if ( key =='<' && !bTimeline)
     {
         if (isSetup)
         {
@@ -768,7 +778,7 @@ void testApp::keyPressed(int key)
     }
 
     // goes to first page of gui for active quad or, in mask edit mode, delete last drawn point
-    if ( key == 'z' || key == 'Z')
+    if ( (key == 'z' || key == 'Z') && !bTimeline)
     {
         if(maskSetup && quads[activeQuad].maskPoints.size()>0) {quads[activeQuad].maskPoints.pop_back();}
         else {gui.setPage((activeQuad*3)+2);}
@@ -779,7 +789,7 @@ void testApp::keyPressed(int key)
         gui.setPage((activeQuad*3)+2);
     }
 
-    if ( key == 'd' || key == 'D')
+    if ( (key == 'd' || key == 'D') && !bTimeline)
     {
         if(maskSetup && quads[activeQuad].maskPoints.size()>0)
         {
@@ -793,13 +803,13 @@ void testApp::keyPressed(int key)
 
 
     // goes to second page of gui for active quad
-    if ( key == 'x' || key == 'X' || key == OF_KEY_F2)
+    if ( (key == 'x' || key == 'X' || key == OF_KEY_F2) && !bTimeline)
     {
         gui.setPage((activeQuad*3)+3);
     }
 
     // goes to second page of gui for active quad or, in edit mask mode, clears mask
-    if ( key == 'c' || key == 'C')
+    if ( (key == 'c' || key == 'C') && !bTimeline)
     {
 
         if(maskSetup) {quads[activeQuad].maskPoints.clear();}
@@ -813,7 +823,7 @@ void testApp::keyPressed(int key)
 
 
     // adds a new quad in the middle of the screen
-    if ( key =='a' )
+    if ( key =='a' && !bTimeline)
     {
         if (isSetup)
         {
@@ -829,6 +839,9 @@ void testApp::keyPressed(int key)
                 ++nOfQuads;
                 quads[activeQuad].allocateFbo(ofGetWidth(),ofGetHeight());
                 gui.setPage((activeQuad*3)+2);
+                // add timeline page for new quad
+                timelineAddQuadPage(activeQuad);
+
                 //gui.show(); // bad workaround for image disappearing bug when adding quad and gui is off
                 if (!bGui)
                 {
@@ -840,7 +853,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles setup mode
-    if ( key ==' ' )
+    if ( key ==' ' && !bTimeline)
     {
         if (isSetup)
         {
@@ -871,7 +884,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles fullscreen mode
-    if(key == 'f')
+    if(key == 'f' && !bTimeline)
     {
 
         bFullscreen = !bFullscreen;
@@ -892,7 +905,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles gui
-    if(key == 'g')
+    if(key == 'g' && !bTimeline)
     {
         if (maskSetup) {
             maskSetup = False;
@@ -909,7 +922,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles mask editing
-    if(key == 'm')
+    if(key == 'm' && !bTimeline)
     {
         if (!bGui){
         maskSetup = !maskSetup;
@@ -924,7 +937,7 @@ void testApp::keyPressed(int key)
     }
 
     // toggles bezier deformation editing
-    if(key == 'b')
+    if(key == 'b' && !bTimeline)
     {
         if (!bGui){
         gridSetup = !gridSetup;
@@ -938,24 +951,24 @@ void testApp::keyPressed(int key)
         }
     }
 
-    if(key == '[')
+    if(key == '[' && !bTimeline)
     {
         gui.prevPage();
     }
 
-    if(key == ']')
+    if(key == ']' && !bTimeline)
     {
         gui.nextPage();
     }
 
     // show general settings page of gui
-    if(key == '1')
+    if(key == '1' && !bTimeline)
     {
         gui.setPage(1);
     }
 
     // resyncs videos to start point in every quad
-    if(key == 'r' || key == 'R')
+    if((key == 'r' || key == 'R') && !bTimeline)
     {
         resync();
     }
@@ -963,26 +976,93 @@ void testApp::keyPressed(int key)
 
     // starts and stops rendering
 
-    if(key == 'p')
+    if(key == 'p' && !bTimeline)
     {
         startProjection();
     }
 
-    if(key == 'o')
+    if(key == 'o' && !bTimeline)
     {
         stopProjection();
     }
 
-    if(key == 'n')
+    if(key == 'n' && !bTimeline)
     {
         mpeSetup();
     }
 
     // displays help in system dialog
-    if(key == 'h')
+    if(key == 'h' && !bTimeline)
     {
         ofBuffer buf = ofBufferFromFile("help_keys.txt");
         ofSystemAlertDialog(buf);
+    }
+
+    // show-hide stage when timeline is shown
+    if(key == OF_KEY_F11 && bTimeline)
+    {
+        if(bStarted)
+        {
+            bStarted = false;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                quads[i].isOn = False;
+                    if (quads[i].videoBg && quads[i].video.isLoaded())
+                    {
+                        quads[i].video.setVolume(0);
+                        quads[i].video.stop();
+                    }
+                }
+            }
+        }
+        else if(!bStarted)
+        {
+            bStarted = true;
+            for(int i = 0; i < 36; i++)
+            {
+                if (quads[i].initialized)
+                {
+                    quads[i].isOn = True;
+                    if (quads[i].videoBg && quads[i].video.isLoaded())
+                    {
+                        quads[i].video.setVolume(quads[i].videoVolume);
+                        quads[i].video.play();
+                    }
+                }
+            }
+        }
+    }
+
+
+    // toggle timeline
+    if(key == OF_KEY_F10)
+    {
+        bTimeline = !bTimeline;
+        timeline.toggleShow();
+        if(bTimeline)
+        {
+            timeline.enable();
+            gui.hide();
+            bGui = false;
+        }
+        else
+        {
+            timeline.disable();
+        }
+    }
+
+    // toggle timeline playing
+    if(key == OF_KEY_F12)
+    {
+        timeline.togglePlay();
+    }
+
+    // toggle timeline BPM grid drawing
+    if(key == OF_KEY_F9 && bTimeline)
+    {
+        timeline.toggleDrawBPMGrid();
     }
 
 }
@@ -997,7 +1077,7 @@ void testApp::keyReleased(int key)
 void testApp::mouseMoved(int x, int y )
 {
 
-    if (isSetup && !bGui && !maskSetup && !gridSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup && !bTimeline)
     {
         float smallestDist = 1.0;
         whichCorner = -1;
@@ -1027,7 +1107,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (maskSetup && !gridSetup)
+    else if (maskSetup && !gridSetup && !bTimeline)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPoint = -1;
@@ -1057,7 +1137,7 @@ void testApp::mouseMoved(int x, int y )
             }
     }
 
-    else if (gridSetup && !maskSetup)
+    else if (gridSetup && !maskSetup && !bTimeline)
     {
         float smallestDist = sqrt( ofGetWidth() * ofGetWidth() + ofGetHeight() * ofGetHeight());;
         int whichPointRow = -1;
@@ -1124,7 +1204,7 @@ void testApp::mouseMoved(int x, int y )
 //--------------------------------------------------------------
 void testApp::mouseDragged(int x, int y, int button)
 {
-    if (isSetup && !bGui && !maskSetup && !gridSetup)
+    if (isSetup && !bGui && !maskSetup && !gridSetup && !bTimeline)
     {
 
         float scaleX = (float)x / ofGetWidth();
@@ -1159,7 +1239,7 @@ void testApp::mouseDragged(int x, int y, int button)
             }
         }
     }
-    else if(maskSetup && quads[activeQuad].bHighlightMaskPoint)
+    else if(maskSetup && quads[activeQuad].bHighlightMaskPoint && !bTimeline)
     {
         ofVec3f punto;
         punto = quads[activeQuad].getWarpedPoint(x,y);
@@ -1167,7 +1247,7 @@ void testApp::mouseDragged(int x, int y, int button)
         quads[activeQuad].maskPoints[quads[activeQuad].highlightedMaskPoint].y = punto.y;
     }
 
-    else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint)
+    else if(gridSetup && quads[activeQuad].bHighlightCtrlPoint && !bTimeline)
     {
         if(quads[activeQuad].bBezier)
         {
@@ -1198,7 +1278,7 @@ void testApp::mousePressed(int x, int y, int button)
         bSplash = !bSplash;
     }
 
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !bTimeline)
     {
 
         if(maskSetup && !gridSetup) {
@@ -1237,7 +1317,7 @@ void testApp::mousePressed(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mouseReleased()
 {
-    if (isSetup && !bGui)
+    if (isSetup && !bGui && !bTimeline)
     {
 
     if (whichCorner >= 0)
@@ -1279,6 +1359,7 @@ void testApp::mouseReleased()
 
 void testApp::windowResized(int w, int h)
 {
+            timeline.setWidth(w);
             for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)
@@ -1290,71 +1371,6 @@ void testApp::windowResized(int w, int h)
             }
 }
 
-
-
-//--------------------------------------------------------------
-void testApp::resync()
-{
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            // resets video to start ing point
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setPosition(0.0);
-            }
-            // resets slideshow to first slide
-            if (quads[i].slideshowBg)
-            {
-                quads[i].currentSlide = 0;
-                quads[i].slideTimer = 0;
-            }
-            // reset trans colors
-            if (quads[i].colorBg && quads[i].transBg)
-            {
-                quads[i].transCounter = 0;
-                quads[i].transUp = True;
-            }
-        }
-    }
-}
-
-//--------------------------------------------------------------
-void testApp::startProjection()
-{
-    bStarted = True;
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            quads[i].isOn = True;
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setVolume(quads[i].videoVolume);
-                quads[i].video.play();
-            }
-        }
-    }
-}
-
-//--------------------------------------------------------------
-void testApp::stopProjection()
-{
-    bStarted = False;
-    for(int i = 0; i < 36; i++)
-    {
-        if (quads[i].initialized)
-        {
-            quads[i].isOn = False;
-            if (quads[i].videoBg && quads[i].video.isLoaded())
-            {
-                quads[i].video.setVolume(0);
-                quads[i].video.stop();
-            }
-        }
-    }
-}
 
 
 //---------------------------------------------------------------
@@ -1481,6 +1497,7 @@ void testApp::activateQuad(int x, int y)
         gui.setPage((activeQuad*3)+2);
     }
 }
+<<<<<<< HEAD
 
 
 //-----------------------------------------------------------
@@ -1758,3 +1775,5 @@ void testApp::getXml()
 
     }
 }
+=======
+>>>>>>> 0cb72659b5be4520a74506a57e12903481a655c8

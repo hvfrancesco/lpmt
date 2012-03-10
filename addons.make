@@ -7,3 +7,7 @@ ofxSimpleGuiToo
 ofxOsc
 ofxKinect
 ofxOpenCv
+ofxTimeline
+ofxTween
+ofxRange
+ofxTextInputField

@@ -8,13 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		13055919150B6E9200CC7BE5 /* icona_mac.icns in Resources */ = {isa = PBXBuildFile; fileRef = 13055918150B6E9200CC7BE5 /* icona_mac.icns */; };
+		133F34C2150B9BEC001E17A6 /* appUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133F34C1150B9BEC001E17A6 /* appUtils.cpp */; };
+		133F34C4150B9BFD001E17A6 /* parseOSC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133F34C3150B9BFD001E17A6 /* parseOSC.cpp */; };
+		133F34C6150B9C0E001E17A6 /* quadUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133F34C5150B9C0E001E17A6 /* quadUtils.cpp */; };
+		133F34CD150B9C27001E17A6 /* timeline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133F34CC150B9C27001E17A6 /* timeline.cpp */; };
+		133F34CF150B9C2E001E17A6 /* xmlSetup.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133F34CE150B9C2E001E17A6 /* xmlSetup.cpp */; };
 		13A036DC15089C5B0016CA13 /* mpeClientTCP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036CD15089C5B0016CA13 /* mpeClientTCP.cpp */; };
 		13A036DD15089C5B0016CA13 /* mpeEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036CF15089C5B0016CA13 /* mpeEvents.cpp */; };
 		13A036DE15089C5B0016CA13 /* mpeServerTCP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A036D115089C5B0016CA13 /* mpeServerTCP.cpp */; };
 		13A0372015089F850016CA13 /* markers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A0371F15089F850016CA13 /* markers.cpp */; };
 		13A0372215089F910016CA13 /* homography.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A0372115089F910016CA13 /* homography.cpp */; };
 		13A0372415089FA00016CA13 /* deform.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A0372315089FA00016CA13 /* deform.cpp */; };
-		13A0372615089FC00016CA13 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 13A0372515089FC00016CA13 /* utils.cpp */; };
 		7B427D5D14CC3DDD00D7574A /* kinectManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B427D5514CC3DDD00D7574A /* kinectManager.cpp */; };
 		7B427D5E14CC3DDD00D7574A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B427D5714CC3DDD00D7574A /* main.cpp */; };
 		7B427D5F14CC3DDD00D7574A /* quad.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7B427D5914CC3DDD00D7574A /* quad.cpp */; };
@@ -111,6 +115,11 @@
 
 /* Begin PBXFileReference section */
 		13055918150B6E9200CC7BE5 /* icona_mac.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = icona_mac.icns; sourceTree = SOURCE_ROOT; };
+		133F34C1150B9BEC001E17A6 /* appUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = appUtils.cpp; path = src/appUtils.cpp; sourceTree = SOURCE_ROOT; };
+		133F34C3150B9BFD001E17A6 /* parseOSC.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = parseOSC.cpp; path = src/parseOSC.cpp; sourceTree = SOURCE_ROOT; };
+		133F34C5150B9C0E001E17A6 /* quadUtils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = quadUtils.cpp; path = src/quadUtils.cpp; sourceTree = SOURCE_ROOT; };
+		133F34CC150B9C27001E17A6 /* timeline.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = timeline.cpp; path = src/timeline.cpp; sourceTree = SOURCE_ROOT; };
+		133F34CE150B9C2E001E17A6 /* xmlSetup.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = xmlSetup.cpp; path = src/xmlSetup.cpp; sourceTree = SOURCE_ROOT; };
 		13A036CD15089C5B0016CA13 /* mpeClientTCP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mpeClientTCP.cpp; path = ../../../addons/ofxMostPixelsEver/src/mpeClientTCP.cpp; sourceTree = SOURCE_ROOT; };
 		13A036CE15089C5B0016CA13 /* mpeClientTCP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mpeClientTCP.h; path = ../../../addons/ofxMostPixelsEver/src/mpeClientTCP.h; sourceTree = SOURCE_ROOT; };
 		13A036CF15089C5B0016CA13 /* mpeEvents.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mpeEvents.cpp; path = ../../../addons/ofxMostPixelsEver/src/mpeEvents.cpp; sourceTree = SOURCE_ROOT; };
@@ -121,12 +130,10 @@
 		13A0371F15089F850016CA13 /* markers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = markers.cpp; path = src/markers.cpp; sourceTree = SOURCE_ROOT; };
 		13A0372115089F910016CA13 /* homography.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = homography.cpp; path = src/homography.cpp; sourceTree = SOURCE_ROOT; };
 		13A0372315089FA00016CA13 /* deform.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = deform.cpp; path = src/deform.cpp; sourceTree = SOURCE_ROOT; };
-		13A0372515089FC00016CA13 /* utils.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = utils.cpp; path = src/utils.cpp; sourceTree = SOURCE_ROOT; };
 		7B427D5314CC3DDD00D7574A /* ball.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ball.h; path = src/ball.h; sourceTree = SOURCE_ROOT; };
 		7B427D5514CC3DDD00D7574A /* kinectManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = kinectManager.cpp; path = src/kinectManager.cpp; sourceTree = SOURCE_ROOT; };
 		7B427D5614CC3DDD00D7574A /* kinectManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = kinectManager.h; path = src/kinectManager.h; sourceTree = SOURCE_ROOT; };
 		7B427D5714CC3DDD00D7574A /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = src/main.cpp; sourceTree = SOURCE_ROOT; };
-		7B427D5814CC3DDD00D7574A /* parseOSC.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = parseOSC.h; path = src/parseOSC.h; sourceTree = SOURCE_ROOT; };
 		7B427D5914CC3DDD00D7574A /* quad.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = quad.cpp; path = src/quad.cpp; sourceTree = SOURCE_ROOT; };
 		7B427D5A14CC3DDD00D7574A /* quad.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = quad.h; path = src/quad.h; sourceTree = SOURCE_ROOT; };
 		7B427D5B14CC3DDD00D7574A /* testApp.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = testApp.cpp; path = src/testApp.cpp; sourceTree = SOURCE_ROOT; };
@@ -347,6 +354,9 @@
 		7B427D5214CC3DDD00D7574A /* src */ = {
 			isa = PBXGroup;
 			children = (
+				133F34CE150B9C2E001E17A6 /* xmlSetup.cpp */,
+				133F34CC150B9C27001E17A6 /* timeline.cpp */,
+				133F34C1150B9BEC001E17A6 /* appUtils.cpp */,
 				7B427D5314CC3DDD00D7574A /* ball.h */,
 				13A0372315089FA00016CA13 /* deform.cpp */,
 				13A0372115089F910016CA13 /* homography.cpp */,
@@ -354,12 +364,12 @@
 				7B427D5614CC3DDD00D7574A /* kinectManager.h */,
 				7B427D5714CC3DDD00D7574A /* main.cpp */,
 				13A0371F15089F850016CA13 /* markers.cpp */,
-				7B427D5814CC3DDD00D7574A /* parseOSC.h */,
+				133F34C3150B9BFD001E17A6 /* parseOSC.cpp */,
 				7B427D5914CC3DDD00D7574A /* quad.cpp */,
 				7B427D5A14CC3DDD00D7574A /* quad.h */,
+				133F34C5150B9C0E001E17A6 /* quadUtils.cpp */,
 				7B427D5B14CC3DDD00D7574A /* testApp.cpp */,
 				7B427D5C14CC3DDD00D7574A /* testApp.h */,
-				13A0372515089FC00016CA13 /* utils.cpp */,
 			);
 			path = src;
 			sourceTree = SOURCE_ROOT;
@@ -1034,7 +1044,11 @@
 				13A0372015089F850016CA13 /* markers.cpp in Sources */,
 				13A0372215089F910016CA13 /* homography.cpp in Sources */,
 				13A0372415089FA00016CA13 /* deform.cpp in Sources */,
-				13A0372615089FC00016CA13 /* utils.cpp in Sources */,
+				133F34C2150B9BEC001E17A6 /* appUtils.cpp in Sources */,
+				133F34C4150B9BFD001E17A6 /* parseOSC.cpp in Sources */,
+				133F34C6150B9C0E001E17A6 /* quadUtils.cpp in Sources */,
+				133F34CD150B9C27001E17A6 /* timeline.cpp in Sources */,
+				133F34CF150B9C2E001E17A6 /* xmlSetup.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
