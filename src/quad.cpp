@@ -7,7 +7,7 @@
 #include <string>
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon)
 {
 
     shaderBlend = &edgeBlendShader;
@@ -24,6 +24,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     bgImg = string("");
     loadedImg = string("");
     loadedVideo = string("");
+	slideshowName = string("");
     loadedSlideshow = string("");
 
     quadNumber = 0;
@@ -45,7 +46,7 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
     //videos = videoFiles;
-    slideshows = slideshowFolders;
+    //slideshows = slideshowFolders;
 
     borderColor = 0x666666;
 
@@ -367,18 +368,16 @@ void quad::update()
         {
             // put it to off while loading images
             slideshowBg = False;
-            string slideshowName = slideshows[bgSlideshow];
+            
             // if a different slideshow has been chosen in gui we do load its images
-            if (slideshowName != loadedSlideshow)
+            if ((slideshowName != loadedSlideshow) && slideshowName != "" )
             {
                 // we exclude "." and ".." directories if present
                 if (slideshowName != "." && slideshowName != "..")
                 {
-                    // we scan the img dir for images
-
-                    string slidesDir = ofToDataPath("slideshow",true) + "/";
-
-                    slidesDir += slideshowName;
+                    // we scan the img dir for images					
+					string slidesDir = slideshowName;
+					
                     // make two arrays, one for imgs names and one for images
                     slidesnames = vector<string>();
                     slides = vector<ofImage>();
@@ -389,7 +388,7 @@ void quad::update()
                     {
                         if (slidesnames[i] != "." && slidesnames[i] != "..")
                         {
-                            slide.loadImage("slideshow/"+slideshowName+"/"+slidesnames[i]);
+                            slide.loadImage(slideshowName+"/"+slidesnames[i]);
                             slides.push_back(slide);
                         }
                     }

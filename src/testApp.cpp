@@ -103,28 +103,6 @@ void testApp::setup()
     //syphClient.setApplicationName("Simple Server");
     syphClient.setServerName("");
 
-    // we scan the video dir for videos
-    //string videoDir = string("./data/video");
-    //string videoDir =  ofToDataPath("video",true);
-    //videoFiles = vector<string>();
-    //getdir(videoDir,videoFiles);
-    //string videos[videoFiles.size()];
-    //for (unsigned int i = 0; i < videoFiles.size(); i++)
-    //{
-    //    videos[i]= videoFiles[i];
-    //}
-
-    // we scan the slideshow dir for videos
-    //string slideshowDir = string("./data/slideshow");
-    string slideshowDir = ofToDataPath("slideshow",true);
-    slideshowFolders = vector<string>();
-    getdir(slideshowDir,slideshowFolders);
-    string slideshows[slideshowFolders.size()];
-    for (unsigned int i = 0; i < slideshowFolders.size(); i++)
-    {
-        slideshows[i]= slideshowFolders[i];
-    }
-
 
     // load shaders
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
@@ -176,13 +154,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -314,7 +292,9 @@ void testApp::setup()
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addTitle("Slideshow").setNewColumn(false);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
-        gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
+		gui.addButton("load slideshow", bSlideshowLoad);
+		
+        //gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
@@ -440,6 +420,16 @@ void testApp::prepare()
         {
             bVideoLoad = false;
             openVideoFile();
+        }
+		
+		// check if image load button on GUI is pressed
+        if(bSlideshowLoad)
+        {
+            bSlideshowLoad = false;
+			string ssname = loadSlideshow();
+			cout << ssname;
+            quads[activeQuad].slideshowName = ssname;
+			
         }
 
         // check if kinect close button on GUI is pressed
@@ -835,7 +825,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, camGrabber, kinect, syphClient);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;

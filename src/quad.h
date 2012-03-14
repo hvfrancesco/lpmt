@@ -168,6 +168,7 @@ public:
     string loadedImg;
     string loadedVideo;
     string loadedSlideshow;
+	string slideshowName;
 
     ofShader * shaderBlend;
     ofFbo   quadFbo;
@@ -197,7 +198,7 @@ public:
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect, ofxSyphonClient &syphon);
 
     void update();
 

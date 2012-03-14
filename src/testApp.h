@@ -137,6 +137,9 @@ public:
 
     // snapshot loading
     ofImage loadImageFromFile();
+	
+	string loadSlideshow();
+	bool bSlideshowLoad;
 
     kinectManager kinect;
     bool bKinectOk;
