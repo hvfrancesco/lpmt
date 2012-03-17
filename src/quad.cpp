@@ -164,7 +164,12 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     getKinectGrayImage = false;
     kinectContourCurved = false;
 	
+	// syphon variables
 	bSyphon = false;
+	syphonPosX = 0.0;
+	syphonPosY = 0.0;
+	syphonScaleX = 1.0;
+	syphonScaleY = 1.0;
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -730,7 +735,8 @@ void quad::draw()
 		if (bSyphon)
 		{
 			ofSetColor(255, 255, 255);
-			syphClientTex->draw(0, 0);
+			//syphClientTex->draw(syphonPosX, syphonPosY);
+			syphClientTex->draw(syphonPosX, syphonPosY, syphonScaleX*syphClientTex->getWidth(), syphonScaleY*syphClientTex->getHeight());
 		}
 
         ofDisableAlphaBlending();

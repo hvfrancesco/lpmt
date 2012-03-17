@@ -184,8 +184,13 @@ public:
     ofxCvContourFinder kinectContourFinder;
     ofPath kinectPath;
 	
+	// syphon stuff
 	ofxSyphonClient * syphClientTex;
 	bool bSyphon;
+	float syphonPosX;
+	float syphonPosY;
+	float syphonScaleX;
+	float syphonScaleY;
 
     ofFbo targetFbo;
 

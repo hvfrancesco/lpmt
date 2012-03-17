@@ -213,6 +213,10 @@ void testApp::setup()
         gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
         gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
 		gui.addToggle("use Syphon", quads[i].bSyphon);
+		gui.addSlider("syphon origin X", quads[i].syphonPosX, -1280, 1280);
+        gui.addSlider("syphon origin Y", quads[i].syphonPosY, -1280, 1280);
+		gui.addSlider("syphon scale X", quads[i].syphonScaleX, 0.1, 5.0);
+        gui.addSlider("syphon scale Y", quads[i].syphonScaleY, 0.1, 5.0);
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
