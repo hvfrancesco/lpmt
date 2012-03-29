@@ -38,21 +38,28 @@ int getdir (string dir, vector<string> &files)
 void testApp::setup()
 {
 
+    ofSetLogLevel(OF_LOG_WARNING);
+
     bKinectOk = kinect.setup();
     bCloseKinect = false;
     bOpenKinect = false;
-    //kinect.startThread(false, false);
 
     // camera stuff
     bCameraOk = False;
-    camWidth = 640;	// try to grab at this size.
-    camHeight = 480;
-    camGrabber.setVerbose(true);
+    XML.loadFile("_camera_settings.xml");
+    reqCamWidth = XML.getValue("CAMERA:WIDTH",640);
+    reqCamHeight = XML.getValue("CAMERA:HEIGHT",480);
+    camID = XML.getValue("CAMERA:ID",0);
+    XML.clear();
+
+    //reqCamWidth = 640;	// try to grab at this size.
+    //reqCamHeight = 480;
     camGrabber.listDevices();
-    bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
+    if (camID > 0) {camGrabber.setDeviceID(camID);}
+    bCameraOk = camGrabber.initGrabber(reqCamWidth,reqCamHeight);
     camWidth = camGrabber.width;
     camHeight= camGrabber.height;
-    printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
+    printf("camera init asked for %i by %i - actual size is %i by %i \n", reqCamWidth, reqCamHeight, camWidth, camHeight);
     if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera not found, live feed not available"); }
 
     /*

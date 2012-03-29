@@ -114,6 +114,9 @@ public:
     ofTexture camTexture;
     ofTexture snapshotTexture;
 
+    int camID;
+    int reqCamWidth;
+    int reqCamHeight;
     int camWidth;
     int camHeight;
 
