@@ -115,6 +115,20 @@ void testApp::setXml()
                     XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":Y",quads[i].maskPoints[j].y);
                 }
             }
+            // deform stuff
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:ON",quads[i].bDeform);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:ON",quads[i].bBezier);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:GRID:ON",quads[i].bGrid);
+            // bezier stuff
+            for (int j = 0; j < 4; ++j)
+            {
+                for (int k = 0; k < 4; ++k)
+                {
+                    XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":X",quads[i].bezierPoints[j][k][0]);
+                    XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":Y",quads[i].bezierPoints[j][k][1]);
+                    XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":Z",quads[i].bezierPoints[j][k][2]);
+                }
+            }
 
         }
     }
@@ -248,7 +262,20 @@ void testApp::getXml()
                 quads[i].maskPoints.push_back(tempMaskPoint);
             }
         }
-
+        // deform stuff
+        quads[i].bDeform = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:ON",0);
+        quads[i].bBezier = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:ON",0);
+        quads[i].bGrid = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:GRID:ON",0);
+        // bezier stuff
+        for (int j = 0; j < 4; ++j)
+        {
+            for (int k = 0; k < 4; ++k)
+            {
+                quads[i].bezierPoints[j][k][0] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":X",0.0);
+                quads[i].bezierPoints[j][k][1] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":Y",0.0);
+                quads[i].bezierPoints[j][k][2] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:CTRLPOINTS:POINT_"+ofToString(j)+"_"+ofToString(k)+":Z",0.0);
+            }
+        }
 
 
         quads[i].isOn = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IS_ON",0);
