@@ -7,13 +7,14 @@
 #include <string>
 
 
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofVideoGrabber &camGrabber, kinectManager &kinect)
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect)
 {
 
     shaderBlend = &edgeBlendShader;
     maskShader = &quadMaskShader;
-    camera = &camGrabber;
+    //camera = &camGrabber;
     quadKinect = &kinect;
+    cams = cameras;
 
     //loads load in some truetype fonts
     //ttf.loadFont("type/frabk.ttf", 11);
@@ -74,6 +75,8 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     imgVFlip = False;
     camVFlip = False;
 
+    camNumber = 0;
+    camera = cams[camNumber];
     camWidth = 640;
     camHeight = 480;
     camMultX = 1;
@@ -229,7 +232,7 @@ void quad::update()
 {
     if (isOn)
     {
-
+        camera = cams[camNumber];
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
@@ -269,9 +272,9 @@ void quad::update()
 
 
         // live camera --------------------------------------------------------------
-        if (camBg && camera->width > 0)
+        if (camBg && camera.width > 0)
         {
-            camPixels = camera->getPixels();
+            camPixels = camera.getPixels();
             if (camGreenscreen)
             {
                 // checking for greenscreen color match
@@ -570,7 +573,7 @@ void quad::draw()
 
         // camera ------------------------------------------------------------------------------
         // camera stuff
-        if (camBg && camera->width > 0)
+        if (camBg && camera.width > 0)
         {
             if (camHFlip || camVFlip)
             {

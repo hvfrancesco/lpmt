@@ -110,9 +110,11 @@ public:
     void quadBezierReset(int q);
 
     // camera grabber
-    ofVideoGrabber camGrabber;
+    //ofVideoGrabber camGrabber;
     ofTexture camTexture;
     ofTexture snapshotTexture;
+    int numOfCams;
+	vector<ofVideoGrabber> cameras;
 
     int camID;
     int reqCamWidth;
@@ -154,6 +156,7 @@ public:
     void timelineAddQuadPage(int i);
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
 	bool useTimeline;
+
 
 
 };
