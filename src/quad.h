@@ -71,8 +71,8 @@ public:
     int camHeight;
     unsigned char * camPixels;
     unsigned char * camAlphaPixels;
-    ofVideoGrabber  camera;
     int camNumber;
+    int prevCamNumber;
 
     int layer;
 
@@ -244,6 +244,8 @@ public:
     void bezierSurfaceSetup();
     void bezierSurfaceUpdate();
     void drawBezierMarkers();
+
+    void setupCamera();
 
 
 };

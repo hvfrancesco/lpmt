@@ -75,16 +75,10 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     imgVFlip = False;
     camVFlip = False;
 
-    camNumber = 0;
-    camera = cams[camNumber];
-    camWidth = 640;
-    camHeight = 480;
+    camNumber = prevCamNumber = 0;
     camMultX = 1;
     camMultY = 1;
-    camTexture.allocate(camWidth,camHeight, GL_RGB);
-    camAlphaTexture.allocate(camWidth, camHeight, GL_RGBA);
-    camPixels = new unsigned char [camWidth*camHeight*3];
-    camAlphaPixels = new unsigned char [camWidth*camHeight*4];
+    setupCamera();
 
     imgMultX = 1.0;
     imgMultY = 1.0;
@@ -232,7 +226,11 @@ void quad::update()
 {
     if (isOn)
     {
-        camera = cams[camNumber];
+        if(camNumber != prevCamNumber)
+        {
+            setupCamera();
+            prevCamNumber = camNumber;
+        }
         //recalculates center of quad
         center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
@@ -272,9 +270,9 @@ void quad::update()
 
 
         // live camera --------------------------------------------------------------
-        if (camBg && camera.width > 0)
+        if (camBg && cams[camNumber].width > 0)
         {
-            camPixels = camera.getPixels();
+            camPixels = cams[camNumber].getPixels();
             if (camGreenscreen)
             {
                 // checking for greenscreen color match
@@ -302,7 +300,7 @@ void quad::update()
             }
             else
             {
-                // loads camera pixels into this quad camera-texture wirh no alpha
+                // loads camera pixels into this quad camera-texture with no alpha
                 camTexture.loadData(camPixels, camWidth, camHeight, GL_RGB);
             }
         }
@@ -573,7 +571,7 @@ void quad::draw()
 
         // camera ------------------------------------------------------------------------------
         // camera stuff
-        if (camBg && camera.width > 0)
+        if (camBg && cams[camNumber].width > 0)
         {
             if (camHFlip || camVFlip)
             {

@@ -66,6 +66,7 @@ void testApp::setup()
         printf("camera init asked for %i by %i - actual size is %i by %i \n", reqCamWidth, reqCamHeight, camWidth, camHeight);
         if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera not found, live feed not available"); }
         cameras.push_back(cam);
+        // following array is used for the combo box in SimpleGuiToo gui
         cameraIDs[i] = ofToString(camID);
     }
 
