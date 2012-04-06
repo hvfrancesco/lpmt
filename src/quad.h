@@ -65,6 +65,7 @@ public:
     int bgAlpha;
 
     // camera stuff
+    bool camAvailable;
     ofTexture camTexture;
     ofTexture camAlphaTexture;
     int camWidth;

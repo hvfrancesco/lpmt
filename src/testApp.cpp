@@ -48,36 +48,35 @@ void testApp::setup()
     cameras.clear();
     numOfCams = 0;
     bCameraOk = False;
-    XML.loadFile("_camera_settings.xml");
-    numOfCams = XML.getNumTags("CAMERA");
-    string cameraIDs[numOfCams];
-    for (int i=0; i<numOfCams; i++)
+    if(XML.loadFile("camera_settings.xml"))
     {
-        XML.pushTag("CAMERA", i);
-        reqCamWidth = XML.getValue("WIDTH",640);
-        reqCamHeight = XML.getValue("HEIGHT",480);
-        camID = XML.getValue("ID",0);
-        XML.popTag();
-        ofVideoGrabber cam;
-        cam.setDeviceID(camID);
-        bCameraOk = cam.initGrabber(reqCamWidth,reqCamHeight);
-        camWidth = cam.width;
-        camHeight= cam.height;
-        printf("camera init asked for %i by %i - actual size is %i by %i \n", reqCamWidth, reqCamHeight, camWidth, camHeight);
-        if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera not found, live feed not available"); }
-        cameras.push_back(cam);
-        // following array is used for the combo box in SimpleGuiToo gui
-        cameraIDs[i] = ofToString(camID);
+        numOfCams = XML.getNumTags("CAMERA");
+
+        for (int i=0; i<numOfCams; i++)
+        {
+            XML.pushTag("CAMERA", i);
+            reqCamWidth = XML.getValue("WIDTH",640);
+            reqCamHeight = XML.getValue("HEIGHT",480);
+            camID = XML.getValue("ID",0);
+            XML.popTag();
+            ofVideoGrabber cam;
+            cam.setDeviceID(camID);
+            bCameraOk = cam.initGrabber(reqCamWidth,reqCamHeight);
+            camWidth = cam.width;
+            camHeight= cam.height;
+            string message = "camera with id "+ ofToString(camID) +" asked for %i by %i - actual size is %i by %i \n";
+            char *buf = new char[message.length()];
+            strcpy(buf,message.c_str());
+            printf(buf, reqCamWidth, reqCamHeight, camWidth, camHeight);
+            delete []buf;
+            if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera " + ofToString(camID) + "not found, live feed not available"); }
+            cameras.push_back(cam);
+            // following vector is used for the combo box in SimpleGuiToo gui
+            cameraIDs.push_back(ofToString(camID));
+        }
+        XML.clear();
     }
 
-    XML.clear();
-    /*
-    while (!camGrabber.isFrameNew())
-    {
-        cout << "initializing camera\n";
-        camGrabber.grabFrame();
-    }
-    */
 
     //double click time
     doubleclickTime = 500;
@@ -159,19 +158,6 @@ void testApp::setup()
     useTimeline = false;
     timelineDurationSeconds = timelinePreviousDuration = 10.0;
 
-
-    // camera stuff
-    /*
-    bCameraOk = False;
-    camWidth = 640;	// try to grab at this size.
-    camHeight = 480;
-    camGrabber.setVerbose(true);
-    camGrabber.listDevices();
-    bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
-    camWidth = camGrabber.width;
-    camHeight= camGrabber.height;
-    printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
-    */
 
     // texture for snapshot background
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
@@ -302,13 +288,13 @@ void testApp::setup()
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
-        if (camWidth > 0)
+        if (cameras.size()>0)
         {
         gui.addTitle("Camera").setNewColumn(true);
         gui.addToggle("cam on/off", quads[i].camBg);
         if(cameras.size()>1)
         {
-           gui.addComboBox("select camera", quads[i].camNumber, cameras.size(), cameraIDs);
+           gui.addComboBox("select camera", quads[i].camNumber, cameras.size(), &cameraIDs[0]);
         }
         gui.addSlider("camera scale X", quads[i].camMultX, 0.1, 5.0);
         gui.addSlider("camera scale Y", quads[i].camMultY, 0.1, 5.0);

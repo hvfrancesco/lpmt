@@ -115,6 +115,7 @@ public:
     ofTexture snapshotTexture;
     int numOfCams;
 	vector<ofVideoGrabber> cameras;
+	vector<string> cameraIDs;
 
     int camID;
     int reqCamWidth;

@@ -15,6 +15,14 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     //camera = &camGrabber;
     quadKinect = &kinect;
     cams = cameras;
+    if(cams.size()>0)
+    {
+        camAvailable = true;
+    }
+    else
+    {
+        camAvailable = false;
+    }
 
     //loads load in some truetype fonts
     //ttf.loadFont("type/frabk.ttf", 11);
@@ -78,7 +86,10 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     camNumber = prevCamNumber = 0;
     camMultX = 1;
     camMultY = 1;
-    setupCamera();
+    if (camAvailable)
+    {
+        setupCamera();
+    }
 
     imgMultX = 1.0;
     imgMultY = 1.0;
@@ -226,7 +237,7 @@ void quad::update()
 {
     if (isOn)
     {
-        if(camNumber != prevCamNumber)
+        if(camAvailable && camNumber != prevCamNumber)
         {
             setupCamera();
             prevCamNumber = camNumber;
@@ -270,7 +281,7 @@ void quad::update()
 
 
         // live camera --------------------------------------------------------------
-        if (camBg && cams[camNumber].width > 0)
+        if (camAvailable && camBg && cams[camNumber].width > 0)
         {
             camPixels = cams[camNumber].getPixels();
             if (camGreenscreen)
@@ -571,7 +582,7 @@ void quad::draw()
 
         // camera ------------------------------------------------------------------------------
         // camera stuff
-        if (camBg && cams[camNumber].width > 0)
+        if (camAvailable && camBg && cams[camNumber].width > 0)
         {
             if (camHFlip || camVFlip)
             {
