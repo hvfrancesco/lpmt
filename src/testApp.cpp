@@ -50,8 +50,9 @@ void testApp::setup()
     bCameraOk = False;
     if(XML.loadFile("camera_settings.xml"))
     {
+        // check how many cameras are defined in settings
         numOfCams = XML.getNumTags("CAMERA");
-
+        // cycle through defined cameras trying to initialize them and populate the cameras vector
         for (int i=0; i<numOfCams; i++)
         {
             XML.pushTag("CAMERA", i);
@@ -69,10 +70,17 @@ void testApp::setup()
             strcpy(buf,message.c_str());
             printf(buf, reqCamWidth, reqCamHeight, camWidth, camHeight);
             delete []buf;
-            if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera " + ofToString(camID) + "not found, live feed not available"); }
-            cameras.push_back(cam);
-            // following vector is used for the combo box in SimpleGuiToo gui
-            cameraIDs.push_back(ofToString(camID));
+            // check if the camera is available and eventually push it to cameras vector
+            if (camWidth == 0 || camHeight == 0)
+            {
+                ofSystemAlertDialog("camera with id " + ofToString(camID) + " not found or not available");
+            }
+            else
+            {
+                cameras.push_back(cam);
+                // following vector is used for the combo box in SimpleGuiToo gui
+                cameraIDs.push_back(ofToString(camID));
+            }
         }
         XML.clear();
     }
