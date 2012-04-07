@@ -45,30 +45,38 @@ void testApp::setup()
     bOpenKinect = false;
 
     // camera stuff
+    cameras.clear();
+    numOfCams = 0;
     bCameraOk = False;
-    XML.loadFile("_camera_settings.xml");
-    reqCamWidth = XML.getValue("CAMERA:WIDTH",640);
-    reqCamHeight = XML.getValue("CAMERA:HEIGHT",480);
-    camID = XML.getValue("CAMERA:ID",0);
-    XML.clear();
-
-    //reqCamWidth = 640;	// try to grab at this size.
-    //reqCamHeight = 480;
-    camGrabber.listDevices();
-    if (camID > 0) {camGrabber.setDeviceID(camID);}
-    bCameraOk = camGrabber.initGrabber(reqCamWidth,reqCamHeight);
-    camWidth = camGrabber.width;
-    camHeight= camGrabber.height;
-    printf("camera init asked for %i by %i - actual size is %i by %i \n", reqCamWidth, reqCamHeight, camWidth, camHeight);
-    if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera not found, live feed not available"); }
-
-    /*
-    while (!camGrabber.isFrameNew())
+    if(XML.loadFile("camera_settings.xml"))
     {
-        cout << "initializing camera\n";
-        camGrabber.grabFrame();
+        numOfCams = XML.getNumTags("CAMERA");
+
+        for (int i=0; i<numOfCams; i++)
+        {
+            XML.pushTag("CAMERA", i);
+            reqCamWidth = XML.getValue("WIDTH",640);
+            reqCamHeight = XML.getValue("HEIGHT",480);
+            camID = XML.getValue("ID",0);
+            XML.popTag();
+            ofVideoGrabber cam;
+            cam.setDeviceID(camID);
+            bCameraOk = cam.initGrabber(reqCamWidth,reqCamHeight);
+            camWidth = cam.width;
+            camHeight= cam.height;
+            string message = "camera with id "+ ofToString(camID) +" asked for %i by %i - actual size is %i by %i \n";
+            char *buf = new char[message.length()];
+            strcpy(buf,message.c_str());
+            printf(buf, reqCamWidth, reqCamHeight, camWidth, camHeight);
+            delete []buf;
+            if (camWidth == 0 || camHeight == 0) { ofSystemAlertDialog("camera " + ofToString(camID) + "not found, live feed not available"); }
+            cameras.push_back(cam);
+            // following vector is used for the combo box in SimpleGuiToo gui
+            cameraIDs.push_back(ofToString(camID));
+        }
+        XML.clear();
     }
-    */
+
 
     //double click time
     doubleclickTime = 500;
@@ -151,19 +159,6 @@ void testApp::setup()
     timelineDurationSeconds = timelinePreviousDuration = 10.0;
 
 
-    // camera stuff
-    /*
-    bCameraOk = False;
-    camWidth = 640;	// try to grab at this size.
-    camHeight = 480;
-    camGrabber.setVerbose(true);
-    camGrabber.listDevices();
-    bCameraOk = camGrabber.initGrabber(camWidth,camHeight);
-    camWidth = camGrabber.width;
-    camHeight= camGrabber.height;
-    printf("camera init asked for 640 by 480 - actual size is %i by %i \n", camWidth, camHeight);
-    */
-
     // texture for snapshot background
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
     snapshotOn = 0;
@@ -176,13 +171,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -293,10 +288,14 @@ void testApp::setup()
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
-        if (camWidth > 0)
+        if (cameras.size()>0)
         {
         gui.addTitle("Camera").setNewColumn(true);
         gui.addToggle("cam on/off", quads[i].camBg);
+        if(cameras.size()>1)
+        {
+           gui.addComboBox("select camera", quads[i].camNumber, cameras.size(), &cameraIDs[0]);
+        }
         gui.addSlider("camera scale X", quads[i].camMultX, 0.1, 5.0);
         gui.addSlider("camera scale Y", quads[i].camMultY, 0.1, 5.0);
         gui.addToggle("H mirror", quads[i].camHFlip);
@@ -457,9 +456,12 @@ void testApp::prepare()
         }
 
 
-        if (camGrabber.getHeight() > 0)  // isLoaded check
+        for (int i=0; i < cameras.size(); i++)
         {
-            camGrabber.grabFrame();
+            if (cameras[i].getHeight() > 0)  // isLoaded check
+            {
+                cameras[i].grabFrame();
+            }
         }
 
 
@@ -710,9 +712,9 @@ void testApp::keyPressed(int key)
         snapshotOn = !snapshotOn;
         if (snapshotOn == 1)
         {
-            camGrabber.grabFrame();
+            cameras[0].grabFrame();
             snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
-            unsigned char * pixels = camGrabber.getPixels();
+            unsigned char * pixels = cameras[0].getPixels();
             snapshotTexture.loadData(pixels, camWidth,camHeight, GL_RGB);
         }
     }
@@ -834,7 +836,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, camGrabber, kinect);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
