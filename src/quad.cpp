@@ -312,7 +312,7 @@ void quad::update()
             else
             {
                 // loads camera pixels into this quad camera-texture with no alpha
-                camTexture.loadData(camPixels, camWidth, camHeight, GL_RGB);
+                camTexture.loadData(camPixels, camWidth, camHeight, GL_RGBA);
             }
         }
 
