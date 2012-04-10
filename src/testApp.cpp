@@ -62,8 +62,6 @@ void testApp::setup()
             XML.popTag();
             ofVideoGrabber cam;
             cam.setDeviceID(camID);
-            cam.setPixelFormat(OF_PIXELS_RGBA);
-            cam.setUseTexture(true);
             bCameraOk = cam.initGrabber(reqCamWidth,reqCamHeight);
             camWidth = cam.width;
             camHeight= cam.height;

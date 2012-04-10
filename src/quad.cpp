@@ -282,40 +282,7 @@ void quad::update()
 
 
         // live camera --------------------------------------------------------------
-        if (camAvailable && camBg && cams[camNumber].width > 0)
-        {
-            camPixels = cams[camNumber].getPixels();
-            if (camGreenscreen)
-            {
-                // checking for greenscreen color match
-                for (int i = 0; i < camWidth*camHeight; i++)
-                {
-                    int deltaR = abs(camPixels[i*3+0] - colorGreenscreen.r*255);
-                    int deltaG = abs(camPixels[i*3+1] - colorGreenscreen.g*255);
-                    int deltaB = abs(camPixels[i*3+2] - colorGreenscreen.b*255);
-                    if (deltaR <= thresholdGreenscreen && deltaG <= thresholdGreenscreen && deltaB <= thresholdGreenscreen)
-                    {
-                        camAlphaPixels[i*4+3] = 0;
-                    }
-                    else
-                    {
-                        camAlphaPixels[i*4+3] = 255;
-                    }
-                    // RGB data is copied untouched
-                    camAlphaPixels[i*4+0] = camPixels[i*3+0];
-                    camAlphaPixels[i*4+1] = camPixels[i*3+1];
-                    camAlphaPixels[i*4+2] = camPixels[i*3+2];
 
-                }
-                // loads data into texture with alpha
-                camAlphaTexture.loadData(camAlphaPixels,camWidth,camHeight,GL_RGBA);
-            }
-            else
-            {
-                // loads camera pixels into this quad camera-texture with no alpha
-                camTexture.loadData(camPixels, camWidth, camHeight, GL_RGBA);
-            }
-        }
 
         // video --------------------------------------------------------------------
         // loads video
@@ -335,33 +302,6 @@ void quad::update()
             if (video.isLoaded())
             {
                 video.idleMovie();
-            }
-
-            // video greenscreen stuff
-            if (videoGreenscreen)
-            {
-                // gets video frame pixels array
-                videoPixels = video.getPixels();
-                // checking for greenscreen color match
-                for (int i = 0; i < videoWidth*videoHeight; i++)
-                {
-                    int deltaR = abs(videoPixels[i*3+0] - colorGreenscreen.r*255);
-                    int deltaG = abs(videoPixels[i*3+1] - colorGreenscreen.g*255);
-                    int deltaB = abs(videoPixels[i*3+2] - colorGreenscreen.b*255);
-                    if (deltaR <= thresholdGreenscreen && deltaG <= thresholdGreenscreen && deltaB <= thresholdGreenscreen)
-                    {
-                        videoAlphaPixels[i*4+3] = 0;
-                    }
-                    else
-                    {
-                        videoAlphaPixels[i*4+3] = 255;
-                    }
-                    // RGB data is copied untouched
-                    videoAlphaPixels[i*4+0] = videoPixels[i*3+0];
-                    videoAlphaPixels[i*4+1] = videoPixels[i*3+1];
-                    videoAlphaPixels[i*4+2] = videoPixels[i*3+2];
-                }
-                videoTex.loadData(videoAlphaPixels,videoWidth,videoHeight,GL_RGBA);
             }
 
             // changevideo speed
@@ -555,7 +495,15 @@ void quad::draw()
                 {
                     if (videoGreenscreen)
                     {
-                        videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        //videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        greenscreenShader->begin();
+                        greenscreenShader->setUniformTexture("tex", video.getTextureReference(),0 );
+                        greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
+                        greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
+                        greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
+                        greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
+                        video.getTextureReference().draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        greenscreenShader->end();
                     }
                     else
                     {
@@ -567,7 +515,14 @@ void quad::draw()
             {
                 if (videoGreenscreen)
                 {
-                    videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        greenscreenShader->begin();
+                        greenscreenShader->setUniformTexture("tex", video.getTextureReference(),0 );
+                        greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
+                        greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
+                        greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
+                        greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
+                        video.getTextureReference().draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        greenscreenShader->end();
                 }
                 else
                 {

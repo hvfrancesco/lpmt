@@ -34,12 +34,9 @@ public:
     ofImage img;
     ofImage slide;
     ofVideoPlayer video;
-    ofTexture videoTex;
 
     int videoWidth;
     int videoHeight;
-    unsigned char * videoAlphaPixels;
-    unsigned char * videoPixels;
 
     int borderColor;
     ofFloatColor bgColor;
@@ -66,12 +63,10 @@ public:
 
     // camera stuff
     bool camAvailable;
-    ofTexture camTexture;
-    ofTexture camAlphaTexture;
+
     int camWidth;
     int camHeight;
-    unsigned char * camPixels;
-    unsigned char * camAlphaPixels;
+
     int camNumber;
     int prevCamNumber;
 

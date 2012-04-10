@@ -64,12 +64,7 @@ void quad::loadVideoFromFile(string videoName, string videoPath)
     video.loadMovie(videoPath);
     videoWidth = video.width;
     videoHeight = video.height;
-    if (videoTex.bAllocated())
-    {
-        videoTex.clear();
-    }
-    videoTex.allocate(videoWidth, videoHeight, GL_RGBA);
-    videoAlphaPixels = new unsigned char [videoWidth*videoHeight*4];
+
     video.play();
     loadedVideo = videoName;
 }
@@ -97,10 +92,5 @@ void quad::setupCamera()
 {
     camWidth = cams[camNumber].width;
     camHeight = cams[camNumber].height;
-    camTexture.clear();
-    camAlphaTexture.clear();
-    camTexture.allocate(camWidth,camHeight, GL_RGB);
-    camAlphaTexture.allocate(camWidth, camHeight, GL_RGBA);
-    camPixels = new unsigned char [camWidth*camHeight*3];
-    camAlphaPixels = new unsigned char [camWidth*camHeight*4];
+
 }
