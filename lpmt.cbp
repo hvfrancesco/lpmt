@@ -231,6 +231,12 @@
 		<Unit filename="bin/data/shaders/blend.vert">
 			<Option virtualFolder="shaders/" />
 		</Unit>
+		<Unit filename="bin/data/shaders/chroma.frag">
+			<Option virtualFolder="shaders/" />
+		</Unit>
+		<Unit filename="bin/data/shaders/chroma.vert">
+			<Option virtualFolder="shaders/" />
+		</Unit>
 		<Unit filename="bin/data/shaders/mask.frag">
 			<Option virtualFolder="shaders/" />
 		</Unit>

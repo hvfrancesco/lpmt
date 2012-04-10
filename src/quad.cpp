@@ -500,6 +500,10 @@ void quad::draw()
                         greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
                         greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                         greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
+                        // we pass tint values too
+                        greenscreenShader->setUniform1f("tintR", videoColorize.r);
+                        greenscreenShader->setUniform1f("tintG", videoColorize.g);
+                        greenscreenShader->setUniform1f("tintB", videoColorize.b);
                         greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
                         video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                         greenscreenShader->end();
@@ -519,6 +523,10 @@ void quad::draw()
                         greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
                         greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                         greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
+                        // we pass tint values too
+                        greenscreenShader->setUniform1f("tintR", videoColorize.r);
+                        greenscreenShader->setUniform1f("tintG", videoColorize.g);
+                        greenscreenShader->setUniform1f("tintB", videoColorize.b);
                         greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
                         video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                         greenscreenShader->end();
@@ -566,6 +574,10 @@ void quad::draw()
                 greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
                 greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                 greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
+                // we pass tint values too
+                greenscreenShader->setUniform1f("tintR", camColorize.r);
+                greenscreenShader->setUniform1f("tintG", camColorize.g);
+                greenscreenShader->setUniform1f("tintB", camColorize.b);
                 greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
                 cams[camNumber].getTextureReference().draw(0,0,camWidth*camMultX,camHeight*camMultY);
                 greenscreenShader->end();
