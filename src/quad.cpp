@@ -495,14 +495,13 @@ void quad::draw()
                 {
                     if (videoGreenscreen)
                     {
-                        //videoTex.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                         greenscreenShader->begin();
                         greenscreenShader->setUniformTexture("tex", video.getTextureReference(),0 );
                         greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
                         greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                         greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
                         greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
-                        video.getTextureReference().draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                         greenscreenShader->end();
                     }
                     else
@@ -521,7 +520,7 @@ void quad::draw()
                         greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                         greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
                         greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
-                        video.getTextureReference().draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
                         greenscreenShader->end();
                 }
                 else
@@ -562,7 +561,6 @@ void quad::draw()
             ofSetColor(camColorize.r * 255 * timelineRed, camColorize.g * 255 * timelineGreen, camColorize.b * 255 * timelineBlu, camColorize.a * 255 * timelineAlpha);
             if (camGreenscreen)
             {
-                //camAlphaTexture.draw(0,0,camWidth*camMultX,camHeight*camMultY);
                 greenscreenShader->begin();
                 greenscreenShader->setUniformTexture("tex", cams[camNumber].getTextureReference(),0 );
                 greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
@@ -571,7 +569,6 @@ void quad::draw()
                 greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
                 cams[camNumber].getTextureReference().draw(0,0,camWidth*camMultX,camHeight*camMultY);
                 greenscreenShader->end();
-
             }
             else
             {
