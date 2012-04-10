@@ -147,6 +147,7 @@ void testApp::setup()
     // load shaders
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
     quadMaskShader.load("shaders/mask.vert", "shaders/mask.frag");
+    chromaShader.load("shaders/chroma.vert", "shaders/chroma.frag");
 
     //ttf.loadFont("type/frabk.ttf", 11);
     ttf.loadFont("type/OpenSans-Regular.ttf", 11);
@@ -181,13 +182,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -318,7 +319,7 @@ void testApp::setup()
         {
         gui.addTitle("Greenscreen").setNewColumn(true);
         }
-        gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0, 128);
+        gui.addSlider("g-screen threshold", quads[i].thresholdGreenscreen, 0.0, 255.0);
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addTitle("Slideshow").setNewColumn(false);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
@@ -846,7 +847,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, cameras, kinect);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -1080,6 +1081,19 @@ void testApp::keyPressed(int key)
     if(key == OF_KEY_F9 && bTimeline)
     {
         timeline.toggleDrawBPMGrid();
+    }
+
+    if(key == '*')
+    {
+        if(cameras[quads[activeQuad].camNumber].getPixelFormat() == OF_PIXELS_RGBA)
+        {
+            cameras[quads[activeQuad].camNumber].setPixelFormat(OF_PIXELS_BGRA);
+        }
+        else if(cameras[quads[activeQuad].camNumber].getPixelFormat() == OF_PIXELS_BGRA)
+        {
+            cameras[quads[activeQuad].camNumber].setPixelFormat(OF_PIXELS_RGBA);
+        }
+
     }
 
 }

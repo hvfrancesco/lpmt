@@ -150,7 +150,7 @@ public:
     int highlightedCorner;
 
     int videoVolume;
-    int thresholdGreenscreen;
+    float thresholdGreenscreen;
     int bgSlideshow;
     unsigned int currentSlide;
     int transStep;
@@ -192,11 +192,13 @@ public:
     int quadW;
     int quadH;
 
+    ofShader * greenscreenShader;
+
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);
 
 
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect);
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, vector<string> &slideshowFolders, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect);
 
     void update();
 

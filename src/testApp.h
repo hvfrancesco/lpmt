@@ -90,6 +90,7 @@ public:
     // Shaders
     ofShader edgeBlendShader;
     ofShader quadMaskShader;
+    ofShader chromaShader;
 
     // gui elements
     bool showGui;
