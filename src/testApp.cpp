@@ -228,6 +228,7 @@ void testApp::setup()
     }
 
     // then two pages of settings for each quad surface
+    string blendModesArray[] = {"screen","add","subtract","multiply"};
     for(int i = 0; i < 36; i++)
     {
         gui.addPage("surface "+ofToString(i)+" - 1/3");
@@ -247,7 +248,7 @@ void testApp::setup()
         gui.addColorPicker("img color", &quads[i].imgColorize.r);
         gui.addTitle("Blending modes");
         gui.addToggle("blending on/off", quads[i].bBlendModes);
-        string blendModesArray[] = {"screen","add","subtract","multiply"};
+
         gui.addComboBox("blending mode", quads[i].blendMode, 4, blendModesArray);
         gui.addTitle("Solid color").setNewColumn(true);
         gui.addToggle("solid bg on/off", quads[i].colorBg);
