@@ -252,6 +252,9 @@
 		<Unit filename="src/ball.h">
 			<Option virtualFolder="src" />
 		</Unit>
+		<Unit filename="src/config.h">
+			<Option virtualFolder="src/" />
+		</Unit>
 		<Unit filename="src/deform.cpp">
 			<Option virtualFolder="src/" />
 		</Unit>

@@ -359,6 +359,7 @@ void quad::update()
 
         // -------------------------
         // finds kinect blobs with OpenCV
+        #ifdef WITH_KINECT
         if (kinectBg)
         {
             kinectThreshImage.clear();
@@ -394,6 +395,7 @@ void quad::update()
                 kinectPath.close();
             }
         }
+        #endif
 
         //we set matrix to the default - 0 translation
         //and 1.0 scale for x y z and w
@@ -688,6 +690,7 @@ void quad::draw()
         }
 
         // kinect stuff
+        #ifdef WITH_KINECT
         if (kinectBg && kinectImg)
         {
             ofSetColor(kinectColorize.r * 255 * timelineRed, kinectColorize.g * 255 * timelineGreen, kinectColorize.b * 255 * timelineBlu, kinectColorize.a * 255 * timelineAlpha);
@@ -713,6 +716,7 @@ void quad::draw()
                 kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
+        #endif
 
         ofDisableAlphaBlending();
         quadFbo.end();
@@ -733,6 +737,7 @@ void quad::draw()
             }
             ofEndShape(true);
         }
+        #ifdef WITH_KINECT
         if(kinectBg && kinectMask)
         {
             ofSetColor(255,255,255);
@@ -753,6 +758,7 @@ void quad::draw()
                 kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
+        #endif
         ofDisableSmoothing();
         ofNoFill();
         ofDisableAlphaBlending();

@@ -4,9 +4,9 @@
 
 #include "ofMain.h"
 #include "ofGraphics.h"
-#include "ofxOpenCv.h"
 
 #ifdef WITH_KINECT
+#include "ofxOpenCv.h"
 #include "kinectManager.h"
 #endif
 
@@ -180,11 +180,13 @@ public:
     ofFbo maskFbo;
     ofFbo::Settings maskFboSettings;
 
+    #ifdef WITH_KINECT
     kinectManager * quadKinect;
     ofxCvGrayscaleImage kinectThreshImage;
     ofxCvGrayscaleImage kinectContourImage;
     ofxCvContourFinder kinectContourFinder;
     ofPath kinectPath;
+    #endif
 
     ofFbo targetFbo;
 
