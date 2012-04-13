@@ -25,6 +25,9 @@
 #include "ofxTimeline.h"
 #endif
 #include "ofxSimpleGuiToo.h"
+#ifdef WITH_SYPHON
+#include "ofxSyphon.h"
+#endif
 
 class testApp : public ofBaseApp
 {
@@ -173,6 +176,10 @@ public:
 	bool useTimeline;
 	#endif
 
+    // syphon
+    #ifdef WITH_SYPHON
+	ofxSyphonClient syphClient;
+    #endif
 
 
 };

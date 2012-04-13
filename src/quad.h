@@ -10,6 +10,10 @@
 #include "kinectManager.h"
 #endif
 
+#ifdef WITH_SYPHON
+#include "ofxSyphon.h"
+#endif
+
 #ifndef True
 #define True true
 #endif
@@ -188,6 +192,15 @@ public:
     ofPath kinectPath;
     #endif
 
+    #ifdef WITH_SYPHON
+    ofxSyphonClient * syphClientTex;
+    bool bSyphon;
+    float syphonPosX;
+	float syphonPosY;
+	float syphonScaleX;
+    float syphonScaleY;
+    #endif
+
     ofFbo targetFbo;
 
     int quadDispX;
@@ -201,9 +214,17 @@ public:
     int getdir (string dir, vector<string> &files);
 
     #ifdef WITH_KINECT
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect);
+        #ifdef WITH_SYPHON
+        void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect, ofxSyphonClient &syphon);
+        #else
+        void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect);
+        #endif
     #else
-    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras);
+        #ifdef WITH_SYPHON
+        void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, ofxSyphonClient &syphon);
+        #else
+        void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras);
+        #endif
     #endif
 
 

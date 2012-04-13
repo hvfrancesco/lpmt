@@ -7,9 +7,17 @@
 #include <string>
 
 #ifdef WITH_KINECT
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect)
+    #ifdef WITH_SYPHON
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect, ofxSyphonClient &syphon)
+    #else
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect)
+    #endif
 #else
-void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras)
+    #ifdef WITH_SYPHON
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, ofxSyphonClient &syphon)
+    #else
+    void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras)
+    #endif
 #endif
 {
 
@@ -19,6 +27,9 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     //camera = &camGrabber;
     #ifdef WITH_KINECT
     quadKinect = &kinect;
+    #endif
+    #ifdef WITH_SYPHON
+    syphClientTex = &syphon;
     #endif
     cams = cameras;
     if(cams.size()>0)
@@ -176,6 +187,15 @@ void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, flo
     getKinectContours = false;
     getKinectGrayImage = false;
     kinectContourCurved = false;
+
+    #ifdef WITH_SYPHON
+    // syphon variables
+	bSyphon = false;
+	syphonPosX = 0.0;
+	syphonPosY = 0.0;
+	syphonScaleX = 1.0;
+	syphonScaleY = 1.0;
+	#endif
 
     edgeBlendBool = False;
     edgeBlendExponent = 1.0;
@@ -716,6 +736,15 @@ void quad::draw()
                 kinectThreshImage.draw(0,0,quadKinect->grayImage.getWidth()*kinectMultX,quadKinect->grayImage.getHeight()*kinectMultY);
             }
         }
+        #endif
+
+        #ifdef WITH_SYPHON
+        // syphon stuff
+		if (bSyphon)
+		{
+			ofSetColor(255, 255, 255);
+			syphClientTex->draw(syphonPosX, syphonPosY, syphonScaleX*syphClientTex->getWidth(), syphonScaleY*syphClientTex->getHeight());
+		}
         #endif
 
         ofDisableAlphaBlending();

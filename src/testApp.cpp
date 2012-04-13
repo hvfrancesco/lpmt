@@ -145,6 +145,13 @@ void testApp::setup()
     }
     */
 
+    #ifdef WITH_SYPHON
+	// Syphon setup
+	syphClient.setup();
+    //syphClient.setApplicationName("Simple Server");
+    syphClient.setServerName("");
+    #endif
+
     // load shaders
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
     quadMaskShader.load("shaders/mask.vert", "shaders/mask.frag");
@@ -185,27 +192,59 @@ void testApp::setup()
 
     // defines the first 4 default quads
     #ifdef WITH_KINECT
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #ifdef WITH_SYPHON
+        quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect, syphClient);
+        #else
+        quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #endif
     #else
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #ifdef WITH_SYPHON
+        quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, syphClient);
+        #else
+        quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #endif
     #endif
     quads[0].quadNumber = 0;
     #ifdef WITH_KINECT
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #ifdef WITH_SYPHON
+        quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect, syphClient);
+        #else
+        quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #endif
     #else
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #ifdef WITH_SYPHON
+        quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, syphClient);
+        #else
+        quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #endif
     #endif
     quads[1].quadNumber = 1;
     #ifdef WITH_KINECT
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #ifdef WITH_SYPHON
+        quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect, syphClient);
+        #else
+        quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #endif
     #else
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #ifdef WITH_SYPHON
+        quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, syphClient);
+        #else
+        quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #endif
     #endif
     quads[2].quadNumber = 2;
     #ifdef WITH_KINECT
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #ifdef WITH_SYPHON
+        quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect, syphClient);
+        #else
+        quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+        #endif
     #else
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #ifdef WITH_SYPHON
+        quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, syphClient);
+        #else
+        quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+        #endif
     #endif
     quads[3].quadNumber = 3;
     // define last one as active quad
@@ -262,6 +301,13 @@ void testApp::setup()
         gui.addToggle("use timeline col", quads[i].bTimelineColor);
         gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
         gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
+        #endif
+        #ifdef WITH_SYPHON
+        gui.addToggle("use Syphon", quads[i].bSyphon);
+		gui.addSlider("syphon origin X", quads[i].syphonPosX, -1280, 1280);
+        gui.addSlider("syphon origin Y", quads[i].syphonPosY, -1280, 1280);
+		gui.addSlider("syphon scale X", quads[i].syphonScaleX, 0.1, 5.0);
+        gui.addSlider("syphon scale Y", quads[i].syphonScaleY, 0.1, 5.0);
         #endif
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
@@ -889,9 +935,17 @@ void testApp::keyPressed(int key)
             if (nOfQuads < 36)
             {
                 #ifdef WITH_KINECT
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+                    #ifdef WITH_SYPHON
+                    quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect, syphClient);
+                    #else
+                    quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+                    #endif
                 #else
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+                    #ifdef WITH_SYPHON
+                    quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, syphClient);
+                    #else
+                    quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+                    #endif
                 #endif
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
