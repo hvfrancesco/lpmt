@@ -37,6 +37,18 @@ ofImage testApp::loadImageFromFile()
 
 }
 
+//-----------------------------------------------------------
+
+string testApp::loadSlideshow()
+{
+   ofFileDialogResult dialog_result = ofSystemLoadDialog("find slideshow folder", true);
+    if(dialog_result.bSuccess)
+    {
+        string slideshowPath = dialog_result.getPath();
+        return slideshowPath;
+   }
+}
+
 //--------------------------------------------------------------
 void testApp::resync()
 {

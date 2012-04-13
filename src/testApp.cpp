@@ -132,6 +132,7 @@ void testApp::setup()
 
     // we scan the slideshow dir for videos
     //string slideshowDir = string("./data/slideshow");
+    /*
     string slideshowDir = ofToDataPath("slideshow",true);
     slideshowFolders = vector<string>();
     getdir(slideshowDir,slideshowFolders);
@@ -140,7 +141,7 @@ void testApp::setup()
     {
         slideshows[i]= slideshowFolders[i];
     }
-
+    */
 
     // load shaders
     edgeBlendShader.load("shaders/blend.vert", "shaders/blend.frag");
@@ -180,13 +181,13 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
-    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[0].quadNumber = 0;
-    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[1].quadNumber = 1;
-    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[2].quadNumber = 2;
-    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -322,7 +323,7 @@ void testApp::setup()
         gui.addColorPicker("greenscreen col", &quads[i].colorGreenscreen.r);
         gui.addTitle("Slideshow").setNewColumn(false);
         gui.addToggle("slideshow on/off", quads[i].slideshowBg);
-        gui.addComboBox("slideshow folder", quads[i].bgSlideshow, slideshowFolders.size(), slideshows);
+        gui.addButton("load slideshow", bSlideshowLoad);
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
@@ -448,6 +449,15 @@ void testApp::prepare()
         {
             bVideoLoad = false;
             openVideoFile();
+        }
+
+        // check if image load button on GUI is pressed
+       if(bSlideshowLoad)
+       {
+            bSlideshowLoad = false;
+            string ssname = loadSlideshow();
+            cout << ssname;
+            quads[activeQuad].slideshowName = ssname;
         }
 
         // check if kinect close button on GUI is pressed
@@ -846,7 +856,7 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
-                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, slideshowFolders, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
