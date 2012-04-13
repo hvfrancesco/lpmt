@@ -1,0 +1,2 @@
+#define WITH_KINECT
+#define WITH_TIMELINE

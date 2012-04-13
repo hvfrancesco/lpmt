@@ -52,10 +52,12 @@ string testApp::loadSlideshow()
 //--------------------------------------------------------------
 void testApp::resync()
 {
+    #ifdef WITH_TIMELINE
     if(useTimeline)
     {
         timeline.setCurrentTime(0.0);
     }
+    #endif
 
     for(int i = 0; i < 36; i++)
     {
@@ -86,11 +88,13 @@ void testApp::resync()
 void testApp::startProjection()
 {
     bStarted = True;
+    #ifdef WITH_TIMELINE
     if(useTimeline)
     {
         timeline.enable();
         timeline.play();
     }
+    #endif
     for(int i = 0; i < 36; i++)
     {
         if (quads[i].initialized)
@@ -109,12 +113,14 @@ void testApp::startProjection()
 void testApp::stopProjection()
 {
     bStarted = False;
+    #ifdef WITH_TIMELINE
     if(useTimeline)
     {
         timeline.stop();
         timeline.hide();
         timeline.disable();
     }
+    #endif
     for(int i = 0; i < 36; i++)
     {
         if (quads[i].initialized)

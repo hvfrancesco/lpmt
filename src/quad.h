@@ -1,9 +1,14 @@
 #pragma once
 
+#include "config.h"
+
 #include "ofMain.h"
 #include "ofGraphics.h"
 #include "ofxOpenCv.h"
+
+#ifdef WITH_KINECT
 #include "kinectManager.h"
+#endif
 
 #ifndef True
 #define True true
@@ -193,8 +198,12 @@ public:
     // a func for reading a dir content to a vector of strings
     int getdir (string dir, vector<string> &files);
 
-
+    #ifdef WITH_KINECT
     void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect);
+    #else
+    void setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras);
+    #endif
+
 
     void update();
 

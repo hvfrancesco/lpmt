@@ -1,5 +1,5 @@
 #include "testApp.h"
-
+#ifdef WITH_TIMELINE
 //--------------------------------------------------------------
 void testApp::timelineSetup(float duration){
 
@@ -105,3 +105,5 @@ void testApp::timelineAddQuadPage(int i) {
 	timeline.addKeyframes("alpha_"+ofToString(i), ofToString(i)+"_alpha.xml", ofRange(0, 1.0));
 	timeline.addTriggers("trigger_"+ofToString(i), ofToString(i)+"_trigger.xml");
 }
+
+#endif

@@ -6,15 +6,20 @@
 #include <vector>
 #include <string>
 
-
+#ifdef WITH_KINECT
 void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras, kinectManager &kinect)
+#else
+void quad::setup(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, ofShader &edgeBlendShader, ofShader &quadMaskShader, ofShader &chromaShader, vector<ofVideoGrabber> &cameras)
+#endif
 {
 
     shaderBlend = &edgeBlendShader;
     maskShader = &quadMaskShader;
     greenscreenShader = &chromaShader;
     //camera = &camGrabber;
+    #ifdef WITH_KINECT
     quadKinect = &kinect;
+    #endif
     cams = cameras;
     if(cams.size()>0)
     {

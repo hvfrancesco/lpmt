@@ -40,9 +40,11 @@ void testApp::setup()
 
     ofSetLogLevel(OF_LOG_WARNING);
 
+    #ifdef WITH_KINECT
     bKinectOk = kinect.setup();
     bCloseKinect = false;
     bOpenKinect = false;
+    #endif
 
     // camera stuff
     cameras.clear();
@@ -165,9 +167,10 @@ void testApp::setup()
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
     //timeline defaults
+    #ifdef WITH_TIMELINE
     useTimeline = false;
     timelineDurationSeconds = timelinePreviousDuration = 10.0;
-
+    #endif
 
     // texture for snapshot background
     snapshotTexture.allocate(camWidth,camHeight, GL_RGB);
@@ -181,13 +184,29 @@ void testApp::setup()
     }
 
     // defines the first 4 default quads
+    #ifdef WITH_KINECT
     quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    #else
+    quads[0].setup(0.0,0.0,0.5,0.0,0.5,0.5,0.0,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+    #endif
     quads[0].quadNumber = 0;
+    #ifdef WITH_KINECT
     quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    #else
+    quads[1].setup(0.5,0.0,1.0,0.0,1.0,0.5,0.5,0.5, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+    #endif
     quads[1].quadNumber = 1;
+    #ifdef WITH_KINECT
     quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    #else
+    quads[2].setup(0.0,0.5,0.5,0.5,0.5,1.0,0.0,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+    #endif
     quads[2].quadNumber = 2;
+    #ifdef WITH_KINECT
     quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+    #else
+    quads[3].setup(0.5,0.5,1.0,0.5,1.0,1.0,0.5,1.0, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+    #endif
     quads[3].quadNumber = 3;
     // define last one as active quad
     activeQuad = 3;
@@ -204,7 +223,9 @@ void testApp::setup()
     quads[3].layer = 3;
 
     // timeline stuff initialization
+    #ifdef WITH_TIMELINE
     timelineSetup(timelineDurationSeconds);
+    #endif
 
     // GUI STUFF ---------------------------------------------------
 
@@ -235,11 +256,13 @@ void testApp::setup()
         gui.addPage("surface "+ofToString(i)+" - 1/3");
         gui.addTitle("surface "+ofToString(i));
         gui.addToggle("show/hide", quads[i].isOn);
+        #ifdef WITH_TIMELINE
         gui.addToggle("use timeline", useTimeline);
         gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
         gui.addToggle("use timeline col", quads[i].bTimelineColor);
         gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
         gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
+        #endif
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
         gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
@@ -327,6 +350,7 @@ void testApp::setup()
         gui.addSlider("slide duration", quads[i].slideshowSpeed, 0.1, 15.0);
         gui.addToggle("slides to quad size", quads[i].slideFit);
         gui.addToggle("keep aspect ratio", quads[i].slideKeepAspect);
+        #ifdef WITH_KINECT
         if(bKinectOk)
         {
             gui.addTitle("Kinect").setNewColumn(true);
@@ -351,7 +375,7 @@ void testApp::setup()
             gui.addButton("reopen connection", bOpenKinect);
 
         }
-
+        #endif
         gui.addPage("surface "+ofToString(i)+" - 3/3");
         gui.addTitle("Corner 0");
         gui.addSlider("X", quads[i].corners[0].x, -1.0, 2.0);
@@ -371,11 +395,12 @@ void testApp::setup()
     gui.setPage((activeQuad*3)+2);
     gui.show();
     // timeline off at start
-    timeline.setCurrentPage(ofToString(activeQuad));
     bTimeline = false;
+    #ifdef WITH_TIMELINE
+    timeline.setCurrentPage(ofToString(activeQuad));
     timeline.hide();
     timeline.disable();
-
+    #endif
 
 }
 
@@ -461,6 +486,7 @@ void testApp::prepare()
         }
 
         // check if kinect close button on GUI is pressed
+        #ifdef WITH_KINECT
         if(bCloseKinect)
         {
             bCloseKinect = false;
@@ -474,7 +500,7 @@ void testApp::prepare()
             bOpenKinect = false;
             kinect.kinect.open();
         }
-
+        #endif
 
         for (int i=0; i < cameras.size(); i++)
         {
@@ -497,9 +523,12 @@ void testApp::prepare()
         //ofSetWindowShape(800, 600);
 
         // kinect update
+        #ifdef WITH_KINECT
         kinect.update();
+        #endif
 
         //timeline update
+        #ifdef WITH_TIMELINE
         if(timelineDurationSeconds != timelinePreviousDuration)
         {
             timelinePreviousDuration = timelineDurationSeconds;
@@ -509,6 +538,7 @@ void testApp::prepare()
         {
             timelineUpdate();
         }
+        #endif
 
         // loops through initialized quads and runs update, setting the border color as well
         for(int j = 0; j < 36; j++)
@@ -607,10 +637,12 @@ void testApp::draw()
         }
     }
 
+    #ifdef WITH_TIMELINE
     if (bTimeline)
     {
         timeline.draw();
     }
+    #endif
 
     if (bSplash)
     {
@@ -856,7 +888,11 @@ void testApp::keyPressed(int key)
         {
             if (nOfQuads < 36)
             {
+                #ifdef WITH_KINECT
                 quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras, kinect);
+                #else
+                quads[nOfQuads].setup(0.25,0.25,0.75,0.25,0.75,0.75,0.25,0.75, edgeBlendShader, quadMaskShader, chromaShader, cameras);
+                #endif
                 quads[nOfQuads].quadNumber = nOfQuads;
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
@@ -867,8 +903,9 @@ void testApp::keyPressed(int key)
                 quads[activeQuad].allocateFbo(ofGetWidth(),ofGetHeight());
                 gui.setPage((activeQuad*3)+2);
                 // add timeline page for new quad
+                #ifdef WITH_TIMELINE
                 timelineAddQuadPage(activeQuad);
-
+                #endif
                 //gui.show(); // bad workaround for image disappearing bug when adding quad and gui is off
                 if (!bGui)
                 {
@@ -1064,6 +1101,7 @@ void testApp::keyPressed(int key)
 
 
     // toggle timeline
+    #ifdef WITH_TIMELINE
     if(key == OF_KEY_F10)
     {
         bTimeline = !bTimeline;
@@ -1091,6 +1129,7 @@ void testApp::keyPressed(int key)
     {
         timeline.toggleDrawBPMGrid();
     }
+    #endif
 
     if(key == '*')
     {
@@ -1399,7 +1438,9 @@ void testApp::mouseReleased()
 
 void testApp::windowResized(int w, int h)
 {
+            #ifdef WITH_TIMELINE
             timeline.setWidth(w);
+            #endif
             for(int i = 0; i < 36; i++)
             {
                 if (quads[i].initialized)

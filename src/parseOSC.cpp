@@ -244,7 +244,7 @@ void testApp::parseOsc()
 
 
     // timeline stuff
-
+    #ifdef WITH_TIMELINE
     // use toggle
     else if ( m.getAddress() == "/projection/timeline/toggle" )
     {
@@ -268,7 +268,7 @@ void testApp::parseOsc()
         float osc_timelineDurationSeconds = m.getArgAsFloat( 0 );
         if(osc_timelineDurationSeconds >= 10.0) {timelineDurationSeconds =osc_timelineDurationSeconds;}
     }
-
+    #endif
 
 //------------------------------------------------------
 // active quad stuff
@@ -1118,6 +1118,8 @@ void testApp::parseOsc()
         else if(osc_quad_kinectBg == 1) {quads[activeQuad].kinectBg = true;}
     }
 
+    //kinect stuff
+    #ifdef WITH_KINECT
     else if ( m.getAddress() == "/active/kinect/open" )
     {
         // no argument
@@ -1308,7 +1310,7 @@ void testApp::parseOsc()
         float kinect_color_a = m.getArgAsFloat( 0 );
         quads[activeQuad].kinectColorize.a = kinect_color_a;
     }
-
+    #endif
 
     else
     {

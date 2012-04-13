@@ -1,5 +1,8 @@
 #ifndef _TEST_APP
 #define _TEST_APP
+
+#include "config.h"
+
 #define OF_ADDON_USING_OFXXMLSETTINGS
 
 //#define WINDOW_W 800
@@ -12,11 +15,15 @@
 #include "ofMain.h"
 
 #include "quad.h"
+#ifdef WITH_KINECT
 #include "kinectManager.h"
+#endif
 #include "ofxXmlSettings.h"
 #include "ofxMostPixelsEver.h"
 #include "ofxOsc.h"
+#ifdef WITH_TIMELINE
 #include "ofxTimeline.h"
+#endif
 #include "ofxSimpleGuiToo.h"
 
 class testApp : public ofBaseApp
@@ -147,12 +154,15 @@ public:
     string loadSlideshow();
     bool bSlideshowLoad;
 
+    #ifdef WITH_KINECT
     kinectManager kinect;
     bool bKinectOk;
     bool bCloseKinect;
     bool bOpenKinect;
+    #endif
 
     // timeline
+    #ifdef WITH_TIMELINE
     ofxTimeline timeline;
     float timelineDurationSeconds;
     float timelinePreviousDuration;
@@ -161,6 +171,7 @@ public:
     void timelineAddQuadPage(int i);
 	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
 	bool useTimeline;
+	#endif
 
 
 
