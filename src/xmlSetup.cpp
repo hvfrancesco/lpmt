@@ -291,6 +291,13 @@ void testApp::getXml()
 
 
         quads[i].isOn = XML.getValue("QUADS:QUAD_"+ofToString(i)+":IS_ON",0);
-
+        quads[i].isActive = false;
+    }
+    quads[activeQuad].isActive = True;
+    gui.setPage((activeQuad*3)+2);
+    if (!bGui)
+    {
+        gui.toggleDraw();
+        bGui = !bGui;
     }
 }
