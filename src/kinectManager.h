@@ -1,6 +1,6 @@
 #ifndef OF_KINECT_MANAGER
 #define OF_KINECT_MANAGER
-
+#ifdef WITH_KINECT
 #include "ofMain.h"
 #include "ofxKinect.h"
 #include "ofxOpenCv.h"
@@ -41,5 +41,5 @@ class kinectManager {
         ofxCvGrayscaleImage getThresholdDepthImage(int nearDepthTh, int farDepthTh, int blurVal);
 
 };
-
+#endif
 #endif

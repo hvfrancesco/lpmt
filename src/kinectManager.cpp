@@ -1,3 +1,4 @@
+#ifdef WITH_KINECT
 #include "kinectManager.h"
 
 
@@ -83,5 +84,5 @@ ofxCvGrayscaleImage kinectManager::getThresholdDepthImage(int nearDepthTh, int f
     return thDepthImage;
 
 }
-
+#endif
 

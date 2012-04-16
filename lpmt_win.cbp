@@ -6,7 +6,7 @@
 		<Option makefile="makefile" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
-		<Option virtualFolders="addons\;src\;addons\ofxMSAInteractiveObject\src\;addons\ofxMostPixelsEver\src\;addons\ofxNetwork\src\;addons\ofxOsc\libs\oscpack\include\ip\;addons\ofxOsc\libs\oscpack\include\osc\;addons\ofxOsc\src\;addons\ofxSimpleGuiToo\src\Controls\;addons\ofxSimpleGuiToo\src\;addons\ofxThread\src\;addons\ofxXmlSettings\libs\;addons\ofxXmlSettings\src\;" />
+		<Option virtualFolders="addons\;src\;addons\ofxMSAInteractiveObject\src\;addons\ofxMostPixelsEver\src\;addons\ofxNetwork\src\;addons\ofxOsc\libs\oscpack\include\ip\;addons\ofxOsc\libs\oscpack\include\osc\;addons\ofxOsc\src\;addons\ofxSimpleGuiToo\src\Controls\;addons\ofxSimpleGuiToo\src\;addons\ofxThread\src\;addons\ofxXmlSettings\libs\;addons\ofxXmlSettings\src\;addons\ofxTimeline\;addons\ofxTween\;addons\ofxRange\;addons\ofxTextInputField\;Resources\;" />
 		<Build>
 			<Target title="release">
 				<Option output="bin\$(PROJECT_NAME)" prefix_auto="1" extension_auto="1" />
@@ -83,6 +83,11 @@
 			<Add directory="..\..\..\addons\ofxOsc\libs\oscpack\include\ip" />
 			<Add directory="..\..\..\addons\ofxOsc\libs\oscpack\include\osc" />
 			<Add directory="..\..\..\addons\ofxOsc\libs\oscpack\lib\win_cb" />
+			<Add directory="..\..\..\addons\ofxTimeline\src" />
+			<Add directory="..\..\..\addons\ofxTween\src" />
+			<Add directory="..\..\..\addons\ofxRange" />
+			<Add directory="..\..\..\addons\ofxTween\src\Easings" />
+			<Add directory="..\..\..\addons\ofxTextInputField\src" />
 		</Compiler>
 		<Linker>
 			<Add option="..\..\..\addons\ofxOsc\libs\oscpack\lib\win_cb\oscpack.a" />
@@ -252,6 +257,9 @@
 		<Unit filename="..\..\..\addons\ofxOsc\src\ofxOscSender.h">
 			<Option virtualFolder="addons\ofxOsc\src" />
 		</Unit>
+		<Unit filename="..\..\..\addons\ofxRange\ofRange.h">
+			<Option virtualFolder="addons\ofxRange\" />
+		</Unit>
 		<Unit filename="..\..\..\addons\ofxSimpleGuiToo\src\Controls\ofxSimpleGuiButton.cpp">
 			<Option virtualFolder="addons\ofxSimpleGuiToo\src\Controls" />
 		</Unit>
@@ -354,8 +362,143 @@
 		<Unit filename="..\..\..\addons\ofxSimpleGuiToo\src\ofxSimpleGuiValueControl.h">
 			<Option virtualFolder="addons\ofxSimpleGuiToo\src" />
 		</Unit>
+		<Unit filename="..\..\..\addons\ofxTextInputField\src\ofxTextInputField.cpp">
+			<Option virtualFolder="addons\ofxTextInputField\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTextInputField\src\ofxTextInputField.h">
+			<Option virtualFolder="addons\ofxTextInputField\" />
+		</Unit>
 		<Unit filename="..\..\..\addons\ofxThread\src\ofxThread.h">
 			<Option virtualFolder="addons\ofxThread\src" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLColors.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLColors.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLElement.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLElement.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLElementHeader.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLElementHeader.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLEvents.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLEvents.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLImageSequence.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLImageSequence.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLImageSequenceFrame.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLImageSequenceFrame.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLKeyframer.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLKeyframer.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLPage.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLPage.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLPageTabs.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLPageTabs.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLSwitcher.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLSwitcher.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLTicker.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLTicker.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLTrigger.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLTrigger.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLUtils.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLVideoPlayer.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLVideoPlayer.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLVideoThumb.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLVideoThumb.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLZoomer.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTLZoomer.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTimeline.cpp">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTimeline\src\ofxTimeline.h">
+			<Option virtualFolder="addons\ofxTimeline\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasing.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasing.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingBack.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingBack.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingBounce.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingBounce.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingCirc.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingCirc.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingCubic.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingCubic.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingElastic.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingElastic.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingExpo.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingExpo.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingLinear.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingLinear.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuad.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuad.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuart.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuart.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuint.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingQuint.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingSine.cpp" />
+		<Unit filename="..\..\..\addons\ofxTween\src\Easings\ofxEasingSine.h" />
+		<Unit filename="..\..\..\addons\ofxTween\src\ofxTween.cpp">
+			<Option virtualFolder="addons\ofxTween\" />
+		</Unit>
+		<Unit filename="..\..\..\addons\ofxTween\src\ofxTween.h">
+			<Option virtualFolder="addons\ofxTween\" />
 		</Unit>
 		<Unit filename="..\..\..\addons\ofxXmlSettings\libs\tinyxml.cpp">
 			<Option virtualFolder="addons\ofxXmlSettings\libs" />
@@ -375,17 +518,36 @@
 		<Unit filename="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h">
 			<Option virtualFolder="addons\ofxXmlSettings\src" />
 		</Unit>
+		<Unit filename="lpmt.res" />
+		<Unit filename="src\appUtils.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
 		<Unit filename="src\ball.h">
 			<Option virtualFolder="src" />
 		</Unit>
-		<Unit filename="src\homography.h">
-			<Option virtualFolder="src" />
+		<Unit filename="src\config.h">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\deform.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\homography.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\kinectManager.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\kinectManager.h">
+			<Option virtualFolder="src\" />
 		</Unit>
 		<Unit filename="src\main.cpp">
 			<Option virtualFolder="src" />
 		</Unit>
-		<Unit filename="src\parseOSC.h">
-			<Option virtualFolder="src" />
+		<Unit filename="src\markers.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\parseOSC.cpp">
+			<Option virtualFolder="src\" />
 		</Unit>
 		<Unit filename="src\quad.cpp">
 			<Option virtualFolder="src" />
@@ -393,11 +555,20 @@
 		<Unit filename="src\quad.h">
 			<Option virtualFolder="src" />
 		</Unit>
+		<Unit filename="src\quadUtils.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
 		<Unit filename="src\testApp.cpp">
 			<Option virtualFolder="src" />
 		</Unit>
 		<Unit filename="src\testApp.h">
 			<Option virtualFolder="src" />
+		</Unit>
+		<Unit filename="src\timeline.cpp">
+			<Option virtualFolder="src\" />
+		</Unit>
+		<Unit filename="src\xmlSetup.cpp">
+			<Option virtualFolder="src\" />
 		</Unit>
 		<Extensions>
 			<code_completion />
