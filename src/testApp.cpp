@@ -450,6 +450,10 @@ void testApp::setup()
 
 }
 
+void testApp::exit()
+{
+
+}
 
 void testApp::mpeSetup()
 {
