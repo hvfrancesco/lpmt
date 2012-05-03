@@ -75,6 +75,10 @@
     crop[2] = 0.0;
     crop[3] = 0.0;
 
+    circularCrop[0] = 0.5;
+    circularCrop[1] = 0.5;
+    circularCrop[2] = 0.0;
+
     //videos = videoFiles;
     //slideshows = slideshowFolders;
 
@@ -765,12 +769,20 @@ void quad::draw()
         ofFill();
         ofEnableSmoothing();
 
-        // crop mask
+        // crop rectangular mask
         ofSetColor(255,255,255);
         ofRect(0,0,ofGetWidth(),crop[0]*ofGetHeight());
         ofRect(ofGetWidth()*(1-crop[1]),0,ofGetWidth()*crop[1],ofGetHeight());
         ofRect(0,ofGetHeight()*(1-crop[2]),ofGetWidth(),crop[2]*ofGetHeight());
         ofRect(0,0,ofGetWidth()*crop[3], ofGetHeight());
+
+        // crop circular mask
+        if(circularCrop[2]>0.0)
+        {
+            ofSetCircleResolution(64);
+            ofCircle(circularCrop[0]*ofGetWidth(), circularCrop[1]*ofGetHeight(), circularCrop[2]*ofGetWidth());
+            ofSetCircleResolution(22);
+        }
 
         // user mask
         if(maskPoints.size()>0)

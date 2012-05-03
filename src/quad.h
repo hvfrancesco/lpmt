@@ -36,6 +36,7 @@ public:
     ofPoint src[4];
     ofPoint dst[4];
     float crop[4];
+    float circularCrop[3];
     //lets make a matrix for openGL
     //this will be the matrix that peforms the transformation
     GLfloat matrix[16];
