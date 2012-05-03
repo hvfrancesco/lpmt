@@ -70,6 +70,11 @@
 
     center = (corners[0]+corners[1]+corners[2]+corners[3])/4;
 
+    crop[0] = 0.0;
+    crop[1] = 0.0;
+    crop[2] = 0.0;
+    crop[3] = 0.0;
+
     //videos = videoFiles;
     //slideshows = slideshowFolders;
 
@@ -756,6 +761,15 @@ void quad::draw()
         ofEnableAlphaBlending();
         ofFill();
         ofEnableSmoothing();
+
+        // crop mask
+        ofSetColor(255,255,255);
+        ofRect(0,0,ofGetWidth(),crop[0]*ofGetHeight());
+        ofRect(ofGetWidth()*(1-crop[1]),0,ofGetWidth()*crop[1],ofGetHeight());
+        ofRect(0,ofGetHeight()*(1-crop[2]),ofGetWidth(),crop[2]*ofGetHeight());
+        ofRect(0,0,ofGetWidth()*crop[3], ofGetHeight());
+
+        // user mask
         if(maskPoints.size()>0)
         {
             ofSetColor(255,255,255);

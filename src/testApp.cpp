@@ -435,6 +435,12 @@ void testApp::setup()
         gui.addTitle("Corner 2");
         gui.addSlider("X", quads[i].corners[2].x, -1.0, 2.0);
         gui.addSlider("Y", quads[i].corners[2].y, -1.0, 2.0);
+        gui.addTitle("Crop").setNewColumn(true);
+        gui.addSlider("top", quads[i].crop[0], 0, 1.0);
+        gui.addSlider("right", quads[i].crop[1], 0, 1.0);
+        gui.addSlider("bottom", quads[i].crop[2], 0, 1.0);
+        gui.addSlider("left", quads[i].crop[3], 0, 1.0);
+
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
