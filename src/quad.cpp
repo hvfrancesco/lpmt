@@ -217,6 +217,9 @@
     settings.useStencil = false;
     settings.width = ofGetWidth();
     settings.height = ofGetHeight();
+    quadFbo.allocate(settings);
+    maskFbo.allocate(settings);
+    targetFbo.allocate(settings);
 
     quadDispX = 0;
     quadDispY = 0;
@@ -1137,8 +1140,8 @@ void quad::draw()
 
         //lets draw a bounding box if we are in setup mode
         ofNoFill();
-        ofEnableSmoothing();
-        ofSetLineWidth(0.5);
+        //ofEnableSmoothing();
+        ofSetLineWidth(1.0);
         if (isSetup)
         {
             ofSetHexColor(borderColor);

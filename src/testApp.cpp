@@ -961,21 +961,17 @@ void testApp::keyPressed(int key)
                 layers[nOfQuads] = nOfQuads;
                 quads[nOfQuads].layer = nOfQuads;
                 quads[activeQuad].isActive = False;
+                quads[nOfQuads].isActive = True;
                 activeQuad = nOfQuads;
-                quads[activeQuad].isActive = True;
                 ++nOfQuads;
-                quads[activeQuad].allocateFbo(ofGetWidth(),ofGetHeight());
                 gui.setPage((activeQuad*3)+2);
                 // add timeline page for new quad
                 #ifdef WITH_TIMELINE
                 timelineAddQuadPage(activeQuad);
                 #endif
-                //gui.show(); // bad workaround for image disappearing bug when adding quad and gui is off
-                if (!bGui)
-                {
-                    gui.toggleDraw();
-                    bGui = !bGui;
-                }
+                // next line fixes a bug i've been tracking down for a looong time
+                glDisable(GL_DEPTH_TEST);
+
             }
         }
     }
