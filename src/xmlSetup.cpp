@@ -295,9 +295,5 @@ void testApp::getXml()
     }
     quads[activeQuad].isActive = True;
     gui.setPage((activeQuad*3)+2);
-    if (!bGui)
-    {
-        gui.toggleDraw();
-        bGui = !bGui;
-    }
+    glDisable(GL_DEPTH_TEST);
 }

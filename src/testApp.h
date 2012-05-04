@@ -42,6 +42,7 @@ public:
     void draw();
     void prepare();
     void dostuff();
+    void exit();
 
     void mpeSetup();
     void resync();
