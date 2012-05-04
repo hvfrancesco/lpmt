@@ -115,6 +115,13 @@ void testApp::setXml()
                     XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:POINTS:POINT_"+ofToString(j)+":Y",quads[i].maskPoints[j].y);
                 }
             }
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:TOP",quads[i].crop[0]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:RIGHT",quads[i].crop[1]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:BOTTOM",quads[i].crop[2]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:LEFT",quads[i].crop[3]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:X",quads[i].circularCrop[0]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:Y",quads[i].circularCrop[1]);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:RADIUS",quads[i].circularCrop[2]);
             // deform stuff
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:ON",quads[i].bDeform);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:ON",quads[i].bBezier);
@@ -274,6 +281,13 @@ void testApp::getXml()
                 quads[i].maskPoints.push_back(tempMaskPoint);
             }
         }
+        quads[i].crop[0] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:TOP",0.0);
+        quads[i].crop[1] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:RIGHT",0.0);
+        quads[i].crop[2] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:BOTTOM",0.0);
+        quads[i].crop[3] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:RECTANGULAR:LEFT",0.0);
+        quads[i].circularCrop[0] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:X",0.5);
+        quads[i].circularCrop[1] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:Y",0.5);
+        quads[i].circularCrop[2] = XML.getValue("QUADS:QUAD_"+ofToString(i)+":MASK:CROP:CIRCULAR:RADIUS",0.0);
         // deform stuff
         quads[i].bDeform = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:ON",0);
         quads[i].bBezier = XML.getValue("QUADS:QUAD_"+ofToString(i)+":DEFORM:BEZIER:ON",0);
