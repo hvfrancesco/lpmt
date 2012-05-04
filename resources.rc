@@ -1,0 +1,31 @@
+IDR_APP_ICON ICON "lpmt.ico"
+
+GLUT_ICON ICON "lpmt.ico"
+
+//include version information in .exe, modify these values to match your needs
+1 VERSIONINFO
+FILEVERSION 0,1,4,0
+PRODUCTVERSION 0,1,4,0
+
+{
+  BLOCK "StringFileInfo"
+	{
+		BLOCK "040904E4"
+		{
+			VALUE "CompanyName", "HVA"
+			VALUE "FileVersion", "1.4.0 beta"
+			VALUE "FileDescription", "lpmt"
+			VALUE "InternalName", "lpmt"
+			VALUE "LegalCopyright", "hva 2012"
+			VALUE "LegalTrademarks", ""
+			VALUE "OriginalFilename", ""
+			VALUE "ProductName", "LPMT - Little Projection Mapping Tool"
+			VALUE "ProductVersion", "1.4beta windows no-kinect"
+		}
+	}
+  BLOCK "VarFileInfo"
+	{
+		VALUE "Translation", 0x0409, 1252 //language codes
+	}
+}
+

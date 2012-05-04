@@ -518,7 +518,9 @@
 		<Unit filename="..\..\..\addons\ofxXmlSettings\src\ofxXmlSettings.h">
 			<Option virtualFolder="addons\ofxXmlSettings\src" />
 		</Unit>
-		<Unit filename="lpmt.res" />
+		<Unit filename="resources.rc">
+			<Option compilerVar="WINDRES" />
+		</Unit>
 		<Unit filename="src\appUtils.cpp">
 			<Option virtualFolder="src\" />
 		</Unit>
