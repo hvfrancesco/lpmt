@@ -3,7 +3,9 @@
 //-----------------------------------------------------------
 void testApp::openImageFile()
 {
-    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image file", false);
+    cout << "loading image " << endl;
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load image file");
+    cout << "image loaded " << endl;
     if(dialog_result.bSuccess)
     {
         quads[activeQuad].loadImageFromFile(dialog_result.getName(), dialog_result.getPath());
@@ -13,7 +15,9 @@ void testApp::openImageFile()
 //-----------------------------------------------------------
 void testApp::openVideoFile()
 {
-    ofFileDialogResult dialog_result = ofSystemLoadDialog("load video file", false);
+    cout << "loading video " << endl;
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load video file");
+    cout << "video loaded " << endl;
     if(dialog_result.bSuccess)
     {
         quads[activeQuad].loadVideoFromFile(dialog_result.getName(), dialog_result.getPath());

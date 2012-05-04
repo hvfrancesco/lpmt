@@ -12,15 +12,15 @@ PRODUCTVERSION 0,1,4,0
 	{
 		BLOCK "040904E4"
 		{
-			VALUE "CompanyName", "HVA"
-			VALUE "FileVersion", "1.4.0 beta"
+			VALUE "CompanyName", "HVA hermanitos verdes architetti"
+			VALUE "FileVersion", "1.4.0 beta2"
 			VALUE "FileDescription", "lpmt"
 			VALUE "InternalName", "lpmt"
 			VALUE "LegalCopyright", "hva 2012"
 			VALUE "LegalTrademarks", ""
 			VALUE "OriginalFilename", ""
 			VALUE "ProductName", "LPMT - Little Projection Mapping Tool"
-			VALUE "ProductVersion", "1.4beta windows no-kinect"
+			VALUE "ProductVersion", "1.4beta2 windows no-kinect"
 		}
 	}
   BLOCK "VarFileInfo"
