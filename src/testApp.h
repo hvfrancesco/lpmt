@@ -69,6 +69,8 @@ public:
     int nOfQuads;
     int borderColor;
 
+    bool configOk;
+
     bool isSetup;
     bool bFullscreen;
     bool bGui;

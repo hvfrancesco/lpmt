@@ -40,6 +40,11 @@ void testApp::setup()
 
     ofSetLogLevel(OF_LOG_WARNING);
 
+    // read xml config file
+    configOk = XML.loadFile("config.xml");
+    if(!configOk) {cout << "WARNING: config file config.xml not found!" << endl << endl;}
+    else {cout << "using config file config.xml" << endl;}
+
     #ifdef WITH_KINECT
     bKinectOk = kinect.setup();
     bCloseKinect = false;
@@ -50,8 +55,9 @@ void testApp::setup()
     cameras.clear();
     numOfCams = 0;
     bCameraOk = False;
-    if(XML.loadFile("camera_settings.xml"))
+    if(configOk)
     {
+        XML.pushTag("CAMERAS");
         // check how many cameras are defined in settings
         numOfCams = XML.getNumTags("CAMERA");
         // cycle through defined cameras trying to initialize them and populate the cameras vector
@@ -84,7 +90,7 @@ void testApp::setup()
                 cameraIDs.push_back(ofToString(camID));
             }
         }
-        XML.clear();
+        XML.popTag();
     }
 
 
@@ -118,7 +124,17 @@ void testApp::setup()
     gridSetup = false;
 
     // OSC setup
-    receiver.setup( PORT );
+    if (configOk)
+    {
+        int oscReceivePort = XML.getValue("OSC:LISTENING_PORT",12345);
+        cout << "listening for OSC messages on port: " << oscReceivePort << endl;
+        receiver.setup(oscReceivePort);
+    }
+    else
+    {
+        cout << "listening for OSC messages on default port 12345" << endl;
+        receiver.setup( PORT );
+    }
     current_msg_string = 0;
 
     // we scan the video dir for videos
@@ -457,6 +473,9 @@ void testApp::setup()
     timeline.disable();
     #endif
 
+    // free xml reader from config file
+    cout << "setup done! playing now" << endl << endl;
+    XML.clear();
 }
 
 void testApp::exit()
