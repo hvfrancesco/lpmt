@@ -189,6 +189,11 @@ void testApp::setup()
     bGui = 1;
     ofSetWindowShape(WINDOW_W, WINDOW_H);
 
+    // snap mode for surfaces corner is on
+    bSnapOn = true;
+    // number of surface to use as source in copy/paste is disabled
+    copyQuadNum = -1;
+
     //timeline defaults
     #ifdef WITH_TIMELINE
     useTimeline = false;
@@ -298,13 +303,15 @@ void testApp::setup()
     gui.config->textColor = 0xFFFFFF;
     gui.config->textBGOverColor = 0xDB6800;
     // adding controls
-    // first a general page for toggling layers on/off
+    // first a general page for general controls and toggling surfaces on/off
     for(int i = 0; i < 36; i++)
     {
         gui.addToggle("surface "+ofToString(i), quads[i].isOn);
     }
+    gui.addTitle("General controls").setNewColumn(true);
+    gui.addToggle("surfaces corner snap", bSnapOn);
 
-    // then two pages of settings for each quad surface
+    // then three pages of settings for each quad surface
     string blendModesArray[] = {"screen","add","subtract","multiply"};
     for(int i = 0; i < 36; i++)
     {
@@ -948,7 +955,6 @@ void testApp::keyPressed(int key)
     // goes to second page of gui for active quad or, in edit mask mode, clears mask
     if ( (key == 'c' || key == 'C') && !bTimeline)
     {
-
         if(maskSetup) {quads[activeQuad].maskPoints.clear();}
         else {gui.setPage((activeQuad*3)+4);}
     }
@@ -958,6 +964,25 @@ void testApp::keyPressed(int key)
         gui.setPage((activeQuad*3)+4);
     }
 
+    // paste settings from source surface to current active surface
+    /*if ( (key == 'v') && !bTimeline)
+    {
+        if(glutGetModifiers() & GLUT_ACTIVE_CTRL)
+        {
+           copyQuadSettings(copyQuadNum);
+        }
+    }*/
+
+    if ( (key == 3) && !bTimeline)
+    {
+        copyQuadNum = activeQuad;
+    }
+
+
+    if ( (key == 22) && !bTimeline)
+    {
+        copyQuadSettings(copyQuadNum);
+    }
 
     // adds a new quad in the middle of the screen
     if ( key =='a' && !bTimeline)
@@ -1506,7 +1531,7 @@ void testApp::mouseReleased()
                 }
             }
         }
-        if (snapQuad >= 0 && snapCorner >= 0)
+        if (snapQuad >= 0 && snapCorner >= 0 && bSnapOn)
         {
             quads[activeQuad].corners[whichCorner].x = quads[snapQuad].corners[snapCorner].x;
             quads[activeQuad].corners[whichCorner].y = quads[snapQuad].corners[snapCorner].y;

@@ -29,6 +29,8 @@
 #include "ofxSyphon.h"
 #endif
 
+//#include <GL/glut.h>
+
 class testApp : public ofBaseApp
 {
 
@@ -48,6 +50,7 @@ public:
     void resync();
     void startProjection();
     void stopProjection();
+    void copyQuadSettings(int sourceQuad);
 
 
     void keyPressed(int key);
@@ -68,6 +71,7 @@ public:
     int activeQuad;
     int nOfQuads;
     int borderColor;
+    int copyQuadNum;
 
     bool configOk;
 
@@ -81,6 +85,7 @@ public:
     bool maskSetup;
     bool gridSetup;
     bool bCameraOk;
+    bool bSnapOn;
 
     ofImage splashImg;
     float splashTime;
