@@ -1251,6 +1251,39 @@ void testApp::keyPressed(int key)
 
     }
 
+    // rotation of surface around its center
+    if(key == '3')
+    {
+        ofMatrix4x4 rotation;
+        ofMatrix4x4 centerToOrigin;
+        ofMatrix4x4 originToCenter;
+        ofMatrix4x4 resultingMatrix;
+        centerToOrigin.makeTranslationMatrix(-quads[activeQuad].center);
+        originToCenter.makeTranslationMatrix(quads[activeQuad].center);
+        rotation.makeRotationMatrix(-5.0,0,0,1);
+        resultingMatrix = centerToOrigin * rotation * originToCenter;
+        for(int i=0; i<4; i++)
+        {
+            quads[activeQuad].corners[i] = quads[activeQuad].corners[i] * resultingMatrix;
+        }
+    }
+
+    if(key == '4')
+    {
+        ofMatrix4x4 rotation;
+        ofMatrix4x4 centerToOrigin;
+        ofMatrix4x4 originToCenter;
+        ofMatrix4x4 resultingMatrix;
+        centerToOrigin.makeTranslationMatrix(-quads[activeQuad].center);
+        originToCenter.makeTranslationMatrix(quads[activeQuad].center);
+        rotation.makeRotationMatrix(5.0,0,0,1);
+        resultingMatrix = centerToOrigin * rotation * originToCenter;
+        for(int i=0; i<4; i++)
+        {
+            quads[activeQuad].corners[i] = quads[activeQuad].corners[i] * resultingMatrix;
+        }
+    }
+
 }
 
 //--------------------------------------------------------------
