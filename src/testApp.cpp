@@ -1437,9 +1437,19 @@ void testApp::mouseDragged(int x, int y, int button)
         // check if we can move whole quad by dragging its center
         else
         {
+            // distance from center
             float distx = quads[activeQuad].center.x - scaleX;
             float disty = quads[activeQuad].center.y - scaleY;
             float dist  = sqrt( distx * distx + disty * disty);
+
+            // distance from rotation grab point
+            ofPoint rotationGrabPoint;
+            rotationGrabPoint.x = (quads[activeQuad].corners[2].x - quads[activeQuad].corners[1].x)/2 + quads[activeQuad].corners[1].x;
+            rotationGrabPoint.y = (quads[activeQuad].corners[2].y - quads[activeQuad].corners[1].y)/2 + quads[activeQuad].corners[1].y;
+            float rotationDistx = rotationGrabPoint.x - scaleX;
+            float rotationDisty = rotationGrabPoint.y - scaleY;
+            float rotationDist = sqrt(rotationDistx*rotationDistx + rotationDisty*rotationDisty);
+
             if(dist < 0.1) // TODO: verifiy if threshold value is good for distance
             {
                 ofPoint mouse;
@@ -1452,6 +1462,31 @@ void testApp::mouseDragged(int x, int y, int button)
                 {
                     quads[activeQuad].corners[i].x = quads[activeQuad].corners[i].x + ((float)movement.x / ofGetWidth());
                     quads[activeQuad].corners[i].y = quads[activeQuad].corners[i].y + ((float)movement.y / ofGetHeight());
+                }
+                startDrag.x = x;
+                startDrag.y = y;
+            }
+
+            if(rotationDist < 0.075)
+            {
+                float angle;
+                ofPoint mouse;
+                ofPoint movement;
+                mouse.x = x;
+                mouse.y = y;
+                movement = (mouse-startDrag)-quads[activeQuad].center;
+                angle = atan2(movement.y,movement.x);
+                ofMatrix4x4 rotation;
+                ofMatrix4x4 centerToOrigin;
+                ofMatrix4x4 originToCenter;
+                ofMatrix4x4 resultingMatrix;
+                centerToOrigin.makeTranslationMatrix(-quads[activeQuad].center);
+                originToCenter.makeTranslationMatrix(quads[activeQuad].center);
+                rotation.makeRotationMatrix(angle,0,0,1);
+                resultingMatrix = centerToOrigin * rotation * originToCenter;
+                for(int i=0; i<4; i++)
+                {
+                    quads[activeQuad].corners[i] = quads[activeQuad].corners[i] * resultingMatrix;
                 }
                 startDrag.x = x;
                 startDrag.y = y;
