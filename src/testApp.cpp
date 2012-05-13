@@ -1238,7 +1238,7 @@ void testApp::keyPressed(int key)
     }
     #endif
 
-    if(key == '*')
+    if(key == '*' && !bTimeline)
     {
         if(cameras[quads[activeQuad].camNumber].getPixelFormat() == OF_PIXELS_RGBA)
         {
@@ -1252,7 +1252,7 @@ void testApp::keyPressed(int key)
     }
 
     // rotation of surface around its center
-    if(key == '3')
+    if(key == '3' && !bTimeline)
     {
         ofMatrix4x4 rotation;
         ofMatrix4x4 centerToOrigin;
@@ -1268,7 +1268,7 @@ void testApp::keyPressed(int key)
         }
     }
 
-    if(key == '4')
+    if(key == '4' && !bTimeline)
     {
         ofMatrix4x4 rotation;
         ofMatrix4x4 centerToOrigin;
