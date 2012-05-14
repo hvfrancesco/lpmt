@@ -1336,8 +1336,11 @@ void testApp::mouseMoved(int x, int y )
 
                 // distance from rotation grab point
                 ofPoint rotationGrabPoint;
-                rotationGrabPoint.x = (quads[activeQuad].corners[2].x - quads[activeQuad].corners[1].x)/2 + quads[activeQuad].corners[1].x;
-                rotationGrabPoint.y = (quads[activeQuad].corners[2].y - quads[activeQuad].corners[1].y)/2 + quads[activeQuad].corners[1].y;
+                //rotationGrabPoint.x = (quads[activeQuad].corners[2].x - quads[activeQuad].corners[1].x)/2 + quads[activeQuad].corners[1].x;
+                //rotationGrabPoint.y = (quads[activeQuad].corners[2].y - quads[activeQuad].corners[1].y)/2 + quads[activeQuad].corners[1].y;
+                //rotationGrabPoint = ((quads[activeQuad].corners[2]+quads[activeQuad].corners[1])/2+quads[activeQuad].center)/2;
+                rotationGrabPoint = (quads[activeQuad].center);
+                rotationGrabPoint.x = rotationGrabPoint.x + 0.1;
                 float rotationDistx = rotationGrabPoint.x - (float)x / ofGetWidth();
                 float rotationDisty = rotationGrabPoint.y - (float)y/ofGetHeight();
                 float rotationDist = sqrt(rotationDistx*rotationDistx + rotationDisty*rotationDisty);
