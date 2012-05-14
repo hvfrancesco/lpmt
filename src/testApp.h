@@ -128,6 +128,9 @@ public:
     void quadBezierSpherizeStrong(int q);
     void quadBezierReset(int q);
 
+    float totRotationAngle;
+    ofPolyline rotationSector;
+
     // camera grabber
     //ofVideoGrabber camGrabber;
     ofTexture camTexture;

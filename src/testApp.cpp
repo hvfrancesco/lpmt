@@ -97,6 +97,7 @@ void testApp::setup()
     //double click time
     doubleclickTime = 500;
     lastTap = 0;
+    totRotationAngle = 0;
 
     if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>800 )
     {
@@ -710,7 +711,13 @@ void testApp::draw()
 
         if (bStarted)
         {
-
+            // if we are rotating surface, draws a feedback rotation sector
+            ofEnableAlphaBlending();
+            ofFill();
+            ofSetColor(0,200,220,120);
+            rotationSector.draw();
+            ofNoFill();
+            ofDisableAlphaBlending();
             ofSetHexColor(0xFFFFFF);
             ttf.drawString("active surface: "+ofToString(activeQuad), 30, ofGetHeight()-25);
             if(maskSetup) {
@@ -1492,6 +1499,14 @@ void testApp::mouseDragged(int x, int y, int button)
                 ofVec3f vec1 = (startDrag-center);
                 ofVec3f vec2 = (mouse-center);
                 angle = ofRadToDeg(atan2(vec2.y,vec2.x) - atan2(vec1.y,vec1.x));
+
+                totRotationAngle += angle;
+                rotationSector.clear();
+                rotationSector.addVertex(center);
+                rotationSector.lineTo(center.x+(0.025*ofGetWidth()),center.y);
+                rotationSector.arc(center, 0.025*ofGetWidth(), 0.025*ofGetWidth(), 0, totRotationAngle, 40);
+                rotationSector.close();
+
                 ofMatrix4x4 rotation;
                 ofMatrix4x4 centerToOrigin;
                 ofMatrix4x4 originToCenter;
@@ -1539,6 +1554,7 @@ void testApp::mouseDragged(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mousePressed(int x, int y, int button)
 {
+    rotationSector.clear();
     // this is used for dragging the whole quad using its centroid
     startDrag.x = x;
     startDrag.y = y;
@@ -1574,7 +1590,7 @@ void testApp::mousePressed(int x, int y, int button)
             float disty = quads[activeQuad].corners[i].y - (float)y/ofGetHeight();
             float dist  = sqrt( distx * distx + disty * disty);
 
-            if(dist < smallestDist && dist < 0.1)
+            if(dist < smallestDist && dist < 0.05)
             {
                 whichCorner = i;
                 smallestDist = dist;
@@ -1587,6 +1603,8 @@ void testApp::mousePressed(int x, int y, int button)
 //--------------------------------------------------------------
 void testApp::mouseReleased()
 {
+    totRotationAngle = 0;
+    rotationSector.clear();
     if (isSetup && !bGui && !bTimeline)
     {
 

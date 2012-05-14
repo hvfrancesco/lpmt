@@ -1214,7 +1214,7 @@ void quad::draw()
                     ofSetColor(0,200,220,120);
                     ofRect(center.x*ofGetWidth()-5,center.y*ofGetHeight()-5,10,10);
                     ofDisableAlphaBlending();
-                    ofSetColor(255,255,255,255);
+                    //ofSetColor(255,255,255,255);
                     ofLine(center.x*ofGetWidth()-20,center.y*ofGetHeight(),center.x*ofGetWidth()-10,center.y*ofGetHeight());
                     ofLine(center.x*ofGetWidth()-10,center.y*ofGetHeight(),center.x*ofGetWidth()-14,center.y*ofGetHeight()+4);
                     ofLine(center.x*ofGetWidth()-10,center.y*ofGetHeight(),center.x*ofGetWidth()-14,center.y*ofGetHeight()-4);
