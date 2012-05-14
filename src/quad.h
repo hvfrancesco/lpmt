@@ -155,6 +155,9 @@ public:
     bool bHighlightCorner;
     int highlightedCorner;
 
+    bool bHighlightCenter;
+    bool bHighlightRotation;
+
     int videoVolume;
     float thresholdGreenscreen;
     int bgSlideshow;

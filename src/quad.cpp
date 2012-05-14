@@ -236,6 +236,9 @@
     bHighlightCorner = False;
     highlightedCorner = -1;
 
+    bHighlightCenter = false;
+    bHighlightRotation = false;
+
     maskPoints = vector<ofPoint>();
     bMask = False;
     maskInvert = False;
@@ -1171,6 +1174,29 @@ void quad::draw()
                 ofLine(0,ofGetHeight()/2+ofGetHeight()/4,ofGetWidth(),ofGetHeight()/2+ofGetHeight()/4);
                 ofLine(ofGetWidth()/4,0,ofGetWidth()/4,ofGetHeight());
                 ofLine(ofGetWidth()/2+ofGetWidth()/4,0,ofGetWidth()/2+ofGetWidth()/4,ofGetHeight());
+                if(bHighlightCenter)
+                {
+                    ofFill();
+                    ofEnableAlphaBlending();
+                    ofSetColor(0,200,220,120);
+                    ofRect(ofGetWidth()/2-10,ofGetHeight()/2-10,20,20);
+                    ofDisableAlphaBlending();
+                    ofSetHexColor(0x444444);
+                    ofNoFill();
+                }
+
+                if(bHighlightRotation)
+                {
+                    ofFill();
+                    ofEnableAlphaBlending();
+                    ofSetColor(0,200,220,120);
+                    ofCircle(ofGetWidth()-15,ofGetHeight()/2,10);
+                    ofDisableAlphaBlending();
+                    ofSetHexColor(0x444444);
+                    ofNoFill();
+                }
+                ofRect(ofGetWidth()/2-10,ofGetHeight()/2-10,20,20);
+                ofCircle(ofGetWidth()-15,ofGetHeight()/2,10);
             }
         }
 
@@ -1203,12 +1229,14 @@ void quad::draw()
             if (isActive)
             {
                 ofSetHexColor(0xDB6800);    // draws orange label if active quad, white if not
+                ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
             }
             else
             {
                 ofSetHexColor(0xFFFFFF);
+                ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
             }
-            ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())-2, (center.y*ofGetHeight())-2);
+
         }
 
     }

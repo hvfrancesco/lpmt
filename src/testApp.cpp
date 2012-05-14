@@ -1307,7 +1307,7 @@ void testApp::mouseMoved(int x, int y )
             float disty = quads[activeQuad].corners[i].y - (float)y/ofGetHeight();
             float dist  = sqrt( distx * distx + disty * disty);
 
-            if(dist < smallestDist && dist < 0.1)
+            if(dist < smallestDist && dist < 0.05) // value for dist threshold can vary between 0.1-0.05, fine tune it
             {
                 whichCorner = i;
                 smallestDist = dist;
@@ -1323,6 +1323,29 @@ void testApp::mouseMoved(int x, int y )
             {
                 quads[activeQuad].bHighlightCorner = False;
                 quads[activeQuad].highlightedCorner = -1;
+
+                // distance from center
+                float distx = quads[activeQuad].center.x - (float)x / ofGetWidth();
+                float disty = quads[activeQuad].center.y - (float)y/ofGetHeight();
+                float dist  = sqrt( distx * distx + disty * disty);
+                if(dist < 0.05)
+                {
+                    quads[activeQuad].bHighlightCenter = true;
+                }
+                else {quads[activeQuad].bHighlightCenter = false;}
+
+                // distance from rotation grab point
+                ofPoint rotationGrabPoint;
+                rotationGrabPoint.x = (quads[activeQuad].corners[2].x - quads[activeQuad].corners[1].x)/2 + quads[activeQuad].corners[1].x;
+                rotationGrabPoint.y = (quads[activeQuad].corners[2].y - quads[activeQuad].corners[1].y)/2 + quads[activeQuad].corners[1].y;
+                float rotationDistx = rotationGrabPoint.x - (float)x / ofGetWidth();
+                float rotationDisty = rotationGrabPoint.y - (float)y/ofGetHeight();
+                float rotationDist = sqrt(rotationDistx*rotationDistx + rotationDisty*rotationDisty);
+                if(rotationDist < 0.05)
+                {
+                    quads[activeQuad].bHighlightRotation = true;
+                }
+                else {quads[activeQuad].bHighlightRotation = false;}
             }
     }
 
@@ -1434,23 +1457,10 @@ void testApp::mouseDragged(int x, int y, int button)
             quads[activeQuad].corners[whichCorner].x = scaleX;
             quads[activeQuad].corners[whichCorner].y = scaleY;
         }
-        // check if we can move whole quad by dragging its center
+        // check if we can move or rotate whole quad by dragging its center and rotation mark
         else
         {
-            // distance from center
-            float distx = quads[activeQuad].center.x - scaleX;
-            float disty = quads[activeQuad].center.y - scaleY;
-            float dist  = sqrt( distx * distx + disty * disty);
-
-            // distance from rotation grab point
-            ofPoint rotationGrabPoint;
-            rotationGrabPoint.x = (quads[activeQuad].corners[2].x - quads[activeQuad].corners[1].x)/2 + quads[activeQuad].corners[1].x;
-            rotationGrabPoint.y = (quads[activeQuad].corners[2].y - quads[activeQuad].corners[1].y)/2 + quads[activeQuad].corners[1].y;
-            float rotationDistx = rotationGrabPoint.x - scaleX;
-            float rotationDisty = rotationGrabPoint.y - scaleY;
-            float rotationDist = sqrt(rotationDistx*rotationDistx + rotationDisty*rotationDisty);
-
-            if(dist < 0.1) // TODO: verifiy if threshold value is good for distance
+            if(quads[activeQuad].bHighlightCenter) // TODO: verifiy if threshold value is good for distance
             {
                 ofPoint mouse;
                 ofPoint movement;
@@ -1467,15 +1477,18 @@ void testApp::mouseDragged(int x, int y, int button)
                 startDrag.y = y;
             }
 
-            if(rotationDist < 0.075)
+            else if(quads[activeQuad].bHighlightRotation)
             {
                 float angle;
                 ofPoint mouse;
-                ofPoint movement;
+                ofPoint center;
                 mouse.x = x;
                 mouse.y = y;
-                movement = (mouse-startDrag)-quads[activeQuad].center;
-                angle = atan2(movement.y,movement.x);
+                center.x = quads[activeQuad].center.x * ofGetWidth();
+                center.y = quads[activeQuad].center.y * ofGetHeight();
+                ofVec3f vec1 = (startDrag-center);
+                ofVec3f vec2 = (mouse-center);
+                angle = ofRadToDeg(atan2(vec2.y,vec2.x) - atan2(vec1.y,vec1.x));
                 ofMatrix4x4 rotation;
                 ofMatrix4x4 centerToOrigin;
                 ofMatrix4x4 originToCenter;
