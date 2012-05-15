@@ -24,6 +24,26 @@ void testApp::openVideoFile()
     }
 }
 
+//-----------------------------------------------------------
+void testApp::openSharedVideoFile(int i)
+{
+    cout << "loading shared video " << endl;
+    ofFileDialogResult dialog_result = ofSystemLoadDialog("load shared video file");
+    if(dialog_result.bSuccess)
+    {
+        if (sharedVideos[i].isLoaded())
+        {
+            sharedVideos[i].closeMovie();
+        }
+        sharedVideos[i].loadMovie(dialog_result.getPath());
+        if(sharedVideos[i].isLoaded())
+        {
+            cout << "shared video loaded" << endl;
+            sharedVideos[i].play();
+            sharedVideos[i].setVolume(0);
+        }
+    }
+}
 
 //-----------------------------------------------------------
 ofImage testApp::loadImageFromFile()

@@ -115,6 +115,9 @@ public:
 
     bool bImageLoad;
     bool bVideoLoad;
+    bool bSharedVideoLoad0;
+    bool bSharedVideoLoad1;
+    bool bSharedVideoLoad2;
     bool bQuadReset;
     bool bQuadBezierSpherize;
     bool bQuadBezierSpherizeStrong;
@@ -122,6 +125,7 @@ public:
 
     void openImageFile();
     void openVideoFile();
+    void openSharedVideoFile(int i);
     void quadDimensionsReset(int q);
     void quadPlacementReset(int q);
     void quadBezierSpherize(int q);
@@ -138,6 +142,8 @@ public:
     int numOfCams;
 	vector<ofVideoGrabber> cameras;
 	vector<string> cameraIDs;
+
+    vector<ofVideoPlayer> sharedVideos;
 
     int camID;
     int reqCamWidth;
