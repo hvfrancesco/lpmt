@@ -760,7 +760,8 @@ void testApp::draw()
             // if we are rotating surface, draws a feedback rotation sector
             ofEnableAlphaBlending();
             ofFill();
-            ofSetColor(0,200,220,120);
+            //ofSetColor(0,200,220,120);
+            ofSetColor(219,104,0,255);
             rotationSector.draw();
             ofNoFill();
             ofDisableAlphaBlending();

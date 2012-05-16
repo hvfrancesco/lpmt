@@ -1182,6 +1182,7 @@ void quad::draw()
             ofDisableAlphaBlending();
         }
 
+        /*
         // draws a little triangle to highlight draggable corner
         if(isActive && bHighlightCorner && highlightedCorner >= 0)
         {
@@ -1190,23 +1191,24 @@ void quad::draw()
             ofEnableAlphaBlending();
             if(highlightedCorner == 0)
             {
-                ofTriangle(0,0,20,0,0,20);
+                ofTriangle(0,0,25,0,0,25);
             }
             else if(highlightedCorner == 1)
             {
-                ofTriangle(ofGetWidth(),0,ofGetWidth()-20,0,ofGetWidth(),20);
+                ofTriangle(ofGetWidth(),0,ofGetWidth()-25,0,ofGetWidth(),25);
             }
             else if(highlightedCorner == 2)
             {
-                ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-20,ofGetHeight(),ofGetWidth(),ofGetHeight()-20);
+                ofTriangle(ofGetWidth(),ofGetHeight(),ofGetWidth()-25,ofGetHeight(),ofGetWidth(),ofGetHeight()-25);
             }
             else if(highlightedCorner == 3)
             {
-                ofTriangle(0,ofGetHeight(),0,ofGetHeight()-20,20,ofGetHeight());
+                ofTriangle(0,ofGetHeight(),0,ofGetHeight()-25,25,ofGetHeight());
             }
             ofDisableAlphaBlending();
             ofNoFill();
         }
+        */
 
         //lets draw a bounding box if we are in setup mode
         ofNoFill();
@@ -1255,6 +1257,20 @@ void quad::draw()
         }
 
 
+        // draws a little circle to highlight draggable corner
+        if(isActive && bHighlightCorner && highlightedCorner >= 0)
+        {
+            //ofFill();
+            //ofSetColor(0,200,220,120);
+            ofSetColor(219,104,0,255);
+            ofEnableAlphaBlending();
+            ofCircle(corners[highlightedCorner].x*ofGetWidth(),corners[highlightedCorner].y*ofGetHeight(),20);
+            ofDisableAlphaBlending();
+            //ofNoFill();
+        }
+
+
+
         if (isSetup)
         {
             ofSetHexColor(0x000000);
@@ -1266,7 +1282,8 @@ void quad::draw()
                 {
                     ofFill();
                     ofEnableAlphaBlending();
-                    ofSetColor(0,200,220,120);
+                    //ofSetColor(0,200,220,120);
+                    ofSetColor(219,104,0,120);
                     ofRect(center.x*ofGetWidth()-5,center.y*ofGetHeight()-5,10,10);
                     ofDisableAlphaBlending();
                     //ofSetColor(255,255,255,255);
@@ -1284,7 +1301,8 @@ void quad::draw()
                 {
                     ofFill();
                     ofEnableAlphaBlending();
-                    ofSetColor(0,200,220,120);
+                    //ofSetColor(0,200,220,120);
+                    ofSetColor(219,104,0,120);
                     ofCircle((center.x+0.1)*ofGetWidth(),center.y*ofGetHeight(),5);
                     ofDisableAlphaBlending();
                     ofSetHexColor(0x444444);
@@ -1295,7 +1313,7 @@ void quad::draw()
                 ofCircle((center.x+0.1)*ofGetWidth(),center.y*ofGetHeight(),5);
                 ofLine(center.x*ofGetWidth(),center.y*ofGetHeight(),(center.x+0.1)*ofGetWidth(),center.y*ofGetHeight());
 
-                ofSetHexColor(0xDB6800);    // draws orange label if active quad, white if not
+                ofSetColor(219,104,0,255);    // draws orange label if active quad, white if not
                 ttf.drawString("surface "+ofToString(quadNumber), (center.x*ofGetWidth())+8, (center.y*ofGetHeight())-12);
             }
             else
