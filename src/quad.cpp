@@ -1264,12 +1264,11 @@ void quad::draw()
             //ofSetColor(0,200,220,120);
             ofSetColor(219,104,0,255);
             ofEnableAlphaBlending();
+            ofCircle(corners[highlightedCorner].x*ofGetWidth(),corners[highlightedCorner].y*ofGetHeight(),5);
             ofCircle(corners[highlightedCorner].x*ofGetWidth(),corners[highlightedCorner].y*ofGetHeight(),20);
             ofDisableAlphaBlending();
             //ofNoFill();
         }
-
-
 
         if (isSetup)
         {
@@ -1286,15 +1285,27 @@ void quad::draw()
                     ofSetColor(219,104,0,120);
                     ofRect(center.x*ofGetWidth()-5,center.y*ofGetHeight()-5,10,10);
                     ofDisableAlphaBlending();
-                    //ofSetColor(255,255,255,255);
-                    ofLine(center.x*ofGetWidth()-20,center.y*ofGetHeight(),center.x*ofGetWidth()-10,center.y*ofGetHeight());
-                    ofLine(center.x*ofGetWidth()-10,center.y*ofGetHeight(),center.x*ofGetWidth()-14,center.y*ofGetHeight()+4);
-                    ofLine(center.x*ofGetWidth()-10,center.y*ofGetHeight(),center.x*ofGetWidth()-14,center.y*ofGetHeight()-4);
-                    ofLine(center.x*ofGetWidth()-20,center.y*ofGetHeight(),center.x*ofGetWidth()-20,center.y*ofGetHeight()-10);
-                    ofLine(center.x*ofGetWidth()-20,center.y*ofGetHeight()-10,center.x*ofGetWidth()-24,center.y*ofGetHeight()-6);
-                    ofLine(center.x*ofGetWidth()-20,center.y*ofGetHeight()-10,center.x*ofGetWidth()-16,center.y*ofGetHeight()-6);
-                    ofSetHexColor(0x444444);
                     ofNoFill();
+                    //ofSetColor(255,255,255,255);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight(),center.x*ofGetWidth()-15,center.y*ofGetHeight());
+                    ofLine(center.x*ofGetWidth()-15,center.y*ofGetHeight(),center.x*ofGetWidth()-19,center.y*ofGetHeight()+4);
+                    ofLine(center.x*ofGetWidth()-15,center.y*ofGetHeight(),center.x*ofGetWidth()-19,center.y*ofGetHeight()-4);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight(),center.x*ofGetWidth()-25,center.y*ofGetHeight()-10);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight()-10,center.x*ofGetWidth()-29,center.y*ofGetHeight()-6);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight()-10,center.x*ofGetWidth()-21,center.y*ofGetHeight()-6);
+
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight(),center.x*ofGetWidth()-35,center.y*ofGetHeight());
+                    ofLine(center.x*ofGetWidth()-35,center.y*ofGetHeight(),center.x*ofGetWidth()-31,center.y*ofGetHeight()+4);
+                    ofLine(center.x*ofGetWidth()-35,center.y*ofGetHeight(),center.x*ofGetWidth()-31,center.y*ofGetHeight()-4);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight(),center.x*ofGetWidth()-25,center.y*ofGetHeight()+10);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight()+10,center.x*ofGetWidth()-29,center.y*ofGetHeight()+6);
+                    ofLine(center.x*ofGetWidth()-25,center.y*ofGetHeight()+10,center.x*ofGetWidth()-21,center.y*ofGetHeight()+6);
+
+                    ofSetCircleResolution(48);
+                    ofCircle(center.x*ofGetWidth()-25,center.y*ofGetHeight(),12);
+                    ofSetCircleResolution(40);
+                    ofSetHexColor(0x444444);
+
                 }
 
                 if(bHighlightRotation)
