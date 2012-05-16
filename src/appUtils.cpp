@@ -39,8 +39,16 @@ void testApp::openSharedVideoFile(int i)
         if(sharedVideos[i].isLoaded())
         {
             cout << "shared video loaded" << endl;
+            sharedVideos[i].setLoopState(OF_LOOP_NORMAL);
             sharedVideos[i].play();
             sharedVideos[i].setVolume(0);
+            for(int j=0; j<36; j++)
+            {
+                if (quads[j].initialized)
+                {
+                    quads[j].vids[i] = sharedVideos[i];
+                }
+            }
         }
     }
 }

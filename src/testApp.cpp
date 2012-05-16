@@ -95,7 +95,7 @@ void testApp::setup()
 
     // shared videos setup
     sharedVideos.clear();
-    for(int i=0; i<3; i++)
+    for(int i=0; i<4; i++)
     {
         ofVideoPlayer video;
         sharedVideos.push_back(video);
@@ -322,6 +322,7 @@ void testApp::setup()
     gui.addButton("load shared video 1", bSharedVideoLoad0);
     gui.addButton("load shared video 2", bSharedVideoLoad1);
     gui.addButton("load shared video 3", bSharedVideoLoad2);
+    gui.addButton("load shared video 4", bSharedVideoLoad3);
 
     // then three pages of settings for each quad surface
     string blendModesArray[] = {"screen","add","subtract","multiply"};
@@ -404,7 +405,7 @@ void testApp::setup()
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
         gui.addToggle("shared video on/off", quads[i].sharedVideoBg);
-        gui.addSlider("shared video", quads[i].sharedVideoNum, 1, 3);
+        gui.addSlider("shared video", quads[i].sharedVideoNum, 1, 4);
         if (cameras.size()>0)
         {
         gui.addTitle("Camera").setNewColumn(true);
@@ -531,6 +532,16 @@ void testApp::prepare()
     if (bStarted)
     {
 
+        // updates shared video sources
+        for(int i=0; i<4; i++)
+        {
+            if(sharedVideos[i].isLoaded())
+            {
+                sharedVideos[i].update();
+            }
+        }
+
+
         //check if quad dimensions reset button on GUI is pressed
         if(bQuadReset)
         {
@@ -590,6 +601,11 @@ void testApp::prepare()
         {
             bSharedVideoLoad2 = false;
             openSharedVideoFile(2);
+        }
+        else if(bSharedVideoLoad3)
+        {
+            bSharedVideoLoad3 = false;
+            openSharedVideoFile(3);
         }
 
         // check if image load button on GUI is pressed

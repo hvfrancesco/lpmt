@@ -593,9 +593,6 @@ void quad::draw()
 
         if (sharedVideoBg)
         {
-            cout << sharedVideoId << endl;
-            cout << vids[sharedVideoId].getTextureReference().getWidth() << endl;
-
             if (videoHFlip || videoVFlip)
             {
                 glPushMatrix();
