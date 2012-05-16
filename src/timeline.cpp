@@ -75,6 +75,9 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (tlMsg == "col_off"){ quads[tlQuad].colorBg=false; }
         else if (tlMsg == "video_on"){ quads[tlQuad].videoBg=true; }
         else if (tlMsg == "video_off"){ quads[tlQuad].videoBg=false; }
+        else if (tlMsg == "shared_video_on"){ quads[tlQuad].sharedVideoBg=true; }
+        else if (tlMsg == "shared_video_off"){ quads[tlQuad].sharedVideoBg=false; }
+        else if (tlMsg == "shared_video" && tlMsgParameter != ""){ quads[tlQuad].sharedVideoNum=ofToInt(tlMsgParameter); }
         else if (tlMsg == "slide_on"){ quads[tlQuad].slideshowBg=true; }
         else if (tlMsg == "slide_off"){ quads[tlQuad].slideshowBg=false; }
         else if (tlMsg == "slide_new"){ quads[tlQuad].currentSlide+=1; }
