@@ -9,6 +9,10 @@ void testApp::setXml()
     XML.setValue("GENERAL:N_OF_QUADS",nOfQuads);
     XML.setValue("TIMELINE:USE_TIMELINE",useTimeline);
     XML.setValue("TIMELINE:DURATION",timelineDurationSeconds);
+    for(int j=0; j<4; j++)
+    {
+        XML.setValue("SHARED_VIDEOS:VIDEO_"+ofToString(j)+":PATH", sharedVideosFiles[j]);
+    }
 
     for(int i = 0; i < 36; i++)
     {
@@ -97,6 +101,9 @@ void testApp::setXml()
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":CAM:FLIP:H",quads[i].camHFlip);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":CAM:FLIP:V",quads[i].camVFlip);
 
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":SHARED_VIDEO:ACTIVE",quads[i].sharedVideoBg);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":SHARED_VIDEO:NUM",quads[i].sharedVideoNum);
+
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":BLENDING:ON",quads[i].bBlendModes);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":BLENDING:MODE",quads[i].blendMode);
 
@@ -157,6 +164,16 @@ void testApp::getXml()
     useTimeline = XML.getValue("TIMELINE:USE_TIMELINE",0);
     timelineDurationSeconds = XML.getValue("TIMELINE:DURATION",100);
 
+    for(int j=0; j<4; j++)
+    {
+        string sharedVideoPath = XML.getValue("SHARED_VIDEOS:VIDEO_"+ofToString(j)+":PATH", "");
+        sharedVideosFiles[j] = sharedVideoPath;
+        if(sharedVideoPath != "")
+        {
+            openSharedVideoFile(sharedVideoPath, j);
+        }
+    }
+
     for(int i = 0; i < nOfQuads; i++)
     {
         float x0 = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CORNERS:CORNER_0:X",0.0);
@@ -213,6 +230,9 @@ void testApp::getXml()
         }
         quads[i].videoHFlip = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:FLIP:H", 0);
         quads[i].videoVFlip = XML.getValue("QUADS:QUAD_"+ofToString(i)+":VIDEO:FLIP:V", 0);
+
+        quads[i].sharedVideoBg = XML.getValue("QUADS:QUAD_"+ofToString(i)+":SHARED_VIDEO:ACTIVE",0);
+        quads[i].sharedVideoNum = XML.getValue("QUADS:QUAD_"+ofToString(i)+":SHARED_VIDEO:NUM", 1);
 
         quads[i].bgSlideshow = XML.getValue("QUADS:QUAD_"+ofToString(i)+":SLIDESHOW:LOADED_SLIDESHOW", 0);
 

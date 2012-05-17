@@ -575,12 +575,18 @@ void quad::draw()
                         greenscreenShader->setUniform1f("tintG", videoColorize.g);
                         greenscreenShader->setUniform1f("tintB", videoColorize.b);
                         greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
-                        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        if(video.isPlaying())
+                        {
+                            video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                        }
                         greenscreenShader->end();
                 }
                 else
                 {
-                    video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                    if(video.isPlaying())
+                    {
+                        video.draw(0,0,videoWidth*videoMultX, videoHeight*videoMultY);
+                    }
                 }
             }
             if (videoHFlip || videoVFlip)

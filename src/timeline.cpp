@@ -78,7 +78,7 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         else if (tlMsg == "video_reset"){ quads[tlQuad].video.setPosition(0.0); }
         else if (tlMsg == "shared_video_on"){ quads[tlQuad].sharedVideoBg=true; }
         else if (tlMsg == "shared_video_off"){ quads[tlQuad].sharedVideoBg=false; }
-        else if (tlMsg == "shared_video" && tlMsgParameter != ""){ quads[tlQuad].sharedVideoNum=ofToInt(tlMsgParameter); }
+        else if (tlMsg == "shared_video_num" && tlMsgParameter != ""){ quads[tlQuad].sharedVideoNum=ofToInt(tlMsgParameter); }
         else if (tlMsg == "slide_on"){ quads[tlQuad].slideshowBg=true; }
         else if (tlMsg == "slide_off"){ quads[tlQuad].slideshowBg=false; }
         else if (tlMsg == "slide_new"){ quads[tlQuad].currentSlide+=1; }
@@ -95,7 +95,48 @@ void testApp::timelineTriggerReceived(ofxTLTriggerEventArgs& trigger){
         }
         else
         {
-          // main timeline page
+            // main timeline page
+            //check if we have a message with a parameter, parameters are given using a colon ':' as separator
+            if (ofIsStringInString(tlMsg,":"))
+            {
+                vector<string> tlMsgParts = ofSplitString(tlMsg, ":", true, true);
+                tlMsg = tlMsgParts[0];
+                tlMsgParameter = tlMsgParts[1];
+            }
+
+            // check messages
+            if (tlMsg == "shared_videos_reset")
+            {
+                for(int j=0; j<4; j++)
+                {
+                    if(sharedVideos[j].isLoaded())
+                    {
+                        sharedVideos[j].setPosition(0.0);
+                    }
+                }
+            }
+            else if (tlMsg == "shared_video_reset" && tlMsgParameter != "")
+            {
+                if(ofToInt(tlMsgParameter) > 0 && ofToInt(tlMsgParameter) <= 4)
+                {
+                    if(sharedVideos[ofToInt(tlMsgParameter)-1].isLoaded())
+                    {
+                        sharedVideos[ofToInt(tlMsgParameter)-1].setPosition(0.0);
+                    }
+
+                }
+            }
+            else if (tlMsg == "videos_reset")
+            {
+                for(int j=0; j<36; j++)
+                {
+                    if(quads[j].video.isLoaded())
+                    {
+                        quads[j].video.setPosition(0.0);
+                    }
+                }
+            }
+
         }
     }
 }

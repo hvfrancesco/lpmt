@@ -100,6 +100,7 @@ void testApp::setup()
     {
         ofVideoPlayer video;
         sharedVideos.push_back(video);
+        sharedVideosFiles.push_back("");
     }
 
     //double click time

@@ -35,10 +35,12 @@ void testApp::openSharedVideoFile(int i)
         {
             sharedVideos[i].closeMovie();
         }
-        sharedVideos[i].loadMovie(dialog_result.getPath());
+        string path = dialog_result.getPath();
+        sharedVideos[i].loadMovie(path);
         if(sharedVideos[i].isLoaded())
         {
             cout << "shared video loaded" << endl;
+            sharedVideosFiles[i] = path;
             sharedVideos[i].setLoopState(OF_LOOP_NORMAL);
             sharedVideos[i].play();
             sharedVideos[i].setVolume(0);
@@ -64,6 +66,7 @@ void testApp::openSharedVideoFile(string path, int i)
         if(sharedVideos[i].isLoaded())
         {
             cout << "shared video loaded" << endl;
+            sharedVideosFiles[i] = path;
             sharedVideos[i].setLoopState(OF_LOOP_NORMAL);
             sharedVideos[i].play();
             sharedVideos[i].setVolume(0);
