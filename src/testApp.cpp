@@ -39,6 +39,7 @@ void testApp::setup()
 {
 
     ofSetLogLevel(OF_LOG_WARNING);
+    autoStart = false;
 
     // read xml config file
     configOk = XML.loadFile("config.xml");
@@ -104,6 +105,8 @@ void testApp::setup()
     //double click time
     doubleclickTime = 500;
     lastTap = 0;
+
+    // rotation angle for surface-rotation visual feedback
     totRotationAngle = 0;
 
     if(ofGetScreenWidth()>1024 && ofGetScreenHeight()>800 )
@@ -144,6 +147,7 @@ void testApp::setup()
         receiver.setup( PORT );
     }
     current_msg_string = 0;
+
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -323,6 +327,11 @@ void testApp::setup()
     gui.addButton("load shared video 2", bSharedVideoLoad1);
     gui.addButton("load shared video 3", bSharedVideoLoad2);
     gui.addButton("load shared video 4", bSharedVideoLoad3);
+    #ifdef WITH_TIMELINE
+    gui.addTitle("Timeline");
+    gui.addToggle("use timeline", useTimeline);
+    gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
+    #endif
 
     // then three pages of settings for each quad surface
     string blendModesArray[] = {"screen","add","subtract","multiply"};
@@ -493,11 +502,49 @@ void testApp::setup()
     timeline.setCurrentPage(ofToString(activeQuad));
     timeline.hide();
     timeline.disable();
+    // if timeline autostart is defined in timeline it starts timeline playing
+    if(configOk)
+    {
+        float timelineConfigDuration = XML.getValue("TIMELINE:DURATION",10);
+        timelineDurationSeconds = timelinePreviousDuration = timelineConfigDuration;
+        timeline.setDurationInSeconds(timelineDurationSeconds);
+        if(XML.getValue("TIMELINE:AUTOSTART",0))
+        {
+            timeline.togglePlay();
+        }
+    }
     #endif
+
+    if(configOk)
+    {
+        autoStart = XML.getValue("PROJECTION:AUTO",0);
+    }
 
     // free xml reader from config file
     cout << "setup done! playing now" << endl << endl;
     XML.clear();
+
+    if(autoStart)
+    {
+        XML.loadFile("_lpmt_settings.xml");
+        getXml();
+        cout<<"loaded settings from data/_lpmt_settings.xml"<<endl;
+        gui.setPage((activeQuad*3)+2);
+        XML.clear();
+        isSetup = False;
+        gui.hide();
+        bGui = False;
+        for(int i = 0; i < 36; i++)
+        {
+            if (quads[i].initialized)
+            {
+                quads[i].isSetup = False;
+            }
+        }
+        bFullscreen = true;
+        ofSetFullscreen(true);
+    }
+
 }
 
 void testApp::exit()

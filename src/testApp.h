@@ -74,6 +74,7 @@ public:
     int copyQuadNum;
 
     bool configOk;
+    bool autoStart;
 
     bool isSetup;
     bool bFullscreen;
@@ -127,6 +128,7 @@ public:
     void openImageFile();
     void openVideoFile();
     void openSharedVideoFile(int i);
+    void openSharedVideoFile(string path, int i);
     void quadDimensionsReset(int q);
     void quadPlacementReset(int q);
     void quadBezierSpherize(int q);

@@ -7,6 +7,8 @@ void testApp::setXml()
 {
     XML.setValue("GENERAL:ACTIVE_QUAD",activeQuad);
     XML.setValue("GENERAL:N_OF_QUADS",nOfQuads);
+    XML.setValue("TIMELINE:USE_TIMELINE",useTimeline);
+    XML.setValue("TIMELINE:DURATION",timelineDurationSeconds);
 
     for(int i = 0; i < 36; i++)
     {
@@ -15,6 +17,10 @@ void testApp::setXml()
 
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":NUMBER",quads[i].quadNumber);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":LAYER",quads[i].layer);
+
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:COLOR",quads[i].bTimelineColor);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:ALPHA",quads[i].bTimelineAlpha);
+            XML.setValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:SLIDE",quads[i].bTimelineSlideChange);
 
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":CONTENT:DISPX",quads[i].quadDispX);
             XML.setValue("QUADS:QUAD_"+ofToString(i)+":CONTENT:DISPY",quads[i].quadDispY);
@@ -148,6 +154,8 @@ void testApp::getXml()
 
     nOfQuads = XML.getValue("GENERAL:N_OF_QUADS", 0);
     activeQuad = XML.getValue("GENERAL:ACTIVE_QUAD", 0);
+    useTimeline = XML.getValue("TIMELINE:USE_TIMELINE",0);
+    timelineDurationSeconds = XML.getValue("TIMELINE:DURATION",100);
 
     for(int i = 0; i < nOfQuads; i++)
     {
@@ -176,6 +184,10 @@ void testApp::getXml()
         quads[i].quadNumber = XML.getValue("QUADS:QUAD_"+ofToString(i)+":NUMBER", 0);
         quads[i].layer = XML.getValue("QUADS:QUAD_"+ofToString(i)+":LAYER", 0);
         layers[quads[i].layer] = quads[i].quadNumber;
+
+        quads[i].bTimelineColor = XML.getValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:COLOR",0);
+        quads[i].bTimelineAlpha = XML.getValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:ALPHA",0);
+        quads[i].bTimelineSlideChange = XML.getValue("QUADS:QUAD_"+ofToString(i)+":TIMELINE:SLIDE",0);
 
         quads[i].quadDispX = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CONTENT:DISPX",0);
         quads[i].quadDispY = XML.getValue("QUADS:QUAD_"+ofToString(i)+":CONTENT:DISPY",0);
