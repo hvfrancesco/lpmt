@@ -161,7 +161,7 @@ public:
 
     ofxXmlSettings XML;
     void setXml();
-    void getXml();
+    void getXml(string xmlFile);
 
     // double-click stuff
     unsigned long doubleclickTime;

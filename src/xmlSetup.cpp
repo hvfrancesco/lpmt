@@ -155,9 +155,11 @@ void testApp::setXml()
 }
 
 
-void testApp::getXml()
+void testApp::getXml(string xmlFile)
 
 {
+    XML.loadFile(xmlFile);
+    cout<<"loaded settings from "+xmlFile<<endl;
 
     nOfQuads = XML.getValue("GENERAL:N_OF_QUADS", 0);
     activeQuad = XML.getValue("GENERAL:ACTIVE_QUAD", 0);

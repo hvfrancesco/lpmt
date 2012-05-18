@@ -93,9 +93,7 @@ void testApp::parseOsc()
     // load
     else if ( m.getAddress() == "/projection/load" )
     {
-        XML.loadFile("_lpmt_settings.xml");
-        getXml();
-        cout<<"loaded settings from data/_lpmt_settings.xml"<<endl;
+        getXml("_lpmt_settings.xml");
         gui.setPage((activeQuad*3)+2);
     }
 

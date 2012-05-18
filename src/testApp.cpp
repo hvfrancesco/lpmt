@@ -527,9 +527,7 @@ void testApp::setup()
 
     if(autoStart)
     {
-        XML.loadFile("_lpmt_settings.xml");
-        getXml();
-        cout<<"loaded settings from data/_lpmt_settings.xml"<<endl;
+        getXml("_lpmt_settings.xml");
         gui.setPage((activeQuad*3)+2);
         XML.clear();
         isSetup = False;
@@ -937,12 +935,24 @@ void testApp::keyPressed(int key)
     }
 
     // loads settings and quads from default xml file
-    if ((key == 'l' || key == 'L') && !bTimeline)
+    if ((key == 'l') && !bTimeline)
     {
-        XML.loadFile("_lpmt_settings.xml");
-        getXml();
-        cout<<"loaded settings from data/_lpmt_settings.xml"<<endl;
+        getXml("_lpmt_settings.xml");
         gui.setPage((activeQuad*3)+2);
+    }
+
+    // choses a xml settings file and loads it
+    if ((key == 'L') && !bTimeline)
+    {
+        ofFileDialogResult dialog_result = ofSystemLoadDialog("load xml settings file", false);
+        if(dialog_result.bSuccess)
+        {
+        ofImage img;
+        string fileName = dialog_result.getName();
+        string filePath = dialog_result.getPath();
+        getXml(filePath);
+        gui.setPage((activeQuad*3)+2);
+        }
     }
 
     // takes a snapshot of attached camera and uses it as window background
