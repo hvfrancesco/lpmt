@@ -622,7 +622,7 @@ void quad::draw()
             if (videoGreenscreen)
             {
                 greenscreenShader->begin();
-                greenscreenShader->setUniformTexture("tex", video.getTextureReference(),0 );
+                greenscreenShader->setUniformTexture("tex", vids[sharedVideoId].getTextureReference(),0 );
                 greenscreenShader->setUniform1f("greenscreenR", colorGreenscreen.r);
                 greenscreenShader->setUniform1f("greenscreenG", colorGreenscreen.g);
                 greenscreenShader->setUniform1f("greenscreenB", colorGreenscreen.b);
@@ -631,12 +631,12 @@ void quad::draw()
                 greenscreenShader->setUniform1f("tintG", videoColorize.g);
                 greenscreenShader->setUniform1f("tintB", videoColorize.b);
                 greenscreenShader->setUniform1f("greenscreenT", (float)thresholdGreenscreen/255.0);
-                vids[sharedVideoId].getTextureReference().draw(0,0,vids[sharedVideoId].width*videoMultX, vids[sharedVideoId].height*videoMultY);
+                vids[sharedVideoId].draw(0,0,vids[sharedVideoId].width*videoMultX, vids[sharedVideoId].height*videoMultY);
                 greenscreenShader->end();
             }
             else
             {
-                vids[sharedVideoId].getTextureReference().draw(0,0,vids[sharedVideoId].width*videoMultX, vids[sharedVideoId].height*videoMultY);
+                vids[sharedVideoId].draw(0,0,vids[sharedVideoId].width*videoMultX, vids[sharedVideoId].height*videoMultY);
             }
             if (videoHFlip || videoVFlip)
             {

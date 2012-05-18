@@ -350,15 +350,15 @@ void testApp::setup()
         #endif
         #ifdef WITH_SYPHON
         gui.addToggle("use Syphon", quads[i].bSyphon);
-		gui.addSlider("syphon origin X", quads[i].syphonPosX, -1280, 1280);
-        gui.addSlider("syphon origin Y", quads[i].syphonPosY, -1280, 1280);
-		gui.addSlider("syphon scale X", quads[i].syphonScaleX, 0.1, 5.0);
-        gui.addSlider("syphon scale Y", quads[i].syphonScaleY, 0.1, 5.0);
+		gui.addSlider("syphon origin X", quads[i].syphonPosX, -1600, 1600);
+        gui.addSlider("syphon origin Y", quads[i].syphonPosY, -1600, 1600);
+		gui.addSlider("syphon scale X", quads[i].syphonScaleX, 0.1, 10.0);
+        gui.addSlider("syphon scale Y", quads[i].syphonScaleY, 0.1, 10.0);
         #endif
         gui.addToggle("image on/off", quads[i].imgBg);
         gui.addButton("load image", bImageLoad);
-        gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 5.0);
-        gui.addSlider("img scale Y", quads[i].imgMultY, 0.1, 5.0);
+        gui.addSlider("img scale X", quads[i].imgMultX, 0.1, 10.0);
+        gui.addSlider("img scale Y", quads[i].imgMultY, 0.1, 10.0);
         gui.addToggle("H mirror", quads[i].imgHFlip);
         gui.addToggle("V mirror", quads[i].imgVFlip);
         gui.addColorPicker("img color", &quads[i].imgColorize.r);
@@ -394,8 +394,8 @@ void testApp::setup()
         gui.addSlider("top edge", quads[i].edgeBlendAmountTop, 0.0, 0.5);
         gui.addSlider("bottom edge", quads[i].edgeBlendAmountBottom, 0.0, 0.5);
         gui.addTitle("Content placement");
-        gui.addSlider("X displacement", quads[i].quadDispX, -1280, 1280);
-        gui.addSlider("Y displacement", quads[i].quadDispY, -1280, 1280);
+        gui.addSlider("X displacement", quads[i].quadDispX, -1600, 1600);
+        gui.addSlider("Y displacement", quads[i].quadDispY, -1600, 1600);
         gui.addSlider("Width", quads[i].quadW, 0, 2400);
         gui.addSlider("Height", quads[i].quadH, 0, 2400);
         gui.addButton("Reset", bQuadReset);
@@ -405,12 +405,12 @@ void testApp::setup()
         gui.addToggle("video on/off", quads[i].videoBg);
         //gui.addComboBox("video bg", quads[i].bgVideo, videoFiles.size(), videos);
         gui.addButton("load video", bVideoLoad);
-        gui.addSlider("video scale X", quads[i].videoMultX, 0.1, 5.0);
-        gui.addSlider("video scale Y", quads[i].videoMultY, 0.1, 5.0);
+        gui.addSlider("video scale X", quads[i].videoMultX, 0.1, 10.0);
+        gui.addSlider("video scale Y", quads[i].videoMultY, 0.1, 10.0);
         gui.addToggle("H mirror", quads[i].videoHFlip);
         gui.addToggle("V mirror", quads[i].videoVFlip);
         gui.addColorPicker("video color", &quads[i].videoColorize.r);
-        gui.addSlider("video sound vol", quads[i].videoVolume, 0, 100);
+        gui.addSlider("video sound vol", quads[i].videoVolume, 0, 10);
         gui.addSlider("video speed", quads[i].videoSpeed, -2.0, 4.0);
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
@@ -424,8 +424,8 @@ void testApp::setup()
         {
            gui.addComboBox("select camera", quads[i].camNumber, cameras.size(), &cameraIDs[0]);
         }
-        gui.addSlider("camera scale X", quads[i].camMultX, 0.1, 5.0);
-        gui.addSlider("camera scale Y", quads[i].camMultY, 0.1, 5.0);
+        gui.addSlider("camera scale X", quads[i].camMultX, 0.1, 10.0);
+        gui.addSlider("camera scale Y", quads[i].camMultY, 0.1, 10.0);
         gui.addToggle("H mirror", quads[i].camHFlip);
         gui.addToggle("V mirror", quads[i].camVFlip);
         gui.addColorPicker("cam color", &quads[i].camColorize.r);
@@ -454,8 +454,8 @@ void testApp::setup()
             gui.addToggle("use kinect as mask", quads[i].kinectMask);
             gui.addToggle("kinect blob detection", quads[i].getKinectContours);
             gui.addToggle("blob curved contour", quads[i].kinectContourCurved);
-            gui.addSlider("kinect scale X", quads[i].kinectMultX, 0.1, 5.0);
-            gui.addSlider("kinect scale Y", quads[i].kinectMultY, 0.1, 5.0);
+            gui.addSlider("kinect scale X", quads[i].kinectMultX, 0.1, 10.0);
+            gui.addSlider("kinect scale Y", quads[i].kinectMultY, 0.1, 10.0);
             gui.addColorPicker("kinect color", &quads[i].kinectColorize.r);
             gui.addSlider("near threshold", quads[i].nearDepthTh, 0, 255);
             gui.addSlider("far threshold", quads[i].farDepthTh, 0, 255);
@@ -491,7 +491,7 @@ void testApp::setup()
         gui.addTitle("Circular crop");
         gui.addSlider("center X", quads[i].circularCrop[0], 0, 1.0);
         gui.addSlider("center Y", quads[i].circularCrop[1], 0, 1.0);
-        gui.addSlider("radius", quads[i].circularCrop[2], 0, 1.5);
+        gui.addSlider("radius", quads[i].circularCrop[2], 0, 2.0);
     }
 
     // then we set displayed gui page to the one corresponding to active quad and show the gui
