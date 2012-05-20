@@ -871,7 +871,7 @@ void testApp::keyPressed(int key)
 {
 
     // moves active layer one position up
-    if ( key == '+' && !bTimeline)
+    if ( key == '+' && !bTimeline && !bGui)
     {
         int position;
         int target;
@@ -897,7 +897,7 @@ void testApp::keyPressed(int key)
 
 
     // moves active layer one position down
-    if ( key == '-' && !bTimeline)
+    if ( key == '-' && !bTimeline && !bGui)
     {
         int position;
         int target;
@@ -1245,7 +1245,7 @@ void testApp::keyPressed(int key)
     }
 
     // show general settings page of gui
-    if(key == '1' && !bTimeline)
+    if(key == 'v' && !bTimeline)
     {
         gui.setPage(1);
     }
@@ -1364,7 +1364,7 @@ void testApp::keyPressed(int key)
     }
 
     // rotation of surface around its center
-    if(key == '3' && !bTimeline)
+    if(key == '£' && !bTimeline)
     {
         ofMatrix4x4 rotation;
         ofMatrix4x4 centerToOrigin;
@@ -1380,7 +1380,7 @@ void testApp::keyPressed(int key)
         }
     }
 
-    if(key == '4' && !bTimeline)
+    if(key == '$' && !bTimeline)
     {
         ofMatrix4x4 rotation;
         ofMatrix4x4 centerToOrigin;
