@@ -474,7 +474,9 @@ void quad::draw()
 {
     if (isOn)
     {
-
+        //calculates screen ratio factor for window and fullscreen
+        float screenFactorX = (ofGetWidth()/(float)ofGetScreenWidth());
+        float screenFactorY = (ofGetHeight()/(float)ofGetScreenHeight());
         // recalculates bezier surface
         if(bBezier)
         {
@@ -763,23 +765,24 @@ void quad::draw()
                 glPushMatrix();
                 if(imgHFlip && !imgVFlip)
                 {
-                    ofTranslate(img.getWidth()*imgMultX,0);
+                    ofTranslate(img.getWidth()*imgMultX*screenFactorX,0);
                     glScalef(-1,1,1);
                 }
                 else if(imgVFlip && !imgHFlip)
                 {
-                    ofTranslate(0,img.getHeight()*imgMultY);
+                    ofTranslate(0,img.getHeight()*imgMultY*screenFactorY);
                     glScalef(1,-1,1);
                 }
                 else
                 {
-                    ofTranslate(img.getWidth()*imgMultX,img.getHeight()*imgMultY);
+                    ofTranslate(img.getWidth()*imgMultX*screenFactorX,img.getHeight()*imgMultY*screenFactorY);
                     glScalef(-1,-1,1);
                 }
             }
             ofSetColor(imgColorize.r * 255 * timelineRed, imgColorize.g * 255 * timelineGreen, imgColorize.b * 255 * timelineBlu, imgColorize.a * 255 * timelineAlpha);
-            img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+            //img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
             //img.draw(0,0,img.getWidth()*imgMultX/(img.getWidth()/ofGetWidth()), img.getHeight()*imgMultY/(img.getHeight()/ofGetHeight()));
+            img.draw(0,0,img.getWidth()*imgMultX*screenFactorX, img.getHeight()*imgMultY*screenFactorY);
             if (imgHFlip || imgVFlip)
             {
                 glPopMatrix();
