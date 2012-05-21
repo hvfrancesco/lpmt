@@ -779,6 +779,7 @@ void quad::draw()
             }
             ofSetColor(imgColorize.r * 255 * timelineRed, imgColorize.g * 255 * timelineGreen, imgColorize.b * 255 * timelineBlu, imgColorize.a * 255 * timelineAlpha);
             img.draw(0,0,img.getWidth()*imgMultX, img.getHeight()*imgMultY);
+            //img.draw(0,0,img.getWidth()*imgMultX/(img.getWidth()/ofGetWidth()), img.getHeight()*imgMultY/(img.getHeight()/ofGetHeight()));
             if (imgHFlip || imgVFlip)
             {
                 glPopMatrix();

@@ -1275,7 +1275,7 @@ void testApp::keyPressed(int key)
     }
 
     // displays help in system dialog
-    if(key == 'h' && !bTimeline)
+    if((key == 'h' || key == OF_KEY_F1) && !bTimeline)
     {
         ofBuffer buf = ofBufferFromFile("help_keys.txt");
         ofSystemAlertDialog(buf);
