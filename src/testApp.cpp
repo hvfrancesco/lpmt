@@ -728,6 +728,22 @@ void testApp::prepare()
                 {
                     quads[i].update();
                     quads[i].borderColor = borderColor;
+                    // frame delay correction for Mpe sync
+                    if(bMpe)
+                    {
+                        if(quads[i].videoBg && quads[i].video.isLoaded())
+                        {
+                            int mpeFrame = client.getFrameCount();
+                            int totFrames = quads[i].video.getTotalNumFrames();
+                            int videoFrame = quads[i].video.getCurrentFrame();
+                            //quads[i].video.setFrame(mpeFrame%totFrames);
+                            if(abs((mpeFrame%totFrames) - videoFrame) > 2) // TODO: testing different values
+                            {
+                                //cout << mpeFrame%totFrames << endl;
+                                quads[i].video.setFrame(mpeFrame%totFrames);
+                            }
+                        }
+                    }
                 }
             }
         }
