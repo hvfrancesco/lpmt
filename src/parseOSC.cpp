@@ -1332,6 +1332,49 @@ void testApp::parseOsc()
     }
     #endif
 
+    else if ( m.getAddress() == "/active/crop/rectangular/top" )
+    {
+        // arguments are f
+        float crop_top = m.getArgAsFloat(0);
+        quads[activeQuad].crop[0] = crop_top;
+    }
+    else if ( m.getAddress() == "/active/crop/rectangular/right" )
+    {
+        // arguments are f
+        float crop_right = m.getArgAsFloat(0);
+        quads[activeQuad].crop[1] = crop_right;
+    }
+    else if ( m.getAddress() == "/active/crop/rectangular/bottom" )
+    {
+        // arguments are f
+        float crop_bottom = m.getArgAsFloat(0);
+        quads[activeQuad].crop[2] = crop_bottom;
+    }
+    else if ( m.getAddress() == "/active/crop/rectangular/left" )
+    {
+        // arguments are f
+        float crop_left = m.getArgAsFloat(0);
+        quads[activeQuad].crop[3] = crop_left;
+    }
+    else if ( m.getAddress() == "/active/crop/circular/x" )
+    {
+        // arguments are f
+        float crop_center_x = m.getArgAsFloat(0);
+        quads[activeQuad].circularCrop[0] = crop_center_x;
+    }
+    else if ( m.getAddress() == "/active/crop/circular/y" )
+    {
+        // arguments are f
+        float crop_center_y = m.getArgAsFloat(0);
+        quads[activeQuad].circularCrop[1] = crop_center_y;
+    }
+    else if ( m.getAddress() == "/active/crop/circular/radius" )
+    {
+        // arguments are f
+        float crop_radius = m.getArgAsFloat(0);
+        quads[activeQuad].circularCrop[2] = crop_radius;
+    }
+
     else
     {
         // unrecognized message: display on the bottom of the screen

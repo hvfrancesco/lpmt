@@ -780,6 +780,145 @@ pages = [
 ],
 /********** PAGE 6 *************/
 [
-
+ {
+        "name":"page6Label1",
+        "type":"Label",
+        "value":"rectangular crop",
+        "size": "12",   
+        "bounds": [0,0,.3,.1]             
+    },
+ {
+        "name":"page6Label2",
+        "type":"Label",
+        "value":"top",
+        "size": "12",   
+        "bounds": [0,.03,.3,.1]             
+    },
+{
+    "name" : "crop_top",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .1,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/rectangular/top" 
+},
+ {
+        "name":"page6Label3",
+        "type":"Label",
+        "value":"right",
+        "size": "12",   
+        "bounds": [0,.13,.3,.1]             
+    },
+{
+    "name" : "crop_right",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .2,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/rectangular/right" 
+},
+ {
+        "name":"page6Label4",
+        "type":"Label",
+        "value":"bottom",
+        "size": "12",   
+        "bounds": [0,.23,.3,.1]             
+    },
+{
+    "name" : "crop_bottom",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .3,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/rectangular/bottom" 
+},
+ {
+        "name":"page6Label5",
+        "type":"Label",
+        "value":"left",
+        "size": "12",   
+        "bounds": [0,.33,.3,.1]             
+    },
+{
+    "name" : "crop_left",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .4,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/rectangular/left" 
+},
+ {
+        "name":"page6Label6",
+        "type":"Label",
+        "value":"circular crop",
+        "size": "12",   
+        "bounds": [0,.45,.3,.1]             
+    },
+ {
+        "name":"page6Label7",
+        "type":"Label",
+        "value":"center x",
+        "size": "12",   
+        "bounds": [0,.48,.3,.1]             
+    },
+{
+    "name" : "crop_center_x",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .55,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/circular/x" 
+},
+ {
+        "name":"page6Label8",
+        "type":"Label",
+        "value":"center y",
+        "size": "12",   
+        "bounds": [0,.58,.3,.1]             
+    },
+{
+    "name" : "crop_center_y",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .65,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/circular/y" 
+},
+ {
+        "name":"page6Label9",
+        "type":"Label",
+        "value":"radius",
+        "size": "12",   
+        "bounds": [0,.68,.3,.1]             
+    },
+{
+    "name" : "crop_radius",
+    "type" : "Slider",
+    "isVertical" : false,
+    "x" : 0, "y" : .75,
+    "width" : .99, "height" : .05,
+    "min" : 0.0, "max" : 1.0,
+     "color":"#666",
+     "stroke":"#aaa",
+    "address" : "/active/crop/circular/radius" 
+}
 ],
 ];
