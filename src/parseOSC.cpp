@@ -266,6 +266,28 @@ void testApp::parseOsc()
         float osc_timelineDurationSeconds = m.getArgAsFloat( 0 );
         if(osc_timelineDurationSeconds >= 10.0) {timelineDurationSeconds =osc_timelineDurationSeconds;}
     }
+
+    else if ( m.getAddress() == "/projection/timeline/start")
+    {
+        timeline.togglePlay();
+    }
+
+    else if ( m.getAddress() == "/projection/timeline/show")
+    {
+        bTimeline = !bTimeline;
+        timeline.toggleShow();
+        if(bTimeline)
+        {
+            timeline.enable();
+            gui.hide();
+            bGui = false;
+        }
+        else
+        {
+            timeline.disable();
+        }
+    }
+
     #endif
 
 //------------------------------------------------------
