@@ -149,6 +149,24 @@ void testApp::setup()
     }
     current_msg_string = 0;
 
+    // MIDI setup
+    #ifdef WITH_MIDI
+    // print input ports to console
+	midiIn.listPorts();
+	// open port by number
+	//midiIn.openPort(1);
+	//midiIn.openPort("IAC Pure Data In");	// by name
+	midiIn.openVirtualPort("LPMT Input");	// open a virtual port
+
+	// don't ignore sysex, timing, & active sense messages,
+	// these are ignored by default
+	midiIn.ignoreTypes(false, false, false);
+	// add testApp as a listener
+	midiIn.addListener(this);
+	// print received messages to the console
+	midiIn.setVerbose(true);
+    #endif
+
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -881,6 +899,22 @@ void testApp::mpeResetEvent(ofxMPEEventArgs& event)
 }
 
 
+// MIDI message callback
+#ifdef WITH_MIDI
+//--------------------------------------------------------------
+void testApp::newMidiMessage(ofxMidiMessage& msg) {
+
+	// make a copy of the latest message
+	midiMessage = msg;
+	cout << "status: " << midiMessage.status << endl;
+	cout << "status string: " << midiMessage.getStatusString(midiMessage.status) << endl;
+	cout << "channel: " << midiMessage.channel << endl;
+	cout << "pitch: " << midiMessage.pitch << endl;
+	cout << "velocity: " << midiMessage.velocity << endl;
+	cout << "control: " << midiMessage.control << endl;
+	cout << "value: " << midiMessage.value << endl;
+}
+#endif
 
 //--------------------------------------------------------------
 void testApp::keyPressed(int key)

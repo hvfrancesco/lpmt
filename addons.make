@@ -11,3 +11,4 @@ ofxTimeline
 ofxTween
 ofxRange
 ofxTextInputField
+ofxMidi

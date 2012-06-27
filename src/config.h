@@ -6,3 +6,5 @@
 #ifdef TARGET_OSX
     #define WITH_SYPHON
 #endif
+
+#define WITH_MIDI

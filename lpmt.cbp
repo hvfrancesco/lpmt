@@ -6,7 +6,7 @@
 		<Option makefile_is_custom="1" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
-		<Option virtualFolders="addons/;src/;build config/;addons/ofxMSAInteractiveObject/src/;addons/ofxMostPixelsEver/src/;addons/ofxNetwork/src/;addons/ofxOsc/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxThread/src/;addons/ofxXmlSettings/src/;shaders/;" />
+		<Option virtualFolders="addons/;src/;build config/;addons/ofxMSAInteractiveObject/src/;addons/ofxMostPixelsEver/src/;addons/ofxNetwork/src/;addons/ofxOsc/src/;addons/ofxSimpleGuiToo/src/Controls/;addons/ofxSimpleGuiToo/src/;addons/ofxThread/src/;addons/ofxXmlSettings/src/;shaders/;addons/ofxMidi/;" />
 		<Build>
 			<Target title="Debug">
 				<Option output="bin/$(PROJECT_NAME)_debug" prefix_auto="1" extension_auto="1" />
@@ -32,6 +32,33 @@
 		</Unit>
 		<Unit filename="../../../addons/ofxMSAInteractiveObject/src/ofxMSAInteractiveObject.h">
 			<Option virtualFolder="addons/ofxMSAInteractiveObject/src" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidi.h">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiConstants.h">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiIn.cpp">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiIn.h">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiMessage.cpp">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiMessage.h">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiOut.cpp">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiOut.h">
+			<Option virtualFolder="addons/ofxMidi/" />
+		</Unit>
+		<Unit filename="../../../addons/ofxMidi/src/ofxMidiTypes.h">
+			<Option virtualFolder="addons/ofxMidi/" />
 		</Unit>
 		<Unit filename="../../../addons/ofxMostPixelsEver/src/mpeClientTCP.cpp">
 			<Option virtualFolder="addons/ofxMostPixelsEver/src" />

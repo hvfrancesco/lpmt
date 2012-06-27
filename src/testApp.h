@@ -28,10 +28,17 @@
 #ifdef WITH_SYPHON
 #include "ofxSyphon.h"
 #endif
+#ifdef WITH_MIDI
+#include "ofxMidi.h"
+#endif
 
 //#include <GL/glut.h>
 
+#ifdef WITH_MIDI
+class testApp : public ofBaseApp, public ofxMidiListener
+#else
 class testApp : public ofBaseApp
+#endif
 {
 
 public:
@@ -105,6 +112,13 @@ public:
     string		msg_strings[NUM_MSG_STRINGS];
     float			timers[NUM_MSG_STRINGS];
     void parseOsc();
+
+    // MIDI stuff
+    #ifdef WITH_MIDI
+    void newMidiMessage(ofxMidiMessage& eventArgs);
+    ofxMidiIn midiIn;
+	ofxMidiMessage midiMessage;
+	#endif
 
     // Shaders
     ofShader edgeBlendShader;
