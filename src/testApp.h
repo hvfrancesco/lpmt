@@ -134,6 +134,10 @@ public:
     bool bSharedVideoLoad1;
     bool bSharedVideoLoad2;
     bool bSharedVideoLoad3;
+    bool bSharedVideoLoad4;
+    bool bSharedVideoLoad5;
+    bool bSharedVideoLoad6;
+    bool bSharedVideoLoad7;
     bool bQuadReset;
     bool bQuadBezierSpherize;
     bool bQuadBezierSpherizeStrong;

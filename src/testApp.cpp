@@ -96,7 +96,7 @@ void testApp::setup()
 
     // shared videos setup
     sharedVideos.clear();
-    for(int i=0; i<4; i++)
+    for(int i=0; i<8; i++)
     {
         ofVideoPlayer video;
         sharedVideos.push_back(video);
@@ -346,6 +346,10 @@ void testApp::setup()
     gui.addButton("load shared video 2", bSharedVideoLoad1);
     gui.addButton("load shared video 3", bSharedVideoLoad2);
     gui.addButton("load shared video 4", bSharedVideoLoad3);
+    gui.addButton("load shared video 5", bSharedVideoLoad4);
+    gui.addButton("load shared video 6", bSharedVideoLoad5);
+    gui.addButton("load shared video 7", bSharedVideoLoad6);
+    gui.addButton("load shared video 8", bSharedVideoLoad7);
     #ifdef WITH_TIMELINE
     gui.addTitle("Timeline");
     gui.addToggle("use timeline", useTimeline);
@@ -433,7 +437,7 @@ void testApp::setup()
         gui.addToggle("video loop", quads[i].videoLoop);
         gui.addToggle("video greenscreen", quads[i].videoGreenscreen);
         gui.addToggle("shared video on/off", quads[i].sharedVideoBg);
-        gui.addSlider("shared video", quads[i].sharedVideoNum, 1, 4);
+        gui.addSlider("shared video", quads[i].sharedVideoNum, 1, 8);
         if (cameras.size()>0)
         {
         gui.addTitle("Camera").setNewColumn(true);
@@ -597,7 +601,7 @@ void testApp::prepare()
     {
 
         // updates shared video sources
-        for(int i=0; i<4; i++)
+        for(int i=0; i<8; i++)
         {
             if(sharedVideos[i].isLoaded())
             {
@@ -671,7 +675,26 @@ void testApp::prepare()
             bSharedVideoLoad3 = false;
             openSharedVideoFile(3);
         }
-
+        else if(bSharedVideoLoad4)
+        {
+            bSharedVideoLoad4 = false;
+            openSharedVideoFile(4);
+        }
+        else if(bSharedVideoLoad5)
+        {
+            bSharedVideoLoad5 = false;
+            openSharedVideoFile(5);
+        }
+        else if(bSharedVideoLoad6)
+        {
+            bSharedVideoLoad6 = false;
+            openSharedVideoFile(6);
+        }
+        else if(bSharedVideoLoad7)
+        {
+            bSharedVideoLoad7 = false;
+            openSharedVideoFile(7);
+        }
         // check if image load button on GUI is pressed
        if(bSlideshowLoad)
        {
