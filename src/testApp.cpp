@@ -148,6 +148,10 @@ void testApp::setup()
         receiver.setup( PORT );
     }
     current_msg_string = 0;
+    oscControlMin = XML.getValue("OSC:GUI_CONTROL:SLIDER:MIN",0.0);
+    oscControlMax = XML.getValue("OSC:GUI_CONTROL:SLIDER:MAX",1.0);
+    cout << "osc control of gui sliders range: min=" << oscControlMin << " - max=" << oscControlMax << endl;
+
 
     // MIDI setup
     #ifdef WITH_MIDI

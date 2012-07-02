@@ -1375,6 +1375,7 @@ void testApp::parseOsc()
         quads[activeQuad].circularCrop[2] = crop_radius;
     }
 
+    /*
     else
     {
         // unrecognized message: display on the bottom of the screen
@@ -1402,5 +1403,121 @@ void testApp::parseOsc()
         current_msg_string = ( current_msg_string + 1 ) % NUM_MSG_STRINGS;
         // clear the next line
         msg_strings[current_msg_string] = "";
+        cout << endl << msg_string << endl;
     }
+    */
+    ///*
+
+    // if we get an OSC message not recognized, we can use it for auto-learning gui control as with midi
+    else
+    {
+    	for(int i=0; i < gui.getPages().size(); i++)
+        {
+	    for(int j=0; j < gui.getPages()[i]->getControls().size(); j++)
+	    {
+	        if(gui.getPages()[i]->getControls()[j]->controlType == "Toggle")
+	        {
+                if(gui.getPages()[i]->getControls()[j]->bLearning)
+                {
+                gui.getPages()[i]->getControls()[j]->bLearning = false;
+                gui.getPages()[i]->getControls()[j]->bLearnt = true;
+                gui.getPages()[i]->getControls()[j]->oscControl = m;
+                }
+                else if(gui.getPages()[i]->getControls()[j]->bLearnt)
+                {
+                    ofxOscMessage oscControl = gui.getPages()[i]->getControls()[j]->oscControl;
+                    if(m.getAddress() == oscControl.getAddress())
+                    {
+                        if(m.getNumArgs()>0 && m.getArgType(0) == OFXOSC_TYPE_INT32)
+                        {
+                            if(m.getArgAsInt32(0) == oscControl.getArgAsInt32(0))
+                            {
+                            ofxSimpleGuiToggle *t = (ofxSimpleGuiToggle *) gui.getPages()[i]->getControls()[j];
+                            t->toggle();
+                            }
+                        }
+                        else if(m.getNumArgs()>0 && m.getArgType(0) == OFXOSC_TYPE_FLOAT)
+                        {
+                            if(m.getArgAsFloat(0) == oscControl.getArgAsFloat(0))
+                            {
+                            ofxSimpleGuiToggle *t = (ofxSimpleGuiToggle *) gui.getPages()[i]->getControls()[j];
+                            t->toggle();
+                            }
+                        }
+                        else if(m.getNumArgs()>0 && m.getArgType(0) == OFXOSC_TYPE_STRING)
+                        {
+                            if(m.getArgAsString(0) == oscControl.getArgAsString(0))
+                            {
+                            ofxSimpleGuiToggle *t = (ofxSimpleGuiToggle *) gui.getPages()[i]->getControls()[j];
+                            t->toggle();
+                            }
+                        }
+                        else if(m.getNumArgs()==0)
+                        {
+                        ofxSimpleGuiToggle *t = (ofxSimpleGuiToggle *) gui.getPages()[i]->getControls()[j];
+                        t->toggle();
+                        }
+                    }
+
+                }
+	        }
+	        else if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat" || gui.getPages()[i]->getControls()[j]->controlType == "SliderInt")
+	        {
+	            if(gui.getPages()[i]->getControls()[j]->bLearning)
+                {
+                    if(m.getNumArgs()>0)
+                    {
+                    gui.getPages()[i]->getControls()[j]->bLearning = false;
+                    gui.getPages()[i]->getControls()[j]->bLearnt = true;
+                    gui.getPages()[i]->getControls()[j]->oscControl = m;
+                    }
+                }
+                else if(gui.getPages()[i]->getControls()[j]->bLearnt)
+                {
+                    ofxOscMessage oscControl = gui.getPages()[i]->getControls()[j]->oscControl;
+                    if(m.getNumArgs()>0 && (m.getArgType(0) == OFXOSC_TYPE_INT32 || m.getArgType(0) == OFXOSC_TYPE_FLOAT))
+                    {
+                        if(m.getAddress() == oscControl.getAddress())
+                        {
+                            if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat")
+                            {
+                                ofxSimpleGuiSliderFloat *s = (ofxSimpleGuiSliderFloat *) gui.getPages()[i]->getControls()[j];
+                                float remappedValue;
+                                if(m.getArgType(0) == OFXOSC_TYPE_INT32)
+                                {
+                                    float value = (float)m.getArgAsInt32(0);
+                                    remappedValue = ofMap(value, (float) oscControlMin, (float) oscControlMax, (float) s->min, (float) s->max);
+                                }
+                                else
+                                {
+                                    float value = m.getArgAsFloat(0);
+                                    remappedValue = ofMap(value, (float) oscControlMin, (float) oscControlMax, (float) s->min, (float) s->max);
+                                }
+                                s->setValue(remappedValue);
+                            }
+                            else
+                            {
+                                ofxSimpleGuiSliderInt *s = (ofxSimpleGuiSliderInt *) gui.getPages()[i]->getControls()[j];
+                                float remappedValue;
+                                if(m.getArgType(0) == OFXOSC_TYPE_INT32)
+                                {
+                                    float value = (float)m.getArgAsInt32(0);
+                                    remappedValue = ofMap(value, (float) oscControlMin, (float) oscControlMax, (float) s->min, (float) s->max);
+                                }
+                                else
+                                {
+                                    float value = m.getArgAsFloat(0);
+                                    remappedValue = ofMap(value, (float) oscControlMin, (float) oscControlMax, (float) s->min, (float) s->max);
+                                }
+                                s->setValue((int)remappedValue);
+                            }
+                        }
+                    }
+                }
+	        }
+	    }
+	}
+
+    }//*/
+
 }

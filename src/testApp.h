@@ -112,6 +112,8 @@ public:
     string		msg_strings[NUM_MSG_STRINGS];
     float			timers[NUM_MSG_STRINGS];
     void parseOsc();
+    float oscControlMin;
+    float oscControlMax;
 
     // MIDI stuff
     #ifdef WITH_MIDI
