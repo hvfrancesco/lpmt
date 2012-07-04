@@ -52,6 +52,19 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                         gui.getPages()[i]->getControls()[j]->bLearnt = true;
                         gui.getPages()[i]->getControls()[j]->midiControl = midiMessage;
                     }
+                    else if(midiMessage.status == MIDI_NOTE_ON && midiMessage.velocity > 0)
+                    {
+                        if(gui.getPages()[i]->getControls()[j]->midiSlideControls.size() == 0)
+                        {
+                            gui.getPages()[i]->getControls()[j]->midiSlideControls.push_back(midiMessage);
+                        }
+                        else if(gui.getPages()[i]->getControls()[j]->midiSlideControls.size() == 1)
+                        {
+                            gui.getPages()[i]->getControls()[j]->midiSlideControls.push_back(midiMessage);
+                            gui.getPages()[i]->getControls()[j]->bLearning = false;
+                            gui.getPages()[i]->getControls()[j]->bLearnt = true;
+                        }
+                    }
                 }
                 else if(gui.getPages()[i]->getControls()[j]->bLearnt)
                 {
@@ -95,6 +108,40 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                                 s->setValue((int)remappedValue);
                             }
                         }
+                    }
+                    else if(midiMessage.status == MIDI_NOTE_ON && midiMessage.velocity > 0)
+                    {
+                        if(gui.getPages()[i]->getControls()[j]->midiSlideControls.size() == 2)
+                        {
+                           vector<ofxMidiMessage> midiSlideControls = gui.getPages()[i]->getControls()[j]->midiSlideControls;
+                           if (midiMessage.status == midiSlideControls[0].status && midiMessage.pitch == midiSlideControls[0].pitch && midiMessage.channel == midiSlideControls[0].channel)
+                           {
+                                if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat")
+                                {
+                                    ofxSimpleGuiSliderFloat *s = (ofxSimpleGuiSliderFloat *) gui.getPages()[i]->getControls()[j];
+                                    s->decrease();
+                                }
+                                else
+                                {
+                                    ofxSimpleGuiSliderInt *s = (ofxSimpleGuiSliderInt *) gui.getPages()[i]->getControls()[j];
+                                    s->decrease();
+                                }
+                           }
+                           else if (midiMessage.status == midiSlideControls[1].status && midiMessage.pitch == midiSlideControls[1].pitch && midiMessage.channel == midiSlideControls[1].channel)
+                           {
+                                if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat")
+                                {
+                                    ofxSimpleGuiSliderFloat *s = (ofxSimpleGuiSliderFloat *) gui.getPages()[i]->getControls()[j];
+                                    s->increase();
+                                }
+                                else
+                                {
+                                    ofxSimpleGuiSliderInt *s = (ofxSimpleGuiSliderInt *) gui.getPages()[i]->getControls()[j];
+                                    s->increase();
+                                }
+                           }
+                        }
+
                     }
                 }
 	        }
