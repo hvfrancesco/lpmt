@@ -69,7 +69,9 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                 else if(gui.getPages()[i]->getControls()[j]->bLearnt)
                 {
                     ofxMidiMessage midiControl = gui.getPages()[i]->getControls()[j]->midiControl;
-                    if(midiControl.status == MIDI_CONTROL_CHANGE)
+                    vector<ofxMidiMessage> midiSlideControls = gui.getPages()[i]->getControls()[j]->midiSlideControls;
+
+                    if(midiMessage.status == MIDI_CONTROL_CHANGE)
                     {
                         if(midiMessage.status == midiControl.status && midiMessage.control == midiControl.control && midiMessage.channel == midiControl.channel)
                         {
@@ -89,7 +91,7 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                             }
                         }
                     }
-                    else if(midiControl.status == MIDI_PITCH_BEND)
+                    else if(midiMessage.status == MIDI_PITCH_BEND)
                     {
                         if(midiMessage.status == midiControl.status && midiMessage.channel == midiControl.channel)
                         {
@@ -111,20 +113,21 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                     }
                     else if(midiMessage.status == MIDI_NOTE_ON && midiMessage.velocity > 0)
                     {
-                        if(gui.getPages()[i]->getControls()[j]->midiSlideControls.size() == 2)
+                        if(midiSlideControls.size() == 2)
                         {
-                           vector<ofxMidiMessage> midiSlideControls = gui.getPages()[i]->getControls()[j]->midiSlideControls;
                            if (midiMessage.status == midiSlideControls[0].status && midiMessage.pitch == midiSlideControls[0].pitch && midiMessage.channel == midiSlideControls[0].channel)
                            {
                                 if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat")
                                 {
                                     ofxSimpleGuiSliderFloat *s = (ofxSimpleGuiSliderFloat *) gui.getPages()[i]->getControls()[j];
-                                    s->decrease();
+                                    //s->decrease();
+                                    s->setValue(s->getValue()-(s->max - s->min)*0.002);
                                 }
                                 else
                                 {
                                     ofxSimpleGuiSliderInt *s = (ofxSimpleGuiSliderInt *) gui.getPages()[i]->getControls()[j];
-                                    s->decrease();
+                                    //s->decrease();
+                                    s->setValue(s->getValue()-1);
                                 }
                            }
                            else if (midiMessage.status == midiSlideControls[1].status && midiMessage.pitch == midiSlideControls[1].pitch && midiMessage.channel == midiSlideControls[1].channel)
@@ -132,16 +135,17 @@ void testApp::newMidiMessage(ofxMidiMessage& msg) {
                                 if(gui.getPages()[i]->getControls()[j]->controlType == "SliderFloat")
                                 {
                                     ofxSimpleGuiSliderFloat *s = (ofxSimpleGuiSliderFloat *) gui.getPages()[i]->getControls()[j];
-                                    s->increase();
+                                    //s->increase();
+                                    s->setValue(s->getValue()+(s->max - s->min)*0.002);
                                 }
                                 else
                                 {
                                     ofxSimpleGuiSliderInt *s = (ofxSimpleGuiSliderInt *) gui.getPages()[i]->getControls()[j];
-                                    s->increase();
+                                    //s->increase();
+                                    s->setValue(s->getValue()+1);
                                 }
                            }
                         }
-
                     }
                 }
 	        }
