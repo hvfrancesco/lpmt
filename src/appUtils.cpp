@@ -142,6 +142,13 @@ void testApp::resync()
             }
         }
     }
+    for(int i=0; i<8; i++)
+    {
+        if(sharedVideos[i].isLoaded())
+        {
+            sharedVideos[i].setPosition(0.0);
+        }
+    }
 }
 
 //--------------------------------------------------------------
@@ -165,6 +172,13 @@ void testApp::startProjection()
                 quads[i].video.setVolume(quads[i].videoVolume);
                 quads[i].video.play();
             }
+        }
+    }
+    for(int i=0; i<8; i++)
+    {
+        if(sharedVideos[i].isLoaded())
+        {
+            sharedVideos[i].play();
         }
     }
 }
@@ -191,6 +205,13 @@ void testApp::stopProjection()
                 quads[i].video.setVolume(0);
                 quads[i].video.stop();
             }
+        }
+    }
+    for(int i=0; i<8; i++)
+    {
+        if(sharedVideos[i].isLoaded())
+        {
+            sharedVideos[i].stop();
         }
     }
 }
