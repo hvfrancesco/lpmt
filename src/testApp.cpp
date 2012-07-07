@@ -169,8 +169,14 @@ void testApp::setup()
 	midiIn.addListener(this);
 	// print received messages to the console
 	midiIn.setVerbose(true);
+	//clear vectors used for midi-hotkeys coupling
+	midiHotkeyMessages.clear();
+	midiHotkeyKeys.clear();
     #endif
 
+    bMidiHotkeyCoupling = false;
+    bMidiHotkeyLearning = false;
+    midiHotkeyPressed = -1;
 
     // we scan the video dir for videos
     //string videoDir = string("./data/video");
@@ -878,6 +884,18 @@ void testApp::draw()
                 ofSetHexColor(0xFF0000);
                 ttf.drawString("Mask-editing mode ", 170, ofGetHeight()-25);
             }
+            if(bMidiHotkeyCoupling) {
+                if(bMidiHotkeyLearning)
+                {
+                ofSetColor(255,255,0);
+                ttf.drawString("waiting for MIDI message ", 170, ofGetHeight()-25);
+                }
+                else{
+                ofSetColor(255,0,0);
+                ttf.drawString("MIDI-hotkey coupling ", 170, ofGetHeight()-25);
+                }
+                ofRect(2,2,ofGetWidth()-4,ofGetHeight()-4);
+            }
             // draws gui
             gui.draw();
         }
@@ -932,6 +950,7 @@ void testApp::mpeResetEvent(ofxMPEEventArgs& event)
 void testApp::keyPressed(int key)
 {
 
+    if(!bMidiHotkeyCoupling){
     // moves active layer one position up
     if ( key == '+' && !bTimeline && !bGui)
     {
@@ -1106,6 +1125,7 @@ void testApp::keyPressed(int key)
     {
         gui.setPage((activeQuad*3)+2);
     }
+
 
     if ( (key == 'd' || key == 'D') && !bTimeline)
     {
@@ -1456,6 +1476,20 @@ void testApp::keyPressed(int key)
         {
             quads[activeQuad].corners[i] = quads[activeQuad].corners[i] * resultingMatrix;
         }
+    }
+    }
+
+    else
+        {
+            bMidiHotkeyLearning = true;
+            midiHotkeyPressed = key;
+        }
+
+    if ( key == OF_KEY_F4)
+    {
+        bMidiHotkeyCoupling = !bMidiHotkeyCoupling;
+        bMidiHotkeyLearning = false;
+        midiHotkeyPressed = -1;
     }
 
 }

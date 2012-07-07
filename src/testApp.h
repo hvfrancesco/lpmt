@@ -120,6 +120,8 @@ public:
     void newMidiMessage(ofxMidiMessage& eventArgs);
     ofxMidiIn midiIn;
 	ofxMidiMessage midiMessage;
+	vector<ofxMidiMessage> midiHotkeyMessages;
+	vector<int> midiHotkeyKeys;
 	#endif
 
     // Shaders
@@ -144,6 +146,9 @@ public:
     bool bQuadBezierSpherize;
     bool bQuadBezierSpherizeStrong;
     bool bQuadBezierReset;
+    bool bMidiHotkeyCoupling;
+    bool bMidiHotkeyLearning;
+    int midiHotkeyPressed;
 
     void openImageFile();
     void openVideoFile();
