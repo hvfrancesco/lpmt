@@ -174,6 +174,9 @@ void testApp::setup()
 	midiHotkeyKeys.clear();
     #endif
 
+    oscHotkeyMessages.clear();
+    oscHotkeyKeys.clear();
+
     bMidiHotkeyCoupling = false;
     bMidiHotkeyLearning = false;
     midiHotkeyPressed = -1;
@@ -888,11 +891,11 @@ void testApp::draw()
                 if(bMidiHotkeyLearning)
                 {
                 ofSetColor(255,255,0);
-                ttf.drawString("waiting for MIDI message ", 170, ofGetHeight()-25);
+                ttf.drawString("waiting for MIDI or OSC message ", 170, ofGetHeight()-25);
                 }
                 else{
                 ofSetColor(255,0,0);
-                ttf.drawString("MIDI-hotkey coupling ", 170, ofGetHeight()-25);
+                ttf.drawString("MIDI or OSC hotkey coupling ", 170, ofGetHeight()-25);
                 }
                 ofRect(2,2,ofGetWidth()-4,ofGetHeight()-4);
             }

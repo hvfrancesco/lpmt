@@ -114,6 +114,8 @@ public:
     void parseOsc();
     float oscControlMin;
     float oscControlMax;
+    vector<ofxOscMessage> oscHotkeyMessages;
+    vector<int> oscHotkeyKeys;
 
     // MIDI stuff
     #ifdef WITH_MIDI
