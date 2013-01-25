@@ -10,5 +10,7 @@ ofxOpenCv
 ofxTimeline
 ofxTween
 ofxRange
+ofxMSATimer
+ofxTimecode
 ofxTextInputField
 ofxMidi

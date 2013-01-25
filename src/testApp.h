@@ -220,9 +220,9 @@ public:
     void timelineSetup(float duration);
     void timelineUpdate();
     void timelineAddQuadPage(int i);
-	void timelineTriggerReceived(ofxTLTriggerEventArgs& trigger);
-	bool useTimeline;
-	#endif
+    void timelineTriggerReceived(ofxTLBangEventArgs& trigger);
+    bool useTimeline;
+    #endif
 
     // syphon
     #ifdef WITH_SYPHON

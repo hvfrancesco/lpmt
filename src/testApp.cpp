@@ -1431,7 +1431,7 @@ void testApp::keyPressed(int key)
     // toggle timeline BPM grid drawing
     if(key == OF_KEY_F9 && bTimeline)
     {
-        timeline.toggleDrawBPMGrid();
+        timeline.toggleShowBPMGrid();
     }
     #endif
 

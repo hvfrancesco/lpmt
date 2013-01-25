@@ -115,7 +115,7 @@ void testApp::resync()
     #ifdef WITH_TIMELINE
     if(useTimeline)
     {
-        timeline.setCurrentTime(0.0);
+        timeline.setCurrentTimeSeconds(0.0);
     }
     #endif
 

@@ -1,0 +1,32 @@
+<positions>
+    <element name="alpha_0">
+        <x>0.000000000</x>
+        <y>262.000000000</y>
+        <width>800.000000000</width>
+        <height>40.000000000</height>
+    </element>
+    <element name="blu_0">
+        <x>0.000000000</x>
+        <y>198.000000000</y>
+        <width>800.000000000</width>
+        <height>40.000000000</height>
+    </element>
+    <element name="green_0">
+        <x>0.000000000</x>
+        <y>134.000000000</y>
+        <width>800.000000000</width>
+        <height>40.000000000</height>
+    </element>
+    <element name="red_0">
+        <x>0.000000000</x>
+        <y>70.000000000</y>
+        <width>800.000000000</width>
+        <height>40.000000000</height>
+    </element>
+    <element name="trigger_0">
+        <x>0.000000000</x>
+        <y>326.000000000</y>
+        <width>800.000000000</width>
+        <height>40.000000000</height>
+    </element>
+</positions>
