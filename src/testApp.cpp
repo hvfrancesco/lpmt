@@ -1418,7 +1418,7 @@ void testApp::keyPressed(int key)
         }
         else
         {
-            timeline.disable();
+            //timeline.disable();
         }
     }
 

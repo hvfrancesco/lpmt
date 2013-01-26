@@ -4,6 +4,7 @@
 void testApp::timelineSetup(float duration){
 
     timeline.setup();
+    timeline.setSpacebarTogglePlay(false);
     timeline.setWorkingFolder("timeline");
     timeline.setDurationInSeconds(duration);
     timeline.setPageName("main"); //changes the first page name
@@ -68,10 +69,10 @@ void testApp::timelineTriggerReceived(ofxTLBangEventArgs& trigger){
             tlMsgParameter = tlMsgParts[1];
         }
 
-	    if (tlMsg == "on"){ quads[tlQuad].isOn=true; }
+	if (tlMsg == "on"){ quads[tlQuad].isOn=true; }
         else if (tlMsg == "off"){ quads[tlQuad].isOn=false; }
-	    else if(tlMsg == "img_on"){ quads[tlQuad].imgBg=true; }
-	    else if (tlMsg == "img_off"){ quads[tlQuad].imgBg=false; }
+	else if(tlMsg == "img_on"){ quads[tlQuad].imgBg=true; }
+	else if (tlMsg == "img_off"){ quads[tlQuad].imgBg=false; }
         else if (tlMsg == "col_on"){ quads[tlQuad].colorBg=true; }
         else if (tlMsg == "col_off"){ quads[tlQuad].colorBg=false; }
         else if (tlMsg == "video_on"){ quads[tlQuad].videoBg=true; }
