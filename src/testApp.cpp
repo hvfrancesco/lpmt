@@ -241,7 +241,7 @@ void testApp::setup()
     //timeline defaults
     #ifdef WITH_TIMELINE
     useTimeline = false;
-    timelineDurationSeconds = timelinePreviousDuration = 10.0;
+    timelineDurationSeconds = timelinePreviousDuration = 100.0;
     #endif
 
     // texture for snapshot background

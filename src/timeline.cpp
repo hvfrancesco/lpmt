@@ -4,10 +4,10 @@
 void testApp::timelineSetup(float duration){
 
     timeline.setup();
-
-	timeline.setPageName("main"); //changes the first page name
-	timeline.addFlags("trigger_main", "main_trigger.xml");
-
+    timeline.setWorkingFolder("timeline");
+    timeline.setDurationInSeconds(duration);
+    timeline.setPageName("main"); //changes the first page name
+    timeline.addFlags("trigger_main", "main_trigger.xml");
 
     for(int i = 0; i < 4; i++)
     {
@@ -15,11 +15,10 @@ void testApp::timelineSetup(float duration){
     }
 
     timeline.setLoopType(OF_LOOP_NORMAL);
-    //timeline.setDurationInFrames(duration);
-    timeline.setDurationInSeconds(duration);
+    //timeline.enableSnapToBPM(60.0);
+    timeline.enableSnapToOtherKeyframes(false);
+    //timeline.collapseAllTracks();
     ofAddListener(timeline.events().bangFired, this, &testApp::timelineTriggerReceived);
-    timeline.enableSnapToBPM(60.0);
-    timeline.collapseAllTracks();
 }
 
 //--------------------------------------------------------------

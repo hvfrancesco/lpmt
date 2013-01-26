@@ -25,6 +25,8 @@ CVS/
 /bin/data/*elementPosition*.xml
 /bin/data/defaultTimeline*.xml
 /bin/data/video/house*
+/bin/data/timeline/*
+bin/data/timeline/*
 .frag
 .xml
 
