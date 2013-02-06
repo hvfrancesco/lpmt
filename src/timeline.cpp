@@ -29,11 +29,16 @@ void testApp::timelineUpdate()
             {
                 if (quads[j].initialized)
                 {
-                    if(quads[j].bTimelineColor)
+                    if(quads[j].bTimelineTint)
                     {
                         quads[j].timelineRed = timeline.getValue("red_"+ofToString(j));
                         quads[j].timelineGreen = timeline.getValue("green_"+ofToString(j));
                         quads[j].timelineBlu = timeline.getValue("blu_"+ofToString(j));
+                    }
+                    if(quads[j].bTimelineColor)
+                    {
+                        quads[j].timelineColor = timeline.getColor("color_"+ofToString(j));
+                        quads[j].bgColor = quads[j].timelineColor;
                     }
                     if(quads[j].bTimelineAlpha)
                     {
@@ -154,6 +159,7 @@ void testApp::timelineAddQuadPage(int i) {
 	timeline.addCurves("blu_"+ofToString(i), ofToString(i)+"_blu.xml", ofRange(0, 1.0));
 	timeline.addCurves("alpha_"+ofToString(i), ofToString(i)+"_alpha.xml", ofRange(0, 1.0));
 	timeline.addFlags("trigger_"+ofToString(i), ofToString(i)+"_trigger.xml");
+	timeline.addColors("color_"+ofToString(i));
 }
 
 #endif

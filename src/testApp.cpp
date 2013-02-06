@@ -379,7 +379,8 @@ void testApp::setup()
         #ifdef WITH_TIMELINE
         gui.addToggle("use timeline", useTimeline);
         gui.addSlider("timeline seconds", timelineDurationSeconds, 10.0, 1200.0);
-        gui.addToggle("use timeline col", quads[i].bTimelineColor);
+        gui.addToggle("use timeline tint", quads[i].bTimelineTint);
+        gui.addToggle("use timeline color", quads[i].bTimelineColor);
         gui.addToggle("use timeline alpha", quads[i].bTimelineAlpha);
         gui.addToggle("use timeline for slides", quads[i].bTimelineSlideChange);
         #endif

@@ -272,6 +272,7 @@
     timelineBlu = 1.0;
     timelineAlpha = 1.0;
 
+    bTimelineTint = false;
     bTimelineColor = false;
     bTimelineAlpha = false;
     bTimelineSlideChange = false;

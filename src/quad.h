@@ -60,6 +60,7 @@ public:
     ofFloatColor camColorize;
     ofFloatColor colorGreenscreen;
     ofFloatColor kinectColorize;
+    ofFloatColor timelineColor;
 
     float timelineRed;
     float timelineGreen;
@@ -67,6 +68,7 @@ public:
     float timelineAlpha;
 
     bool bTimelineColor;
+    bool bTimelineTint;
     bool bTimelineAlpha;
     bool bTimelineSlideChange;
 
