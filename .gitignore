@@ -22,6 +22,7 @@ CVS/
 /bin/data/*blu*.xml
 /bin/data/*alpha*.xml
 /bin/data/*trigger*.xml
+/bin/data/*_color*.xml
 /bin/data/*elementPosition*.xml
 /bin/data/defaultTimeline*.xml
 /bin/data/video/house*

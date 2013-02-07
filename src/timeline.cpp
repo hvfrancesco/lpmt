@@ -18,6 +18,7 @@ void testApp::timelineSetup(float duration){
     timeline.setLoopType(OF_LOOP_NORMAL);
     //timeline.enableSnapToBPM(60.0);
     timeline.enableSnapToOtherKeyframes(false);
+    timeline.setEditableHeaders(true);
     //timeline.collapseAllTracks();
     ofAddListener(timeline.events().bangFired, this, &testApp::timelineTriggerReceived);
 }
@@ -159,7 +160,7 @@ void testApp::timelineAddQuadPage(int i) {
 	timeline.addCurves("blu_"+ofToString(i), ofToString(i)+"_blu.xml", ofRange(0, 1.0));
 	timeline.addCurves("alpha_"+ofToString(i), ofToString(i)+"_alpha.xml", ofRange(0, 1.0));
 	timeline.addFlags("trigger_"+ofToString(i), ofToString(i)+"_trigger.xml");
-	timeline.addColors("color_"+ofToString(i));
+	timeline.addColors("color_"+ofToString(i), ofToString(i)+"_color.xml");
 }
 
 #endif
