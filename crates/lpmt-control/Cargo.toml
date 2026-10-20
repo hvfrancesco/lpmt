@@ -1,0 +1,12 @@
+[package]
+name = "lpmt-control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "OSC, MIDI and show-control adapters for LPMT"
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+lpmt-core = { path = "../lpmt-core" }

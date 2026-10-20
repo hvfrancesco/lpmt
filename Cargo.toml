@@ -1,0 +1,44 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/lpmt-app",
+    "crates/lpmt-control",
+    "crates/lpmt-core",
+    "crates/lpmt-import-legacy",
+    "crates/lpmt-media",
+    "crates/lpmt-render",
+    "crates/lpmt-ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+rust-version = "1.95"
+
+[workspace.dependencies]
+anyhow = "1.0"
+bytemuck = { version = "1.25", features = ["derive"] }
+egui = { version = "0.37", features = ["default_fonts"] }
+egui-wgpu = "0.37"
+egui-winit = "0.37"
+env_logger = "0.11"
+ffmpeg-next = { version = "9.0", default-features = false, features = ["format", "software-scaling"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+log = "0.4"
+pollster = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+wgpu = "30.0"
+winit = "0.30"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,27 @@
+[package]
+name = "lpmt-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "LPMT application"
+
+[features]
+default = []
+video = ["lpmt-media/video"]
+
+[dependencies]
+anyhow.workspace = true
+egui.workspace = true
+egui-wgpu.workspace = true
+egui-winit.workspace = true
+env_logger.workspace = true
+log.workspace = true
+lpmt-core = { path = "../lpmt-core" }
+lpmt-media = { path = "../lpmt-media" }
+lpmt-render = { path = "../lpmt-render" }
+lpmt-ui = { path = "../lpmt-ui" }
+pollster.workspace = true
+serde_json.workspace = true
+wgpu.workspace = true
+winit.workspace = true

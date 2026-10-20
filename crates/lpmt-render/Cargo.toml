@@ -1,0 +1,17 @@
+[package]
+name = "lpmt-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "wgpu renderer and output sinks for LPMT"
+
+[dependencies]
+anyhow.workspace = true
+bytemuck.workspace = true
+log.workspace = true
+lpmt-core = { path = "../lpmt-core" }
+lpmt-media = { path = "../lpmt-media" }
+pollster.workspace = true
+wgpu.workspace = true
+winit.workspace = true

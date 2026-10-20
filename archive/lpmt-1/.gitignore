@@ -1,0 +1,21 @@
+# Legacy openFrameworks build outputs and generated show data.
+/projection_mapping*
+/lpmt*
+/bin/data/_*.xml
+/bin/data/*red*.xml
+/bin/data/*green*.xml
+/bin/data/*blu*.xml
+/bin/data/*alpha*.xml
+/bin/data/*trigger*.xml
+/bin/data/*_color*.xml
+/bin/data/*elementPosition*.xml
+/bin/data/defaultTimeline*.xml
+/bin/data/video/house*
+/bin/data/timeline/*
+
+# Xcode user data
+build/
+*.mode1v3
+*.pbxuser
+*.perspectivev3
+xcuserdata/

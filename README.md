@@ -1,120 +1,147 @@
-LPMT - Little Projection-Mapping Tool
----------------------------------------
-(C) 2011, HVA - Hermanitos Verdes Architetti / Modena, Italy
+# LPMT 2 — Rust rewrite (work in progress)
 
-[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=hv_francesco&url=https://github.com/hvfrancesco/lpmt&title=LPMT Little Projection-Mapping Tool&language=&tags=github&category=software)
+LPMT 2 is the modern Rust/GPU rewrite of **LPMT — Little Projection-Mapping Tool**.
+It keeps the projection-mapping workflow of the original C++/openFrameworks
+application while replacing the fixed-capacity, single-process architecture with a
+real editor, independent output windows and a portable rendering stack.
 
+The original LPMT 1 source and data are preserved in
+[`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
-LPMT is a little projection-mapping tool for use in our office,
-it is developed in C++ using OpenFrameworks.
-It’s based on simple quad warping paradigm, and, though rather simple, can
-be used to achieve complex and professional projection-mapping sets.
+**Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
+layer compositing and optional video playback.
 
-This is the up-to-date version of lpmt, based on OpenFrameworks 007
+- One event loop, one `wgpu` device and queue, two windows.
+- `egui` editor with a stage preview, draggable surface corners and numeric corner
+  fields.
+- Independent output window rendering an image or looping video through a
+  four-corner projective warp, with a checker test card as fallback.
+- Ordered layer stack composited bottom-to-top with per-layer visibility,
+  opacity, surface assignment and `Normal`, `Add`, `Screen` or `Multiply`
+  blending. The demo has two warped surfaces and two layers.
+- Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
+  `OutputSpec`) with stable IDs and JSON serialization.
+- Image decoding in `lpmt-media` and GPU texture upload/caching in `lpmt-render`.
+- Optional `ffmpeg-next` video decoding behind the `video` Cargo feature:
+  background worker thread, looped playback, play/pause, restart, seek/scrub,
+  newest-frame mailbox and in-place GPU texture updates.
+- Project save/load from the editor (path field plus Save/Load buttons). Media
+  paths are resolved relative to the project file.
+- Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
+- Homography, media decoding and JSON compatibility unit tests.
+- The output opens fullscreen on a secondary monitor when one is present; otherwise
+  it opens as a 1280×720 window.
 
-DOWNLOAD:
-----------
+### Next session
 
-At the moment LPMT is only available as source code, and we've only tested it on linux systems
-but thanks to the multi-platform nature of OpenFrameworks it should work out-of-the-box on
-Windows and OsX too.
+The next implementation slice is **multiple output views**:
 
-up-to-date code (git repository):
-http://gitorious.org/projection-mapping
+- open more than one output window and map each to a stable `OutputId`;
+- render each output through its own `OutputSpec.view` rectangle of the stage;
+- add per-output geometry/colour correction and edge blending after that.
 
-for the github fans, the repository is mirrored here:
-https://github.com/hvfrancesco/ProjectionMapping
+Audio plus a shared show clock are the other open M2 items. The legacy XML importer
+remains planned; the full roadmap is in
+[`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
 
-if you don't like git, you can find a rarely updated zip file:
-http://www.hv-a.com/projectTiles/projection-mapping.zip
+## Build and run
 
+Requirements:
 
+- Rust 1.95 or newer.
+- Linux with Vulkan (or another `wgpu` backend), Wayland or X11.
+- On macOS and Windows the same workspace is intended to build unchanged; those
+  platforms are not validated yet.
 
-MAIN FEATURES:
---------------
+```bash
+cargo run -p lpmt-app
+# open a saved show directly
+cargo run -p lpmt-app -- --project show.json
+```
 
-* up to 36 independent projection surfaces (remember you can use a solid black quad even as a mask)
-* possible content: solid color, images, video, live-cam, slideshows, smoothly changing solid colors, and more …
-* customizable green-screen (chromakey) for video and live-cam sources
-* horizontal and vertical flipping for image, video and live-cam content
-* independent opacity settings for each content element
-* customizable colorization for each content element
-* several blending-modes for projection surfaces
-* on-screen editable masks
-* bezier-warping for projection on curved surfaces
-* grid-warping, with user defined grid density
-* spherize deformation preset
-* realtime live-masking with Kinect
-* customizable video speed and volume
-* save/load project set to/from xml file
-* syncronized start for video elements
-* vertex snap function for adjacent quads
-* cam snapshot background for rough positioning of projection surfaces
-* customizable speed for slideshows and color transitions
-* synced multi-projectors shows with adjustable edge-blending
-* control and setup through a rich set of OSC messages
-* a powerful timeline to trigger events and control LPMT projections
+The demo show loads [`assets/images/ofTheo.jpg`](assets/images/ofTheo.jpg) on the
+background layer and [`assets/images/car.jpg`](assets/images/car.jpg) on a smaller
+`Screen`-blended layer. Missing assets fall back to the procedural checker card.
+Use the **Layers** section to select a layer, toggle it, change opacity or blend
+mode, move it between surfaces, reorder it, or add/delete test-pattern layers.
 
+### Video playback
 
+Video is an optional feature because it links against the system FFmpeg libraries.
+The default build stays image-only and has no system media dependency.
 
-KEY COMMANDS:
--------------
+On Debian/Ubuntu:
 
-’s' – saves settings to xml (projection_settings.xml in data folder)
-‘l’ – loads settings from xml file
+```bash
+sudo apt install ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
+  libswscale-dev libclang-dev pkg-config
+cargo run -p lpmt-app --features video
+```
 
-‘a’ – adds new quad
-‘>’ – go to next quad
-‘<’ – go to previous quad
-'+' - raise active quad position in layers pile
-'-' - lower active quad position in layers pile
-‘z’ – selects first gui page for active quad settings
-‘x’ – selects second gui page for active quad settings
-‘c’ – selects gui page for active quad corner position fine-tuning
-‘q’ – fills window with active quad
-‘1’ – shows general settings page of gui
+On macOS, install FFmpeg and pkg-config with Homebrew:
 
-‘g’ – toggles gui (for quad warping with mouse gui must be switched off)
-‘f’ – toggles fullscreen mode
-‘w’ – toggles cam snapshot window background
-‘m’ – toggles mask-editing mode
-‘b’ – toggles surface bezier/grid warping editing mode
+```bash
+brew install ffmpeg pkg-config
+cargo run -p lpmt-app --features video
+```
 
-‘spacebar’ – toggles projection/setup modes
-‘r’ – resyncs all videos and slideshows in all quads to starting point
-‘p’ – starts projection
-‘o’ – stops projection
+Windows support for the video feature is not validated yet.
 
-‘n’ – connects to a MostPixelsEver sync server
+In the editor's **Media** section, select `fingers · Video` and click **Use for
+layer**. Playback loops automatically and a **Playback** panel appears with
+play/pause, restart, loop and scrub controls. Seeking resumes a paused player.
+Without the `video` feature the output falls back to the checker card and the
+status bar reports that video support is not compiled in.
 
-‘F10’ – toggles timeline interface
-‘F9’ – toggles timeline BPM reference grid
-‘F11’ – toggles stage visibility under timeline
-‘F12’ – play/stop timeline
+The initial backend is `ffmpeg-next`; GStreamer remains a later option for hardware
+decode and pipeline-oriented capture.
 
+Useful commands:
 
+```bash
+cargo test --workspace
+cargo fmt --all
+cargo clippy --workspace --all-targets
+```
 
-TODO:
-----------
+The first run compiles `wgpu`, `winit` and `egui`, so it can take a few minutes.
 
-- midi control
-- DMX control
-- timeline sync with MTC midi
+## Repository layout
 
+```text
+crates/          Rust workspace and the LPMT 2 application
+assets/          Small sample media used by demos and tests
+docs/            Architecture and rewrite RFC
+archive/lpmt-1/  Original C++/openFrameworks application (reference only)
+```
 
-CONTACT:
-----------
+| Crate | Responsibility |
+|---|---|
+| `lpmt-core` | Domain model, stable IDs, geometry and homography math |
+| `lpmt-render` | `wgpu` device setup and output rendering |
+| `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
+| `lpmt-media` | Image decoding and optional `ffmpeg-next` video playback; capture next |
+| `lpmt-control` | Future OSC, MIDI, DMX and hotkey adapters |
+| `lpmt-import-legacy` | Future LPMT 1 XML importer |
+| `lpmt-app` | Window/event-loop composition and application state |
 
-you can contact us at:
-francesco[at]hv-a.com
+The architecture, output topology and milestones are documented in
+[`docs/rewrite-rfc.md`](docs/rewrite-rfc.md). The short version: **one virtual Stage
+per show, many Outputs as views of that Stage**.
 
--------------------------------------------------------------------------------
+In the editor, select a surface to drag or numerically edit its corners. The
+**Layers** section selects the active layer and edits its visibility, opacity,
+blend mode, surface, order and lifetime. Use the **Media** section to change a
+media path, reload it, assign it to the active layer, or control video playback.
+Use the Project file section to save or load the JSON show file.
 
-this README was last edited by hv_francesco on Wed Feb 23, 2011 19:54 GMT+1,
-edited 1 times in total.
+## Legacy LPMT 1 archive
 
-__________________________________
+The original C++/openFrameworks application is preserved in
+[`archive/lpmt-1/`](archive/lpmt-1/). It includes the original source, sample
+media, shaders, OSC documentation and build files. It is **not** part of the Cargo
+workspace and is not built by CI.
 
-HVA - hermanitos verdes architetti
-modena - italy
-www.hv-a.com
+See [`archive/README.md`](archive/README.md) for the archive layout and
+[`archive/lpmt-1/README.md`](archive/lpmt-1/README.md) for the original feature
+list and workflow notes.

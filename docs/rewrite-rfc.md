@@ -1,0 +1,712 @@
+# LPMT 2.0 — Rewrite Architecture RFC
+
+- **Status:** Draft for discussion
+- **Scope:** Replace the openFrameworks/C++ implementation with a modern, GPU-accelerated application.
+- **Original:** LPMT 1.0, openFrameworks 0.8, 2010–2014, GPL-3.0.
+- **Working name:** LPMT 2 (rename later).
+
+---
+
+## 1. Summary
+
+LPMT is a practical projection-mapping tool built around a simple and effective idea:
+*project content onto an ordered set of warped surfaces, with masks, blending and a timeline.*
+
+The rewrite should preserve that idea and the show-control features that made LPMT useful,
+while replacing the implementation with:
+
+- a proper data model separated from rendering and UI;
+- a GPU renderer built on `wgpu` (Vulkan / Metal / DirectX 12);
+- a real editor window, separate from projector outputs;
+- one process that can drive multiple output windows;
+- a virtual **Stage** abstraction so multi-projector shows are authored in one coordinate space;
+- a generic parameter/control system shared by OSC, MIDI, DMX, hotkeys and the timeline;
+- a versioned, portable project format;
+- a path to distributed rendering and non-window outputs later.
+
+The most important architectural decision is the **output topology**. The recommendation is:
+
+> **One application process, one virtual Stage per show, many Outputs as independent windows or sinks.
+> Each Output is a view/region of a Stage. Outputs can be grouped for edge blending and frame sync.**
+
+This supports a single projector, overlapping dual projectors, many independent projectors, LED
+tiles, confidence monitors and later remote render nodes, without changing the authoring model.
+
+### 1.1 Implementation status
+
+The rewrite has started on the recommended direction. The original LPMT 1 source,
+data and project files are archived under `archive/lpmt-1/` for behavioral reference.
+
+- **Platform order:** Linux is the first validated target. The workspace, dependencies and window
+  setup are kept cross-platform so macOS and Windows can be added without a structural rewrite.
+- **M0 is substantially complete:** a Rust workspace builds, one `wgpu` device feeds an `egui`
+  editor window and a separate output window, and the output renderer is independent of the editor.
+- **M1 vertical slice exists:** `Stage` → `Surface` (four corners) → homography → output window,
+  rendering a real image texture with a checker fallback. The editor can drag corners or edit
+  their normalized coordinates, change media paths, reload media, and changes appear on the
+  output.
+- **Core schema v2 seed:** `Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`, `SourceSpec` and
+  `OutputSpec` with stable IDs, JSON serialization and homography tests.
+- **Ordered layer stack:** the renderer composites visible layers bottom-to-top with per-layer
+  visibility, opacity, surface assignment and Normal/Add/Screen/Multiply blend modes. Each layer
+  uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
+  layer. The editor can select, show/hide, reorder, delete and create test-pattern layers, and the
+  demo uses two surfaces/layers to exercise compositing.
+- **Project persistence skeleton:** JSON save/load in the editor plus `--project <path>` startup
+  loading. Media paths are project-relative; a missing asset falls back to the test card.
+- **Optional video slice:** the `video` Cargo feature uses `ffmpeg-next` on a worker thread,
+  loops a media asset, keeps only the newest frame and updates the GPU texture in place. Players are
+  shared by `MediaId`; play/pause, restart, looping and seek/scrub controls are wired through the
+  editor. Seeking reopens the decoder at the target position. Image-only builds have no system FFmpeg
+  dependency. Audio, per-output sync and clock ownership are still open.
+- **Not implemented yet:** audio, masks/deformation, output views beyond full-stage, edge
+  blending, OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
+- **Next implementation slice:** multiple output windows, each with a stable `OutputId` and its own
+  `OutputSpec.view` rectangle, followed by per-output geometry/colour correction and edge blending.
+  Audio plus a shared show clock remain the other open M2 gap; the legacy XML importer stays planned.
+
+Run `cargo run -p lpmt-app` from the repository root. On a single-monitor machine the output is a
+1280×720 window; with a secondary monitor it opens borderless fullscreen there.
+
+---
+
+## 2. Goals and non-goals
+
+### 2.1 Goals
+
+- Reliable 1080p60 output on modest hardware, with multiple outputs on one machine.
+- Real editor UI, with projector output windows free of GUI overlays.
+- Persistent project format with stable IDs, media references and migration from LPMT 1 XML.
+- Multi-projector edge blending and per-output colour/geometry correction.
+- The existing mapping capabilities: quad warp, grid/Bézier deformation, masks, crops.
+- The existing content types: images, video, shared video, slideshows, cameras, solid colours,
+  colour transitions, and live textures.
+- A control layer that can be driven by OSC, MIDI, DMX/Art-Net, keyboard and the timeline.
+- Reasonable memory use: resources proportional to active media and outputs, not to a fixed
+  maximum surface count.
+- Clean failure modes: missing media, unplugged displays, unsupported codecs and lost devices
+  should be visible and recoverable.
+
+### 2.2 Non-goals for the first release
+
+- A general 3D engine, DCC-style node graph or full compositor.
+- Distributed rendering across machines (design for it, implement later).
+- Hardware genlock / PTP as a v1 requirement (document and support later).
+- Kinect v1 support. Depth-camera input can return later as a generic capture/source plugin.
+- Byte-for-byte compatibility with the old XML or old timeline files.
+- Plugin marketplace / scripting language.
+
+---
+
+## 3. Current implementation: what to keep and what to replace
+
+### 3.1 Strengths to preserve
+
+- Surface + content + layer + transform + mask + blend is the right conceptual model.
+- Normalized coordinates and a per-surface homography are simple and predictable.
+- The edge-blend math (exponent, gamma, luminance, four edges) is worth keeping.
+- Workflow details: corner snap, double-click surface activation, rotation feedback, mask editing,
+  shared videos, resync, and timeline triggers.
+- Comprehensive remote control. It demonstrates what operators actually need.
+
+### 3.2 Structural limitations
+
+| Area | Current state | Consequence |
+|---|---|---|
+| Application structure | `testApp` owns input, GUI, OSC, MIDI, timeline, cameras and quads | A single god object; every feature touches the same state |
+| Surface object | `quad` mixes model, media, FBOs, shaders, overlays and drawing | Hard to test, reuse or extend |
+| Capacity | `quads[36]`, 8 shared videos, fixed 4×4 Bézier | Arbitrary limits leak into UI and persistence |
+| Rendering | 3 screen-sized FBOs per quad; four duplicated render branches | Huge memory use and high maintenance cost |
+| Graphics API | GLUT, fixed-function matrix/Bezier, GLSL 1.20 rectangle textures | Legacy platform and driver constraints |
+| Control | 1,834-line OSC `if/else` chain mutating active object | Duplication, no reusable mapping model |
+| Persistence | Ad-hoc XML, incomplete fields, versionless | Data loss and fragile migrations |
+| UI | GUI drawn into the projection window | No true operator/output separation |
+| Media | Per-quad player objects; allocation in update paths | Hard to share, sync and reclaim resources |
+| Quality | No tests, no undo, little error handling | Regressions and show-time surprises |
+
+The old code should be treated as a **feature and behaviour reference**, not as a code base to port
+line by line.
+
+---
+
+## 4. Output topology — recommendation
+
+### 4.1 Options considered
+
+| Option | Description | Strengths | Problems |
+|---|---|---|---|
+| A. Window = canvas | One window is one complete projection canvas; add windows by duplicating the app | Simple, close to LPMT 1 | Cannot author a single composition across projectors; duplication of state; no edge blending across outputs |
+| B. One giant window spanning displays | A single OS window stretched across all projectors | One canvas, simple rendering | Fragile with window managers, DPI, refresh rates; cannot independently fullscreen; bad on mixed hardware |
+| C. **Stage + Outputs** | One virtual stage; each output shows a region of it; multiple windows/sinks | Flexible, authoring in one space, edge blending, confidence monitors, future remote nodes | Requires a clear output/view model; per-output rendering logic |
+| D. Distributed-first | Renderer processes on multiple machines from day one | Scales to many projectors | Much higher complexity; not needed for most shows; slows initial delivery |
+
+### 4.2 Recommended model: Stage + Outputs
+
+```
+Project
+├── Stages
+│   ├── Stage "Main wall"
+│   │   ├── Surfaces (mapping geometry)
+│   │   ├── Layers (content + effects + compositing)
+│   │   └── Timeline bindings
+│   └── Stage "Side screens"
+├── Media assets
+├── Outputs
+│   ├── Output "Projector L"  → view of Stage "Main wall"
+│   ├── Output "Projector R"  → view of Stage "Main wall"
+│   └── Output "Confidence"   → full view of Stage "Main wall"
+└── Output groups
+    └── "Wall pair" → { Projector L, Projector R }  (edge blend + frame barrier)
+```
+
+**Stage** is an abstract composition canvas with a reference aspect/size. Surface coordinates are
+normalized to the stage. **Output** is a physical presentation target: a window, fullscreen display,
+headless target, or later NDI/DeckLink/SDI stream. An output has a **view**: usually a normalized
+rectangle of a stage, but the model can later support a camera or independent per-output transform.
+
+Examples:
+
+- **Single projector:** one stage 16:9, one output showing the whole stage.
+- **Two overlapping projectors:** stage is wider than 16:9. Output L shows `x=0.0..0.588`, output R
+  shows `x=0.412..1.0` for ~15% overlap. A right-edge blend on L and left-edge blend on R feather
+  the seam. Both outputs show the same surfaces in the shared stage coordinate system.
+- **Two independent rooms:** two stages, each with its own output group. No cross-talk.
+- **LED wall / tiles:** one stage split into arbitrary output regions.
+- **Confidence monitor:** an extra output showing the full stage at reduced preview resolution; it
+  does not affect show output.
+- **Future distributed show:** an output group’s outputs can be assigned to remote render workers;
+  the project and stage model do not change.
+
+### 4.3 Why this is the most flexible choice
+
+- It separates **what the show is** (stage geometry and composition) from **where it is displayed**
+  (outputs and views). That is the same separation a DAW makes between a session and audio devices.
+- It supports both unified authoring and independent outputs without two different application modes.
+- It makes edge blending an output/seam concern, which is how projectors physically overlap, instead
+  of a property of a content surface.
+- It gives a natural place for future output types: windows, headless, NDI, DeckLink, virtual displays.
+- It keeps distributed rendering optional: a worker is simply a process that owns a set of outputs.
+
+### 4.4 Rendering consequences
+
+Do **not** render one giant stage framebuffer by default. A 4-projector 4K-wide stage would be
+expensive and mostly wasted. Render **each output independently** from the same scene snapshot:
+
+1. The engine produces one immutable frame state (timeline time, media frame, parameters).
+2. For each output in an output group:
+   - set up the output viewport/region;
+   - cull surfaces that do not intersect the output region;
+   - render those surfaces with their layer/effect stacks;
+   - apply output-level edge blending, colour correction and calibration;
+   - present to the output sink.
+3. Present all outputs for frame N from the same state.
+
+A full-stage render target remains available as an optional mode for effects that must cross output
+boundaries (large blur, stage-wide feedback, preview thumbnails). It is not the default path.
+
+### 4.5 Synchronization strategy
+
+Three tiers, implemented progressively:
+
+1. **Shared software clock (v1):** one engine frame counter and one timeline/media clock. All outputs
+   consume the same frame state. Good for normal multi-window use on one GPU.
+2. **Output-group barrier:** render all outputs for a frame before presenting any of them; optionally
+   pace to a master refresh and disable per-window vsync when tearing/latency matters. This is still
+   software sync and cannot beat display/genlock jitter.
+3. **Hardware/distributed sync (later):** genlock/PTP or a coordinator/worker frame barrier for
+   multi-machine setups. Keep frame IDs in the protocol and make media clocks deterministic.
+
+The old MPE concept is worth replacing with a small coordinator/worker protocol rather than porting
+the addon. Design the boundary now; implement after single-machine multi-output is solid.
+
+---
+
+## 5. System architecture
+
+### 5.1 Principles
+
+1. **Core is pure.** The project model, parameters, timeline and commands do not depend on `wgpu`,
+   `winit`, media decoders or UI.
+2. **Rendering is a consumer.** The renderer reads a frame snapshot; it never owns project state.
+3. **UI is a client.** The editor edits through commands/parameters; it does not mutate `quad`
+   internals.
+4. **Stable IDs, not array indices.** Legacy index-based OSC paths are an adapter, not the model.
+5. **One source of truth per resource.** Media assets, textures and clocks are shared and reference
+   counted.
+6. **Explicit state machines for I/O.** Media, capture and outputs have loading/ready/error states
+   visible in the UI.
+7. **Allocator discipline.** Allocate render targets and textures on configuration changes, never in
+   the per-frame draw path.
+8. **Import compatibility is a feature.** The old XML importer is a separate, tested boundary.
+
+### 5.2 Suggested workspace layout
+
+```
+lpmt/
+├── Cargo.toml                 # workspace
+├── crates/
+│   ├── lpmt-core/             # model, IDs, parameters, timeline, commands
+│   ├── lpmt-media/            # assets, decoders, players, capture, audio
+│   ├── lpmt-render/           # wgpu renderer, mesh, shaders, output sinks
+│   ├── lpmt-control/          # OSC, MIDI, DMX, keyboard mapping
+│   ├── lpmt-ui/               # egui editor, preview, mapping tools
+│   ├── lpmt-import-legacy/    # LPMT 1 XML importer
+│   ├── lpmt-sync/             # optional, later: output-group/frame sync
+│   └── lpmt-app/              # binary, event loop, composition root
+├── shaders/                   # WGSL
+├── docs/
+└── assets/                    # built-in test patterns, icons, default font
+```
+
+Dependency direction:
+
+```
+lpmt-app ──> lpmt-ui, lpmt-render, lpmt-media, lpmt-control, lpmt-import-legacy
+lpmt-ui ───> lpmt-core
+lpmt-render > lpmt-core
+lpmt-media > lpmt-core
+lpmt-control > lpmt-core
+lpmt-core ─> (serde, math; no GPU, no windowing, no codecs)
+```
+
+### 5.3 Runtime model
+
+- **Main thread:** `winit` event loop, editor window, output windows, UI, frame pacing.
+- **Engine update:** fixed timestep (e.g., 60 Hz nominal) producing frame state and timeline/media clocks.
+- **Render:** one `wgpu::Device`/`Queue` per render node (initially one GPU), one surface per window output.
+- **Media workers:** decode/capture threads or async tasks, publishing new frames into shared textures.
+- **Control listeners:** OSC/MIDI/DMX on background threads, sending typed parameter events into the engine.
+- **UI:** immediate-mode `egui`, reading a consistent snapshot and issuing commands. No rendering work
+  that can block the output path.
+
+For the first implementation, keep engine update and render on the main loop. Move simulation to its
+own thread only if measurements show UI stalls affecting output.
+
+### 5.4 Commands and events
+
+- `Command` — intent: `AddSurface`, `LoadMedia`, `SetParameter`, `AssignOutput`, `StartTimeline`.
+- `Event` — fact: `ProjectLoaded`, `MediaReadinessChanged`, `OutputLost`, `ParameterChanged`.
+- Commands are serializable and undoable. Control adapters and the UI both produce commands.
+- The renderer and media system consume state snapshots/events; they do not reach back into UI code.
+
+---
+
+## 6. Data model
+
+### 6.1 Core entities
+
+| Entity | Responsibility |
+|---|---|
+| `Project` | Root document: stages, surfaces, layers, media references, outputs, timelines, bindings |
+| `Stage` | Virtual composition canvas; normalized coordinate space; background |
+| `Surface` | Mapping geometry: 4 corners, optional warp mesh, mask polygons, crop; in stage coordinates |
+| `Layer` | Binds a source to a surface, with content transform, effects, opacity and blend mode |
+| `MediaAsset` | A file or device description; stable ID; metadata; readiness/error state |
+| `SourceBinding` | How a layer consumes media: image, video, slideshow, camera, solid, transition, shared texture |
+| `Output` | Presentation target: display/window/sink, view region of a stage, resolution, colour, blend zones |
+| `OutputGroup` | Outputs that are edge-blended and frame-synchronized together |
+| `Timeline` | Transport plus tracks of numbers, colours and triggers |
+| `ParameterBinding` | Maps OSC/MIDI/DMX/hotkey input to a parameter path |
+
+### 6.2 Why separate Surface and Layer?
+
+LPMT 1 conflates “the mapped shape” and “the content on it”. Separating them enables:
+
+- multiple content layers on one mapped object (e.g. background + logo + live capture);
+- one surface reused by several layers or stages;
+- effects and blending without touching mapping geometry;
+- a clean inspector: **Surface** (where) vs **Layer** (what);
+- future sharing of surfaces between outputs or stages.
+
+For simple use, the UI can create a Surface and a Layer together and present them as a single item.
+
+### 6.3 Coordinate spaces
+
+Pick and document these once:
+
+- **Stage space:** normalized `0..1`, origin top-left, y down. Surface corners and output views live here.
+- **Surface UV:** normalized `0..1`; masks and warp mesh are defined in this space.
+- **Layer/content space:** normalized `0..1` inside the surface, with fit/fill/stretch transform.
+- **Output UV:** normalized `0..1` for output-level edge blending and calibration.
+
+Do not mix pixels and normalized values in the model. Convert at the renderer/UI boundary.
+
+### 6.4 Illustrative project shape
+
+```json
+{
+  "schema_version": 1,
+  "name": "Demo wall",
+  "stages": [
+    {
+      "id": "stg_main",
+      "name": "Main wall",
+      "aspect": 3.02,
+      "surfaces": [
+        {
+          "id": "srf_left",
+          "name": "Left panel",
+          "corners": [[0.0, 0.0], [0.47, 0.0], [0.47, 1.0], [0.0, 1.0]],
+          "warp": { "mode": "grid", "rows": 6, "columns": 7, "points": [] },
+          "mask": { "mode": "polygon", "invert": false, "points": [] }
+        }
+      ],
+      "layers": [
+        {
+          "id": "lyr_left_video",
+          "name": "Left content",
+          "surface": "srf_left",
+          "source": { "kind": "video", "asset": "ast_intro", "loop": true, "volume": 0.0 },
+          "transform": { "fit": "cover", "offset": [0.0, 0.0], "scale": [1.0, 1.0], "flip_h": false, "flip_v": false },
+          "opacity": 1.0,
+          "blend": "normal",
+          "effects": [{ "kind": "colorize", "color": [1.0, 1.0, 1.0, 1.0] }]
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "id": "out_left",
+      "name": "Projector L",
+      "stage": "stg_main",
+      "view": [0.0, 0.0, 0.588, 1.0],
+      "display": { "connector": "DP-1", "resolution": [1920, 1080], "fullscreen": true },
+      "blend": { "right": { "width": 0.12, "exponent": 2.0, "gamma": 1.8, "luminance": 0.0 } }
+    }
+  ]
+}
+```
+
+This is illustrative; final schema belongs in a separate `schema.md`.
+
+### 6.5 Parameters
+
+All animatable/controllable values are addressed by stable paths, e.g.:
+
+```
+surface/srf_left/corners/2/x
+layer/lyr_left_video/opacity
+output/out_left/blend/right/width
+stage/stg_main/layer/lyr_left_video/effects/0/color
+```
+
+A parameter has a value, type, range/unit, metadata and optional bindings. UI, OSC, MIDI, DMX and
+timeline all read/write through this layer. It also gives us generic MIDI learn, OSC auto-learn,
+presets, undo and show snapshots for free.
+
+---
+
+## 7. Renderer design
+
+### 7.1 Output pipeline
+
+For each output and frame:
+
+1. Resolve view region and output target.
+2. Clear to stage background / output black.
+3. For each visible layer intersecting the output:
+   - sample the source texture;
+   - apply content transform, crop, flips, colour and source effects;
+   - map onto the surface geometry (4-corner projective warp + optional deformation);
+   - apply surface mask;
+   - composite with the layer blend mode into the output target or a scratch layer target;
+4. Apply output edge blending and colour calibration.
+5. Present.
+
+Layers that need offscreen effects (blur, feedback, large mask feathering) render into a scratch
+target; simple layers composite directly. Scratch targets are pooled and reused.
+
+### 7.2 Warp and deformation
+
+- Base mapping: four corners define a homography. For an exact projective result, sample the source
+  with inverse homography in the fragment shader, or use a sufficiently tessellated mesh with
+  perspective-correct sampling. Do not naively interpolate UVs across two triangles.
+- Deformation: a regular `rows × columns` warp mesh whose points are offsets in surface UV. This
+  subsumes LPMT’s grid warp and provides a foundation for Bézier patches and future freeform meshes.
+- Masks: polygons in surface UV, rasterized into a mask texture or evaluated analytically in the
+  fragment shader. Include rectangular/circular crop as generated masks.
+- Edge blending: output-level 4-edge curve (width, exponent, gamma, luminance), plus optional
+  per-surface feathering later. Keep the old shader math as the reference implementation.
+
+### 7.3 Effects and compositing
+
+Start with a small, explicit effect set rather than a generic node graph:
+
+- opacity / colour tint / colour temperature;
+- chroma key (green screen) with tolerance and spill suppression;
+- mask invert / feather;
+- blend modes: normal, screen, add, subtract, multiply, and a few modern ones;
+- flips, crop, fit/fill/stretch;
+- optional blur/glow if needed for a show.
+
+Represent effects as an ordered, typed stack on a layer. The renderer compiles/caches pipeline state
+on change. This avoids the old four-way duplication of mask/edge-blend/deform branches.
+
+### 7.4 Colour pipeline
+
+Decide and document:
+
+- render in linear light, convert from source transfer function (sRGB/video) at sampling;
+- output in the display’s transfer function;
+- 8-bit per channel initially, with 10-bit and HDR output as a later option;
+- consistent alpha handling and premultiplied alpha rules;
+- edge-blend curve evaluated in the intended domain, with a configurable gamma to match projectors;
+- optional test patterns and per-output calibration (black level, white point, gamma).
+
+Colour correctness across projectors matters as much as warp correctness. Make it an explicit output
+concern, not an accidental consequence of blend functions.
+
+### 7.5 Performance rules
+
+- No per-frame allocation of textures/FBOs/pipelines.
+- One decode per media asset, shared by layers; independent playheads where required.
+- Cull surfaces per output; skip invisible/zero-opacity layers.
+- Cache warp meshes, masks and pipeline state; invalidate on change.
+- Use dirty flags for parameter changes and static scenes.
+- Target: 4×1080p60 outputs on a mid-range GPU for typical scenes; measure with GPU timestamps and
+  CPU/GPU profiling.
+- Avoid full-stage render targets unless a selected effect requires them.
+
+### 7.6 GPU and backend policy
+
+- Primary: `wgpu` with Vulkan, Metal and DX12 native backends.
+- Pick a minimum feature level after a hardware/portability spike (e.g. Vulkan 1.1 / Metal 2 / DX12).
+- One render device initially. Multiple GPUs can later be represented as multiple render nodes or
+  output workers; do not complicate the first release.
+- Use `wgpu` surface configuration per output, with explicit format/colour-space negotiation.
+
+---
+
+## 8. Media architecture
+
+- `MediaStore`: owns `MediaAsset`s and their metadata; resolves paths; tracks readiness and errors.
+- `Decoder` implementations behind a trait: image, video, slideshow, camera, shared texture.
+- `Player`: a playback instance referencing an asset, with position/speed/loop/audio state.
+- `Clock`: media clocks and the master show clock; timeline drives/resyncs them.
+- **Shared videos** become first-class: one asset/player (or several views of one player) referenced
+  by many layers, with deterministic resync. No per-quad copies of decoder state.
+- Video backend decision: `ffmpeg-next` is the first backend. The spike confirmed straightforward
+  frame extraction and RGBA conversion on the target Linux machine, including looped playback from
+  a worker thread. GStreamer is deferred as the likely path for hardware decode and richer capture
+  pipelines. Keep decoding behind a trait as playback features grow.
+- Cameras: `nokhwa`/V4L2 on Linux initially; Media Foundation/macOS capture later. Capture devices
+  and virtual cameras should look like the same source abstraction.
+- Audio: one output device and mix bus; per-layer volume/mute; sync to the master clock. Do not tie
+  audio to a per-surface video player callback.
+- Loading is asynchronous and cancellable. The UI shows “loading / missing codec / device lost”.
+- Media paths can be relative to the project bundle or absolute; support search paths.
+
+The old QuickTime/codec limitation must not be carried forward: codec support should be a property of
+the decoder backend, not the platform.
+
+---
+
+## 9. Show control and parameters
+
+### 9.1 Adapters
+
+- **OSC:** map addresses to parameter paths and trigger commands. Ship a legacy compatibility map
+  for LPMT 1 addresses (`/active/...`, `/corners/...`, etc.) during migration.
+- **MIDI:** map notes/CC/pitch bend to parameters; absolute and relative modes; generic learn.
+- **DMX/Art-Net:** later, using the same binding model.
+- **Keyboard:** bindings are commands or parameter increments; no giant `keyPressed` switch.
+- **Timeline:** curves and triggers write parameters/commands through the same API.
+- **Remote UI:** optional WebSocket/JSON API for tablets and browser control.
+
+### 9.2 Parameter semantics
+
+- Typed values: bool, int, float, colour, enum, vec2/vec3, string/path.
+- Metadata: range, unit, display name, group, read-only, persistable, animatable.
+- Atomic transactions for undo and for consistent snapshots.
+- Bindings can be enabled/disabled per show; learn mode is generic.
+- A show snapshot = project state + timeline position + media state; useful for troubleshooting.
+
+This replaces the old pattern where every OSC address knew the internals of the active quad.
+
+---
+
+## 10. Timeline
+
+Timeline should be core functionality, not an addon:
+
+- Transport: play/pause/stop, loop, duration, BPM, time signature, snap-to-grid.
+- Track types: numeric curve, colour, trigger/bang, maybe markers.
+- Tracks target parameter paths; triggers execute commands.
+- Per-stage or global timelines initially: one global project timeline is enough for v1, with
+  target paths making per-surface pages unnecessary.
+- Deterministic evaluation: timeline time is authoritative; media clocks can be resynced to it.
+- Undoable edits; copy/paste keyframes; visible playhead synced to output frames.
+- Later: MTC/LTC input, multiple timelines, cue lists, OSC timecode.
+
+The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
+model and timeline UI are more important than binary compatibility.
+
+---
+
+## 11. Persistence and migration
+
+### 11.1 Project format
+
+- `project.json` (human-readable, versioned) in a project bundle folder.
+- `schema_version` mandatory; migrations run on load; unknown fields preserved where safe.
+- Media references use IDs plus relative paths; missing media is reported, not silently dropped.
+- Atomic save (write temp + rename), autosave and backup rotation.
+- Optional embedded project snapshot/log for support and recovery.
+
+### 11.2 Legacy LPMT 1 importer
+
+Implement as a separate crate with fixtures and golden tests:
+
+- Parse `_lpmt_settings.xml` and `config.xml`.
+- Map quads → surfaces + layers, preserving corner positions, layer order, content type, colour,
+  flip/scale, masks, crops, edge blend, Bezier control points.
+- Map shared videos, images, videos and slideshow folders to media assets.
+- Report fields that cannot be migrated (for example, grid points are not saved by LPMT 1’s
+  `setXml`, and only four shared videos are persisted).
+- Import the timeline separately if feasible; otherwise document manual recreation.
+
+The importer is the bridge that makes the rewrite trustworthy to existing users.
+
+---
+
+## 12. Editor UI
+
+- Separate **Editor** window; output windows never contain controls or debug overlays by default.
+- Panels: Stages/Surfaces/Layers tree, inspector, media library, output configuration, timeline,
+  preview/confidence view, logs and diagnostics.
+- Editing happens in a preview viewport. Optionally show editor guides on an output for calibration,
+  but as an explicit temporary mode.
+- Direct manipulation: corner handles, grid points, rotation, snap, multi-select, align/distribute.
+- Undo/redo for every command; keyboard shortcuts are configurable bindings.
+- Output status: connected display, resolution, refresh, frame time, frame ID, blend preview.
+- Recovery: unplugged display, missing media, decoder failure and GPU device loss must be visible and
+  recoverable without restarting the show.
+- Use `egui` initially. A more bespoke UI can come later if needed; the core must not depend on it.
+
+---
+
+## 13. Distributed rendering (design now, build later)
+
+Keep these boundaries so distributed mode is an extension, not a rewrite:
+
+- Outputs are identified by stable IDs and assigned to a **render node**.
+- A render node owns a GPU device, one or more output sinks, and a media subset.
+- The coordinator owns authoritative project state and the show clock.
+- Protocol carries: project snapshot/hash, parameter deltas, frame number, timeline time,
+  play/stop/resync commands, readiness and error events.
+- Media must exist on workers (shared asset sync or pre-distribution). Streaming video between
+  machines is a separate feature.
+- Frame barrier: coordinator issues frame N, workers render, acknowledge; late workers are reported.
+- Add hardware genlock/PTP support behind the output group abstraction when a show requires it.
+
+Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from day one.
+
+---
+
+## 14. Milestones
+
+### M0 — Bootstrap and spikes
+
+- [x] Rust workspace.
+- [x] `wgpu` + `winit` + `egui` spike: editor window plus a second output window.
+- [x] Linux/Vulkan GPU baseline; cross-platform workspace.
+- [x] CI workflow for Linux, macOS and Windows (not yet run on hosted runners).
+- [x] Video decode spike on target hardware: `ffmpeg-next` selected for the first backend;
+      GStreamer deferred for hardware decode/capture.
+- [ ] Multi-output present behaviour and output-group frame pacing.
+
+### M1 — Minimal renderer
+
+- [x] Project model seed with one stage, a surface and a layer.
+- [x] Four-corner homography.
+- [x] Output window with fullscreen/windowed fallback and a stage-view uniform.
+- [x] Texture/image layers and normal blending.
+- [x] Project load/save skeleton and UI.
+- [x] Acceptance: a PNG mapped onto a quad and shown fullscreen on a second display at 60 fps.
+
+### M2 — Editor and video
+
+- [x] Surface/layer inspector, drag handles and selection.
+- [x] Ordered layer stack with visibility, opacity, surface assignment and basic blend modes.
+- [ ] Undo/redo.
+- [x] Video asset playback with background decoding and looped playback (optional feature).
+- [x] Shared player per `MediaId`, with play/pause, restart, loop and seek/scrub controls.
+- [ ] Audio playback and show-clock sync.
+- [ ] Hardware decode and per-output video timing.
+- Preview viewport separate from output.
+- Acceptance: create a two-surface show from scratch, save, reload, play video.
+
+### M3 — Multi-output and edge blending
+
+- Multiple outputs, stage regions, output groups.
+- Per-output edge blend, colour/gamma controls, display assignment.
+- Acceptance: two overlapping 1080p outputs with a blended seam; confidence monitor unaffected.
+
+### M4 — Mapping depth
+
+- Grid warp, Bézier-compatible patches, polygon/rectangular/circular masks, crops.
+- Colourisation, chroma key and advanced blend modes.
+- Output calibration and test patterns.
+- Acceptance: feature parity with LPMT 1’s core mapping and masking.
+
+### M5 — Show control
+
+- Parameter tree, OSC and MIDI bindings, generic learn, configurable hotkeys.
+- Timeline with curves, colours and triggers targeting parameters.
+- Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
+
+### M6 — Media breadth and sync
+
+- Slideshows, cameras, capture devices, shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
+- Optional output-group barrier and remote sync prototype.
+- Acceptance: live camera + video + shared source in one show; repeatable resync.
+
+### M7 — Migration and release candidate
+
+- Legacy XML importer with fixtures.
+- Packaging for target platforms, crash/recovery UX, performance validation.
+- Acceptance: import a real LPMT 1 show and run it with documented differences.
+
+---
+
+## 15. Testing and observability
+
+- Unit tests: IDs, parameter paths, timeline evaluation, homography, UV transforms, blend math,
+  legacy XML parsing.
+- Golden image tests: render offscreen through `wgpu` and compare reference frames with tolerances.
+- Integration tests: mock output sink and mock decoder; project load/save round-trip.
+- Device tests: hot-plug display, missing media, unsupported codec, GPU device loss.
+- Logging/tracing with categories (`media`, `render`, `output`, `control`, `timeline`).
+- Runtime diagnostics: frame time, GPU timestamps, dropped frames, decoder queue depth, output status.
+- Optional profiling integration (Tracy/puffin) behind a feature flag.
+
+---
+
+## 16. Key risks and open questions
+
+| Topic | Risk / question | Initial position |
+|---|---|---|
+| Primary platform | Linux-first, macOS, Windows? | Build portable; validate Linux first, then macOS/Windows |
+| Video decode | ffmpeg vs GStreamer, hardware acceleration, packaging | Spike before M2; keep decoder trait |
+| Multi-window present | Vsync/refresh mismatch, tearing, latency | Shared frame state; output group barrier; document limits |
+| Colour | Gamma/linear blending, projector differences | Explicit pipeline, calibration controls, golden tests |
+| Edge blending | Physical overlap vs model regions | Output-level zones; per-surface feather later |
+| Distributed outputs | Scope creep | Design boundary only; implementation post-v1 |
+| Legacy import | Missing/Lossy old XML fields | Best-effort importer with a clear report |
+| GPU compatibility | Old show machines | Publish minimum GPU/driver requirements |
+| Licensing | Original is GPL-3.0 | Treat rewrite as GPL-3.0 unless advised otherwise |
+| Naming | “LPMT 2” vs new product name | Defer; repository structure is neutral |
+
+---
+
+## 17. Immediate next steps
+
+1. Review and accept (or amend) the **Stage + Outputs** topology.
+2. Run the M0 spikes: multi-window `wgpu`, `egui` integration, video decode, 2-output presentation.
+3. Freeze a minimal v1 data-model schema and write fixtures from a real LPMT 1 project.
+4. Build the M1 vertical slice: image → surface → warp → output window.
+5. Use that slice to validate memory, frame time and operator workflow before adding features.
+
+The guiding rule: **rebuild the concepts, not the code**. LPMT’s domain model and show workflow are
+the valuable part; the old rendering and control implementation are the part to leave behind.

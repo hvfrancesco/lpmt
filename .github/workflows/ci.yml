@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux windowing dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev libxkbcommon-dev libvulkan-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all -- --check
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  video-feature:
+    name: Linux video feature
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev libxkbcommon-dev libvulkan-dev \
+            ffmpeg libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libclang-dev pkg-config
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check video feature
+        run: cargo check -p lpmt-app --features video
+
+      - name: Test video decoding
+        run: |
+          cargo test -p lpmt-media --features video
+          cargo run -p lpmt-media --features video --example decode-video -- \
+            assets/video/fingers.mov
+          cargo run -p lpmt-media --features video --example video-controls -- \
+            assets/video/fingers.mov
+
+      - name: Clippy video feature
+        run: >
+          cargo clippy -p lpmt-app -p lpmt-media --all-targets
+          --features video -- -D warnings

@@ -1,0 +1,26 @@
+[package]
+name = "lpmt-media"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Media assets, decoding, playback and capture for LPMT"
+
+[features]
+default = []
+video = ["dep:ffmpeg-next"]
+
+[dependencies]
+anyhow.workspace = true
+ffmpeg-next = { workspace = true, optional = true }
+image.workspace = true
+log.workspace = true
+lpmt-core = { path = "../lpmt-core" }
+
+[[example]]
+name = "decode-video"
+required-features = ["video"]
+
+[[example]]
+name = "video-controls"
+required-features = ["video"]
