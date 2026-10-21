@@ -4,7 +4,7 @@
 use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, Sense, Shape, Stroke, Vec2};
 use lpmt_core::model::{
     BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaKind, OutputTarget, Point2, Project, Rect,
-    SourceSpec, SurfaceId,
+    SourceSpec, Surface, SurfaceId,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -19,6 +19,12 @@ pub struct EditorStatus {
     pub audio_supported: bool,
     pub audio_error: Option<String>,
     pub monitors: Vec<String>,
+    pub dirty: bool,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub undo_label: Option<String>,
+    pub redo_label: Option<String>,
+    pub output_pacing: Vec<OutputPacing>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -27,6 +33,54 @@ pub struct TransportStatus {
     pub looping: bool,
     pub position_seconds: f64,
     pub duration_seconds: Option<f64>,
+}
+
+/// Per-output present statistics. Counts accumulate until the output window is
+/// recreated; `missed` is every attempted frame that did not reach the screen.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct OutputPacing {
+    pub attempts: u64,
+    pub presented: u64,
+    pub skipped: u64,
+    pub errors: u64,
+    pub last_interval_ms: f32,
+    pub average_interval_ms: f32,
+    pub since_last_present_ms: f32,
+}
+
+impl OutputPacing {
+    pub fn note_attempt(&mut self) {
+        self.attempts = self.attempts.saturating_add(1);
+    }
+
+    pub fn note_skipped(&mut self) {
+        self.skipped = self.skipped.saturating_add(1);
+    }
+
+    pub fn note_error(&mut self) {
+        self.errors = self.errors.saturating_add(1);
+    }
+
+    pub fn note_present(&mut self, interval_ms: Option<f32>) {
+        self.presented = self.presented.saturating_add(1);
+        if let Some(interval) = interval_ms {
+            let interval = interval.max(0.0);
+            self.last_interval_ms = interval;
+            self.average_interval_ms = if self.average_interval_ms > 0.0 {
+                self.average_interval_ms * 0.9 + interval * 0.1
+            } else {
+                interval
+            };
+        }
+    }
+
+    pub fn missed(&self) -> u64 {
+        self.attempts.saturating_sub(self.presented)
+    }
+
+    pub fn fps(&self) -> Option<f32> {
+        (self.average_interval_ms > 0.0).then_some(1000.0 / self.average_interval_ms)
+    }
 }
 
 #[derive(Debug)]
@@ -44,6 +98,9 @@ pub struct EditorState {
     layer_name_id: Option<LayerId>,
     drag_corner: Option<usize>,
     transport_scrub: Option<f32>,
+    pub snap_corners: bool,
+    snap_target: Option<Pos2>,
+    pub preview_texture: Option<egui::TextureId>,
 }
 
 impl Default for EditorState {
@@ -62,6 +119,9 @@ impl Default for EditorState {
             layer_name_id: None,
             drag_corner: None,
             transport_scrub: None,
+            snap_corners: true,
+            snap_target: None,
+            preview_texture: None,
         }
     }
 }
@@ -73,6 +133,13 @@ impl EditorState {
         self.layer_name_id = None;
         self.surface_name.clear();
         self.layer_name.clear();
+    }
+
+    /// Cancel any in-progress preview drag after the project changes underneath
+    /// the editor (for example after undo).
+    pub fn cancel_drag(&mut self) {
+        self.drag_corner = None;
+        self.snap_target = None;
     }
 }
 
@@ -195,6 +262,8 @@ pub enum EditorAction {
         member: bool,
     },
     ReloadMedia,
+    Undo,
+    Redo,
     SaveProject {
         path: String,
     },
@@ -225,6 +294,17 @@ pub fn draw(
         }
         if ui.input(|input| input.key_pressed(egui::Key::Home)) {
             actions.push(EditorAction::RestartTransport);
+        }
+        if ui.input(|input| input.modifiers.command) {
+            if ui.input(|input| input.key_pressed(egui::Key::Z)) {
+                if ui.input(|input| input.modifiers.shift) {
+                    actions.push(EditorAction::Redo);
+                } else {
+                    actions.push(EditorAction::Undo);
+                }
+            } else if ui.input(|input| input.key_pressed(egui::Key::Y)) {
+                actions.push(EditorAction::Redo);
+            }
         }
     }
     let Some(stage) = project.primary_stage() else {
@@ -272,6 +352,24 @@ pub fn draw(
             ui.label("Stage + Outputs prototype");
             ui.separator();
             ui.label(&project.name);
+            if status.dirty {
+                ui.colored_label(Color32::from_rgb(255, 184, 92), "* unsaved");
+            }
+            ui.separator();
+            let undo = ui.add_enabled(status.can_undo, egui::Button::new("Undo"));
+            if undo.clicked() {
+                actions.push(EditorAction::Undo);
+            }
+            if let Some(label) = &status.undo_label {
+                undo.on_hover_text(format!("Undo {label} (Ctrl+Z)"));
+            }
+            let redo = ui.add_enabled(status.can_redo, egui::Button::new("Redo"));
+            if redo.clicked() {
+                actions.push(EditorAction::Redo);
+            }
+            if let Some(label) = &status.redo_label {
+                redo.on_hover_text(format!("Redo {label} (Ctrl+Shift+Z)"));
+            }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.label(format!("{:.0} fps · {:.2} ms", status.fps, status.frame_ms));
             });
@@ -403,8 +501,10 @@ pub fn draw(
                         .clicked()
                     {
                         state.selected_surface = index;
+                        state.drag_corner = None;
                     }
                 }
+                ui.checkbox(&mut state.snap_corners, "Snap corners to other surfaces");
                 let selected_surface_in_use = stage
                     .surfaces
                     .get(state.selected_surface)
@@ -818,6 +918,38 @@ pub fn draw(
                 ui.separator();
                 ui.heading("Outputs");
                 ui.label(&status.output);
+                if let Some(pacing) = status.output_pacing.get(state.selected_output) {
+                    ui.separator();
+                    ui.label(format!(
+                        "{} presented · {} missed",
+                        pacing.presented,
+                        pacing.missed()
+                    ));
+                    if let Some(fps) = pacing.fps() {
+                        ui.label(format!(
+                            "{fps:.1} fps · {:.1} ms average",
+                            pacing.average_interval_ms
+                        ));
+                    } else {
+                        ui.label("Waiting for the first presented frame…");
+                    }
+                    if pacing.skipped > 0 || pacing.errors > 0 {
+                        ui.label(format!(
+                            "{} skipped · {} errors",
+                            pacing.skipped, pacing.errors
+                        ));
+                    }
+                    if pacing.presented > 0 && pacing.since_last_present_ms > 1000.0 {
+                        ui.colored_label(
+                            Color32::from_rgb(255, 190, 90),
+                            format!(
+                                "No present for {:.1}s",
+                                pacing.since_last_present_ms / 1000.0
+                            ),
+                        );
+                    }
+                    ui.separator();
+                }
 
                 for (index, output) in project.outputs.iter().enumerate() {
                     let state_label = if output.enabled { "" } else { " · closed" };
@@ -1064,7 +1196,7 @@ pub fn draw(
 
                 ui.add_space(16.0);
                 ui.label(format!("Stage aspect: {:.2}:1", stage.aspect));
-                ui.label("Drag a corner in the preview to warp the surface.");
+                ui.label("Click a surface in the preview to edit it; drag any corner to warp.");
                 ui.add_space(8.0);
             });
         });
@@ -1106,12 +1238,21 @@ pub fn draw(
             Sense::click_and_drag(),
         );
         let painter = ui.painter();
+        state.snap_target = None;
 
         painter.rect_filled(
             preview,
             egui::CornerRadius::same(4),
             Color32::from_rgb(16, 18, 24),
         );
+        if let Some(texture_id) = state.preview_texture {
+            painter.image(
+                texture_id,
+                preview,
+                EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+                Color32::WHITE,
+            );
+        }
         let grid_stroke = Stroke::new(1.0, Color32::from_rgb(42, 46, 58));
         for step in 1..4 {
             let t = step as f32 / 4.0;
@@ -1124,6 +1265,40 @@ pub fn draw(
             painter.line_segment(
                 [Pos2::new(preview.left(), y), Pos2::new(preview.right(), y)],
                 grid_stroke,
+            );
+        }
+
+        // Every surface is visible in the preview so it can be selected
+        // directly. The inactive outlines sit under the output views; the
+        // active surface is drawn again above them with edit handles.
+        for (index, surface) in stage.surfaces.iter().enumerate() {
+            if index == state.selected_surface {
+                continue;
+            }
+            let points = surface_points(preview, surface);
+            let (stroke_color, fill_color) = if surface.visible {
+                (
+                    Color32::from_rgb(108, 120, 142),
+                    Color32::from_rgba_unmultiplied(96, 108, 132, 16),
+                )
+            } else {
+                (Color32::from_rgb(72, 76, 88), Color32::TRANSPARENT)
+            };
+            painter.add(Shape::convex_polygon(
+                points.clone(),
+                fill_color,
+                Stroke::new(1.0, stroke_color),
+            ));
+            painter.text(
+                polygon_center(&points),
+                Align2::CENTER_CENTER,
+                if surface.visible {
+                    surface.name.clone()
+                } else {
+                    format!("{} (hidden)", surface.name)
+                },
+                FontId::proportional(10.0),
+                stroke_color,
             );
         }
 
@@ -1173,17 +1348,19 @@ pub fn draw(
         }
 
         if let Some(surface) = stage.surfaces.get(state.selected_surface) {
-            let points: Vec<Pos2> = surface
-                .corners
-                .iter()
-                .map(|corner| stage_to_preview(preview, *corner))
-                .collect();
-
+            let points = surface_points(preview, surface);
             painter.add(Shape::convex_polygon(
                 points.clone(),
                 Color32::from_rgba_unmultiplied(74, 144, 226, 38),
                 Stroke::new(2.0, Color32::from_rgb(108, 182, 255)),
             ));
+            painter.text(
+                polygon_center(&points),
+                Align2::CENTER_CENTER,
+                format!("{} · editing", surface.name),
+                FontId::proportional(11.0),
+                Color32::from_rgb(190, 220, 255),
+            );
 
             for (index, point) in points.iter().enumerate() {
                 let active = state.drag_corner == Some(index);
@@ -1205,29 +1382,83 @@ pub fn draw(
                     Color32::from_rgb(180, 188, 202),
                 );
             }
+        }
 
-            if response.drag_started() {
-                state.drag_corner = response
-                    .interact_pointer_pos()
-                    .and_then(|pointer| nearest_corner(&points, pointer, 18.0));
-            }
-
-            if response.dragged() {
-                if let (Some(index), Some(pointer)) =
-                    (state.drag_corner, response.interact_pointer_pos())
-                {
-                    let value = preview_to_stage(preview, pointer).clamp_unit();
-                    actions.push(EditorAction::SetCorner {
-                        surface: state.selected_surface,
-                        corner: index,
-                        value,
-                    });
+        // Click a surface to make it active. Dragging starts from the nearest
+        // corner of any surface, not only from the currently active one.
+        if response.clicked() {
+            if let Some(index) = response
+                .interact_pointer_pos()
+                .and_then(|pointer| surface_at(preview, &stage.surfaces, pointer))
+            {
+                if state.selected_surface != index {
+                    state.selected_surface = index;
+                    state.drag_corner = None;
                 }
             }
+        }
 
-            if response.drag_stopped() {
-                state.drag_corner = None;
+        if response.drag_started() {
+            if let Some(pointer) = response.interact_pointer_pos() {
+                if let Some((surface, corner)) = nearest_surface_corner(
+                    preview,
+                    &stage.surfaces,
+                    state.selected_surface,
+                    pointer,
+                    18.0,
+                ) {
+                    state.selected_surface = surface;
+                    state.drag_corner = Some(corner);
+                } else if let Some(surface) = surface_at(preview, &stage.surfaces, pointer) {
+                    state.selected_surface = surface;
+                    state.drag_corner = None;
+                }
             }
+        }
+
+        if response.dragged() {
+            if let (Some(index), Some(pointer)) =
+                (state.drag_corner, response.interact_pointer_pos())
+            {
+                let mut value = preview_to_stage(preview, pointer).clamp_unit();
+                if state.snap_corners {
+                    if let Some((snap_value, snap_screen)) = nearest_surface_snap(
+                        preview,
+                        &stage.surfaces,
+                        state.selected_surface,
+                        pointer,
+                        12.0,
+                    ) {
+                        value = snap_value;
+                        state.snap_target = Some(snap_screen);
+                    }
+                }
+                actions.push(EditorAction::SetCorner {
+                    surface: state.selected_surface,
+                    corner: index,
+                    value,
+                });
+            }
+        }
+
+        if response.drag_stopped() {
+            state.drag_corner = None;
+            state.snap_target = None;
+        }
+
+        if let Some(target) = state.snap_target {
+            painter.circle_stroke(
+                target,
+                11.0,
+                Stroke::new(2.0, Color32::from_rgb(255, 210, 90)),
+            );
+            painter.text(
+                target + Vec2::new(10.0, -12.0),
+                Align2::LEFT_TOP,
+                "snap",
+                FontId::proportional(11.0),
+                Color32::from_rgb(255, 220, 120),
+            );
         }
 
         painter.text(
@@ -1235,6 +1466,13 @@ pub fn draw(
             Align2::LEFT_TOP,
             "Stage preview",
             FontId::proportional(12.0),
+            Color32::from_rgb(120, 128, 142),
+        );
+        painter.text(
+            preview.left_bottom() + Vec2::new(8.0, -6.0),
+            Align2::LEFT_BOTTOM,
+            "Click a surface to edit · drag any corner to warp",
+            FontId::proportional(10.0),
             Color32::from_rgb(120, 128, 142),
         );
     });
@@ -1277,6 +1515,108 @@ fn stage_to_preview(rect: EguiRect, point: Point2) -> Pos2 {
     )
 }
 
+fn surface_points(preview: EguiRect, surface: &Surface) -> Vec<Pos2> {
+    surface
+        .corners
+        .iter()
+        .map(|corner| stage_to_preview(preview, *corner))
+        .collect()
+}
+
+fn polygon_center(points: &[Pos2]) -> Pos2 {
+    if points.is_empty() {
+        return Pos2::ZERO;
+    }
+    let sum = points
+        .iter()
+        .fold(Vec2::ZERO, |sum, point| sum + point.to_vec2());
+    (sum / points.len() as f32).to_pos2()
+}
+
+fn surface_at(preview: EguiRect, surfaces: &[Surface], pointer: Pos2) -> Option<usize> {
+    surfaces
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(index, surface)| {
+            let points = surface_points(preview, surface);
+            point_in_polygon(pointer, &points).then_some(index)
+        })
+}
+
+fn nearest_surface_corner(
+    preview: EguiRect,
+    surfaces: &[Surface],
+    selected: usize,
+    pointer: Pos2,
+    threshold: f32,
+) -> Option<(usize, usize)> {
+    let closest = |index: usize| {
+        let points = surface_points(preview, &surfaces[index]);
+        nearest_corner(&points, pointer, threshold).map(|corner| (index, corner))
+    };
+    surfaces
+        .get(selected)
+        .and_then(|_| closest(selected))
+        .or_else(|| {
+            (0..surfaces.len())
+                .filter(|index| *index != selected)
+                .filter_map(closest)
+                .min_by(|left, right| {
+                    let left_distance =
+                        surface_points(preview, &surfaces[left.0])[left.1].distance(pointer);
+                    let right_distance =
+                        surface_points(preview, &surfaces[right.0])[right.1].distance(pointer);
+                    left_distance.total_cmp(&right_distance)
+                })
+        })
+}
+
+fn point_in_polygon(point: Pos2, polygon: &[Pos2]) -> bool {
+    if polygon.len() < 3 {
+        return false;
+    }
+
+    let mut inside = false;
+    let mut previous = polygon.len() - 1;
+    for current in 0..polygon.len() {
+        let a = polygon[current];
+        let b = polygon[previous];
+        if (a.y > point.y) != (b.y > point.y)
+            && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x
+        {
+            inside = !inside;
+        }
+        previous = current;
+    }
+    inside
+}
+
+fn nearest_surface_snap(
+    preview: EguiRect,
+    surfaces: &[Surface],
+    exclude: usize,
+    pointer: Pos2,
+    threshold: f32,
+) -> Option<(Point2, Pos2)> {
+    let mut best: Option<(f32, Point2, Pos2)> = None;
+    for (index, surface) in surfaces.iter().enumerate() {
+        if index == exclude {
+            continue;
+        }
+        for corner in &surface.corners {
+            let screen = stage_to_preview(preview, *corner);
+            let distance = screen.distance(pointer);
+            if distance <= threshold
+                && best.is_none_or(|(best_distance, ..)| distance < best_distance)
+            {
+                best = Some((distance, *corner, screen));
+            }
+        }
+    }
+    best.map(|(_, corner, screen)| (corner, screen))
+}
+
 fn preview_to_stage(rect: EguiRect, point: Pos2) -> Point2 {
     Point2::new(
         (point.x - rect.left()) / rect.width(),
@@ -1292,4 +1632,98 @@ fn nearest_corner(points: &[Pos2], pointer: Pos2, threshold: f32) -> Option<usiz
         .filter(|(_, distance)| *distance <= threshold)
         .min_by(|left, right| left.1.total_cmp(&right.1))
         .map(|(index, _)| index)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point_in_polygon_handles_inside_and_outside_points() {
+        let square = [
+            Pos2::new(0.0, 0.0),
+            Pos2::new(10.0, 0.0),
+            Pos2::new(10.0, 10.0),
+            Pos2::new(0.0, 10.0),
+        ];
+        assert!(point_in_polygon(Pos2::new(5.0, 5.0), &square));
+        assert!(!point_in_polygon(Pos2::new(15.0, 5.0), &square));
+        assert!(!point_in_polygon(Pos2::new(-1.0, 5.0), &square));
+    }
+
+    #[test]
+    fn snapping_uses_the_nearest_corner_of_another_surface() {
+        let preview = EguiRect::from_min_size(Pos2::ZERO, Vec2::splat(100.0));
+        let left = Surface::full_stage("left", "Left");
+        let right = Surface::new(
+            "right",
+            "Right",
+            [
+                Point2::new(0.5, 0.0),
+                Point2::new(1.0, 0.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(0.5, 1.0),
+            ],
+        );
+        let (value, screen) = nearest_surface_snap(
+            preview,
+            &[left.clone(), right.clone()],
+            0,
+            Pos2::new(52.0, 4.0),
+            12.0,
+        )
+        .expect("the right surface corner should snap");
+        assert_eq!(value, Point2::new(0.5, 0.0));
+        assert_eq!(screen, Pos2::new(50.0, 0.0));
+        assert!(
+            nearest_surface_snap(preview, &[left, right], 0, Pos2::new(25.0, 50.0), 12.0).is_none()
+        );
+    }
+
+    #[test]
+    fn output_pacing_tracks_missed_frames_and_smooths_intervals() {
+        let mut pacing = OutputPacing::default();
+        pacing.note_attempt();
+        pacing.note_skipped();
+        pacing.note_attempt();
+        pacing.note_present(None);
+        pacing.note_attempt();
+        pacing.note_present(Some(20.0));
+        pacing.note_attempt();
+        pacing.note_error();
+
+        assert_eq!(pacing.presented, 2);
+        assert_eq!(pacing.missed(), 2);
+        assert_eq!(pacing.average_interval_ms, 20.0);
+        assert_eq!(pacing.fps(), Some(50.0));
+    }
+
+    #[test]
+    fn topmost_surface_wins_hit_testing() {
+        let preview = EguiRect::from_min_size(Pos2::ZERO, Vec2::splat(100.0));
+        let full = Surface::full_stage("full", "Full");
+        let right = Surface::new(
+            "right",
+            "Right",
+            [
+                Point2::new(0.5, 0.0),
+                Point2::new(1.0, 0.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(0.5, 1.0),
+            ],
+        );
+
+        assert_eq!(
+            surface_at(
+                preview,
+                &[full.clone(), right.clone()],
+                Pos2::new(75.0, 50.0)
+            ),
+            Some(1)
+        );
+        assert_eq!(
+            surface_at(preview, &[full, right], Pos2::new(25.0, 50.0)),
+            Some(0)
+        );
+    }
 }

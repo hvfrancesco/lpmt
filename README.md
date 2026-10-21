@@ -10,14 +10,23 @@ The original LPMT 1 source and data are preserved in
 
 **Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
 layer compositing, optional video and audio playback, a shared show clock,
-multiple output windows and grouped output presentation.
+undo/redo and atomic saves, multiple output windows, grouped output
+presentation, a live editor preview, corner snapping and per-output pacing
+diagnostics.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
-- `egui` editor with a stage preview, draggable surface corners and numeric corner
-  fields. Surfaces and layers can be renamed; surfaces can be added or deleted
-  when no layer uses them; surface visibility/opacity and layer
+- `egui` editor with a live composited **preview viewport** rendered offscreen at
+  the stage aspect and independent of every output window. The preview shows the
+  actual image/video layers under the surface and output outlines. Every surface
+  is outlined; single-click any surface to edit it and drag any corner to warp
+  it. Surfaces and layers can be renamed; surfaces can be added or deleted when
+  no layer uses them; surface visibility/opacity and layer
   visibility/opacity/blend/surface are editable.
+- Optional **corner snapping**: when enabled, dragging a surface corner snaps it
+  to the nearest corner of another surface within a small screen-space
+  threshold, with a visible snap target. The toggle lives in the Surfaces
+  section.
 - Each output is mapped to a stable `OutputId` and renders its own
   `OutputSpec.view` rectangle of the stage. The editor can add, delete, open,
   close and fullscreen outputs, edit their normalized view rectangles and pick
@@ -26,7 +35,9 @@ multiple output windows and grouped output presentation.
 - Outputs can be collected into **output groups**. Group members are rendered
   from the same frame state, submitted in a single queue call and presented
   together; a full-stage confidence monitor can stay outside the group and keep
-  running independently.
+  running independently. The Outputs inspector reports per-output pacing:
+  presented and missed frames, skipped/occluded frames, errors, average frame
+  interval and fps.
 - Outputs render images or looping video through a four-corner projective warp,
   with a checker test card as fallback.
 - Each output renders through an offscreen scene pass followed by a composite
@@ -55,21 +66,28 @@ multiple output windows and grouped output presentation.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
+  Saves write a temporary file in the destination directory and rename it into
+  place, so an interrupted save cannot leave a half-written project.
+- Undo/redo for project edits, with coalesced drags, sliders and typing;
+  **Ctrl+Z**, **Ctrl+Shift+Z** or **Ctrl+Y** work when no text field has focus.
+  The top bar marks unsaved changes.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
-- Homography, media decoding and JSON compatibility unit tests.
+- Homography, media decoding, undo history, atomic-save and JSON compatibility
+  unit tests.
 - Fullscreen outputs claim an unused secondary monitor when one is present; the
   next outputs open as windows (960×540 or 1280×720) so the editor stays
   reachable. With a single display the first fullscreen output uses it.
 
 ### Next session
 
-The next implementation slice is **editor history and preview**:
+The preview viewport, corner snapping and per-output pacing diagnostics are now
+in place. The next implementation slice is **calibration and test patterns**:
 
-- undo/redo and atomic saves;
-- a preview viewport independent from the outputs;
-- output pacing diagnostics and calibration LUTs.
+- per-output calibration LUTs and richer test patterns;
+- calibration guides that can be shown temporarily on an output;
+- multi-select, align and distribute for surfaces.
 
-Audio is now on the shared clock; a per-layer mix bus and timeline remain later
+Audio is on the shared clock; a per-layer mix bus and timeline remain later
 work. The legacy XML importer remains planned; the full roadmap is in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
 
@@ -229,15 +247,20 @@ The architecture, output topology and milestones are documented in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md). The short version: **one virtual Stage
 per show, many Outputs as views of that Stage**.
 
-In the editor, select a surface to drag or numerically edit its corners. The
-**Layers** section selects the active layer and edits its visibility, opacity,
-blend mode, surface, order and lifetime. Use the **Media** section to change a
-media path, reload it or assign images/videos to the active layer; audio assets
-are assigned to the show track in the **Audio** section. The **Transport**
-section at the top plays, pauses, restarts, loops and scrubs the shared show
-clock, which also drives the show audio. The **Outputs** section manages output
-windows and their stage views. Use the Project file section to save or load the
-JSON show file.
+In the editor, all surfaces are outlined in the live preview viewport. Click one
+to make it active, then drag its corners or edit them numerically; the sidebar
+list selects the same active surface. With **Snap corners to other surfaces**
+enabled, a dragged corner locks onto another surface's nearest corner. The
+**Outputs** section also shows pacing for the selected output. The **Layers**
+section selects the active layer and edits its visibility, opacity, blend mode,
+surface, order and lifetime. Use the **Media** section to change a media path,
+reload it or assign images/videos to the active layer; audio assets are assigned
+to the show track in the **Audio** section. The **Transport** section at the top
+plays, pauses, restarts, loops and scrubs the shared show clock, which also
+drives the show audio. The **Outputs** section manages output windows and their
+stage views. Use the Project file section to save or load the JSON show file;
+**Undo**/**Redo** in the top bar or Ctrl+Z / Ctrl+Shift+Z step through project
+edits.
 
 ## Legacy LPMT 1 archive
 

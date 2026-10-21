@@ -1,21 +1,24 @@
-//! A window-backed output renderer.
+//! Stage and output renderers.
 //!
-//! The renderer consumes a `Stage` and an output view, not a fixed window-sized
-//! framebuffer. Content textures live in the device-wide `MediaCache`, so many
-//! output windows sample the same decoded media; each renderer owns only its
-//! surface, pipelines and per-draw uniform buffer.
+//! `OutputRenderer` draws a stage view into a window surface. `PreviewRenderer`
+//! draws the full stage into an offscreen texture that the editor can display
+//! through egui, so the preview does not depend on any output window.
+//!
+//! Content textures live in the device-wide `MediaCache`, so many outputs and
+//! the preview sample the same decoded media.
 
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
-use lpmt_core::model::{BlendMode, OutputSpec, Stage};
+use lpmt_core::model::{BlendMode, ColorCorrection, EdgeBlend, OutputSpec, Rect, Stage};
 use winit::window::Window;
 
 use crate::gpu::Gpu;
 use crate::media::MediaCache;
 
 const MAX_LAYER_SLOTS: usize = 256;
+const PREVIEW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 
 /// Layers render into this offscreen target first, so output-level colour and
 /// edge blending are applied once to the completed stage view.
@@ -117,8 +120,7 @@ fn edge_fade(coord: f32, width: f32) -> f32 {
     return smoothstep(0.0, width, coord);
 }
 
-@fragment
-fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+fn composite_color(frag_coord: vec4<f32>) -> vec4<f32> {
     let dimensions = vec2<f32>(textureDimensions(scene_texture));
     let uv = frag_coord.xy / dimensions;
     let edge = composite.edge_blend;
@@ -138,6 +140,24 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
 
     return vec4<f32>(rgb, 1.0);
 }
+
+fn gamma_from_linear(rgb: vec3<f32>) -> vec3<f32> {
+    let cutoff = rgb < vec3<f32>(0.0031308);
+    let lower = rgb * vec3<f32>(12.92);
+    let higher = vec3<f32>(1.055) * pow(rgb, vec3<f32>(1.0 / 2.4)) - vec3<f32>(0.055);
+    return select(higher, lower, cutoff);
+}
+
+@fragment
+fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+    return composite_color(frag_coord);
+}
+
+@fragment
+fn fs_main_gamma(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+    let color = composite_color(frag_coord);
+    return vec4<f32>(gamma_from_linear(color.rgb), color.a);
+}
 "#;
 
 struct DrawItem {
@@ -153,6 +173,15 @@ struct SceneTarget {
     bind_group: wgpu::BindGroup,
     width: u32,
     height: u32,
+}
+
+struct StageTarget<'a> {
+    view: Rect,
+    edge_blend: EdgeBlend,
+    color: ColorCorrection,
+    width: u32,
+    height: u32,
+    target: &'a wgpu::TextureView,
 }
 
 /// A frame that has been acquired and fully encoded but not submitted yet.
@@ -171,9 +200,9 @@ impl PreparedFrame {
     }
 }
 
-pub struct OutputRenderer {
-    surface: wgpu::Surface<'static>,
-    config: wgpu::SurfaceConfiguration,
+/// Shared stage-composition pipeline set used by window outputs and the
+/// offscreen editor preview.
+struct StageRenderer {
     pipelines: [wgpu::RenderPipeline; 4],
     uniform_buffer: wgpu::Buffer,
     uniform_stride: u64,
@@ -184,20 +213,32 @@ pub struct OutputRenderer {
     composite_uniform_buffer: wgpu::Buffer,
     composite_bind_group: wgpu::BindGroup,
     composite_sampler: wgpu::Sampler,
+}
+
+pub struct OutputRenderer {
+    surface: wgpu::Surface<'static>,
+    config: wgpu::SurfaceConfiguration,
+    stage: StageRenderer,
     _window: Arc<Window>,
 }
 
-impl OutputRenderer {
-    pub fn new(
+/// Offscreen full-stage preview. The texture is registered with egui by the
+/// application; it is independent of every show output window.
+pub struct PreviewRenderer {
+    _texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    stage: StageRenderer,
+    width: u32,
+    height: u32,
+}
+
+impl StageRenderer {
+    fn new(
         gpu: &Gpu,
         media: &MediaCache,
-        surface: wgpu::Surface<'static>,
-        window: Arc<Window>,
-        width: u32,
-        height: u32,
+        output_format: wgpu::TextureFormat,
+        gamma_encode: bool,
     ) -> Result<Self> {
-        let config = configure_surface(gpu, &surface, width, height)?;
-
         let uniform_size = std::mem::size_of::<Uniforms>() as u64;
         // Use the limits the device was actually created with, not the
         // adapter's maximums: `Limits::default()` can request a stricter
@@ -344,12 +385,11 @@ impl OutputRenderer {
             gpu,
             &composite_shader,
             &composite_pipeline_layout,
-            config.format,
+            output_format,
+            gamma_encode,
         );
 
         Ok(Self {
-            surface,
-            config,
             pipelines,
             uniform_buffer,
             uniform_stride,
@@ -360,53 +400,28 @@ impl OutputRenderer {
             composite_uniform_buffer,
             composite_bind_group,
             composite_sampler,
-            _window: window,
         })
     }
-
-    pub fn size(&self) -> (u32, u32) {
-        (self.config.width, self.config.height)
-    }
-
-    pub fn resize(&mut self, gpu: &Gpu, width: u32, height: u32) -> Result<()> {
-        if width == 0 || height == 0 {
-            return Ok(());
-        }
-        if self.config.width == width && self.config.height == height {
-            return Ok(());
-        }
-
-        self.config = configure_surface(gpu, &self.surface, width, height)?;
-        self.scene = None;
-        log::debug!(
-            "output resized to {}x{} ({:?})",
-            self.config.width,
-            self.config.height,
-            self.config.format
-        );
-        Ok(())
-    }
-
-    /// Acquire and encode one stage view for this output.
-    ///
-    /// Layers are composited bottom-to-top in `Stage::layers` order into an
-    /// offscreen scene target, then a composite pass applies the output's edge
-    /// blending and colour correction. The caller submits and presents the
-    /// returned frame, optionally together with other outputs in the same group.
-    pub fn prepare(
+    fn encode(
         &mut self,
         gpu: &Gpu,
         media: &MediaCache,
         stage: &Stage,
-        output: &OutputSpec,
-    ) -> Result<Option<PreparedFrame>> {
-        if self.config.width == 0 || self.config.height == 0 {
-            return Ok(None);
+        target: StageTarget<'_>,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Result<()> {
+        let StageTarget {
+            view,
+            edge_blend: edge,
+            color,
+            width,
+            height,
+            target,
+        } = target;
+        if width == 0 || height == 0 {
+            return Ok(());
         }
 
-        let view = output.view;
-        let edge = output.edge_blend.clamped();
-        let color = output.color.clamped();
         gpu.queue().write_buffer(
             &self.composite_uniform_buffer,
             0,
@@ -447,7 +462,7 @@ impl OutputRenderer {
                 offset,
                 uniforms: Uniforms {
                     inv_surface: stage_to_surface.to_column_major_4x4(),
-                    resolution: [self.config.width as f32, self.config.height as f32],
+                    resolution: [width as f32, height as f32],
                     _padding: [0.0; 2],
                     view: [view.x, view.y, view.width, view.height],
                     opacity,
@@ -466,39 +481,11 @@ impl OutputRenderer {
             );
         }
 
-        let frame = match self.surface.get_current_texture() {
-            wgpu::CurrentSurfaceTexture::Success(frame)
-            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
-            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                return Ok(None)
-            }
-            wgpu::CurrentSurfaceTexture::Outdated => {
-                self.config =
-                    configure_surface(gpu, &self.surface, self.config.width, self.config.height)?;
-                return Ok(None);
-            }
-            wgpu::CurrentSurfaceTexture::Lost => {
-                anyhow::bail!("output surface lost; recreate the window");
-            }
-            wgpu::CurrentSurfaceTexture::Validation => {
-                anyhow::bail!("validation error while acquiring output surface texture");
-            }
-        };
-
-        self.ensure_scene_target(gpu)?;
+        self.ensure_scene_target(gpu, width, height)?;
         let scene = self
             .scene
             .as_ref()
             .expect("scene target is created immediately before rendering");
-
-        let target = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut encoder = gpu
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("lpmt-output-encoder"),
-            });
 
         {
             let background = stage.background;
@@ -536,7 +523,7 @@ impl OutputRenderer {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("lpmt-output-composite-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &target,
+                    view: target,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -555,13 +542,11 @@ impl OutputRenderer {
             pass.draw(0..3, 0..1);
         }
 
-        Ok(Some(PreparedFrame { frame, encoder }))
+        Ok(())
     }
 
     /// Allocate the offscreen scene target lazily and recreate it on resize.
-    fn ensure_scene_target(&mut self, gpu: &Gpu) -> Result<()> {
-        let width = self.config.width;
-        let height = self.config.height;
+    fn ensure_scene_target(&mut self, gpu: &Gpu, width: u32, height: u32) -> Result<()> {
         if self
             .scene
             .as_ref()
@@ -611,6 +596,176 @@ impl OutputRenderer {
     }
 }
 
+impl OutputRenderer {
+    pub fn new(
+        gpu: &Gpu,
+        media: &MediaCache,
+        surface: wgpu::Surface<'static>,
+        window: Arc<Window>,
+        width: u32,
+        height: u32,
+    ) -> Result<Self> {
+        let config = configure_surface(gpu, &surface, width, height)?;
+        let stage = StageRenderer::new(gpu, media, config.format, false)?;
+        Ok(Self {
+            surface,
+            config,
+            stage,
+            _window: window,
+        })
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        (self.config.width, self.config.height)
+    }
+
+    pub fn resize(&mut self, gpu: &Gpu, width: u32, height: u32) -> Result<()> {
+        if width == 0 || height == 0 {
+            return Ok(());
+        }
+        if self.config.width == width && self.config.height == height {
+            return Ok(());
+        }
+
+        self.config = configure_surface(gpu, &self.surface, width, height)?;
+        log::debug!(
+            "output resized to {}x{} ({:?})",
+            self.config.width,
+            self.config.height,
+            self.config.format
+        );
+        Ok(())
+    }
+
+    /// Acquire and encode one stage view for this output.
+    ///
+    /// Layers are composited bottom-to-top in `Stage::layers` order into an
+    /// offscreen scene target, then a composite pass applies the output's edge
+    /// blending and colour correction. The caller submits and presents the
+    /// returned frame, optionally together with other outputs in the same group.
+    pub fn prepare(
+        &mut self,
+        gpu: &Gpu,
+        media: &MediaCache,
+        stage: &Stage,
+        output: &OutputSpec,
+    ) -> Result<Option<PreparedFrame>> {
+        if self.config.width == 0 || self.config.height == 0 {
+            return Ok(None);
+        }
+
+        let frame = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(frame)
+            | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                return Ok(None)
+            }
+            wgpu::CurrentSurfaceTexture::Outdated => {
+                self.config =
+                    configure_surface(gpu, &self.surface, self.config.width, self.config.height)?;
+                return Ok(None);
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                anyhow::bail!("output surface lost; recreate the window");
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                anyhow::bail!("validation error while acquiring output surface texture");
+            }
+        };
+
+        let target = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let mut encoder = gpu
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("lpmt-output-encoder"),
+            });
+        self.stage.encode(
+            gpu,
+            media,
+            stage,
+            StageTarget {
+                view: output.view,
+                edge_blend: output.edge_blend.clamped(),
+                color: output.color.clamped(),
+                width: self.config.width,
+                height: self.config.height,
+                target: &target,
+            },
+            &mut encoder,
+        )?;
+
+        Ok(Some(PreparedFrame { frame, encoder }))
+    }
+}
+
+impl PreviewRenderer {
+    /// Create an offscreen preview target at `width` x `height`.
+    pub fn new(gpu: &Gpu, media: &MediaCache, width: u32, height: u32) -> Result<Self> {
+        let width = width.max(1);
+        let height = height.max(1);
+        let texture = gpu.device().create_texture(&wgpu::TextureDescriptor {
+            label: Some("lpmt-preview-texture"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: PREVIEW_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let stage = StageRenderer::new(gpu, media, PREVIEW_FORMAT, true)?;
+        Ok(Self {
+            _texture: texture,
+            view,
+            stage,
+            width,
+            height,
+        })
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    /// The texture view to register with egui as a native image.
+    pub fn view(&self) -> &wgpu::TextureView {
+        &self.view
+    }
+
+    /// Render the full stage, with no output-specific edge blending or colour
+    /// correction. The result is gamma encoded for egui's texture sampler.
+    pub fn render(&mut self, gpu: &Gpu, media: &MediaCache, stage: &Stage) -> Result<()> {
+        let mut encoder = gpu
+            .device()
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("lpmt-preview-encoder"),
+            });
+        self.stage.encode(
+            gpu,
+            media,
+            stage,
+            StageTarget {
+                view: Rect::FULL,
+                edge_blend: EdgeBlend::NONE,
+                color: ColorCorrection::IDENTITY,
+                width: self.width,
+                height: self.height,
+                target: &self.view,
+            },
+            &mut encoder,
+        )?;
+        gpu.queue().submit(Some(encoder.finish()));
+        Ok(())
+    }
+}
+
 fn create_pipeline(
     gpu: &Gpu,
     shader: &wgpu::ShaderModule,
@@ -655,10 +810,16 @@ fn create_composite_pipeline(
     shader: &wgpu::ShaderModule,
     layout: &wgpu::PipelineLayout,
     format: wgpu::TextureFormat,
+    gamma_encode: bool,
 ) -> wgpu::RenderPipeline {
+    let label = if gamma_encode {
+        "lpmt-preview-composite-pipeline"
+    } else {
+        "lpmt-output-composite-pipeline"
+    };
     gpu.device()
         .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("lpmt-output-composite-pipeline"),
+            label: Some(label),
             layout: Some(layout),
             vertex: wgpu::VertexState {
                 module: shader,
@@ -674,7 +835,11 @@ fn create_composite_pipeline(
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(wgpu::FragmentState {
                 module: shader,
-                entry_point: Some("fs_main"),
+                entry_point: Some(if gamma_encode {
+                    "fs_main_gamma"
+                } else {
+                    "fs_main"
+                }),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,

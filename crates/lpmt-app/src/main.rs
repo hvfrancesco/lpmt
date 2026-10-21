@@ -6,10 +6,13 @@
 
 mod audio_runtime;
 mod clock;
+mod history;
+mod project_io;
 mod video_runtime;
 
 use audio_runtime::AudioRuntime;
 use clock::ShowClock;
+use history::{History, HistoryKey};
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,13 +20,13 @@ use std::time::Instant;
 
 use anyhow::{Context, Result};
 use lpmt_core::model::{
-    BlendMode, Layer, MediaAsset, MediaKind, OutputGroup, OutputId, OutputSpec, OutputTarget,
-    Point2, Project, SourceSpec, Surface, TestPattern,
+    BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
+    OutputTarget, Point2, Project, SourceSpec, Surface, TestPattern,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
-use lpmt_render::output::OutputRenderer;
-use lpmt_ui::editor::{self, EditorAction, EditorState, EditorStatus};
+use lpmt_render::output::{OutputRenderer, PreviewRenderer};
+use lpmt_ui::editor::{self, EditorAction, EditorState, EditorStatus, OutputPacing};
 use video_runtime::VideoRuntime;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
@@ -53,9 +56,13 @@ struct App {
     gpu: Gpu,
     media: MediaCache,
     project: Project,
+    saved_project: Project,
+    history: History,
     ui_state: EditorState,
     editor: Option<EditorWindow>,
     outputs: Vec<OutputWindow>,
+    preview: Option<PreviewRenderer>,
+    preview_texture: Option<egui::TextureId>,
     monitors: Vec<String>,
     videos: VideoRuntime,
     audio: AudioRuntime,
@@ -84,18 +91,35 @@ struct OutputWindow {
     id: OutputId,
     window: Arc<Window>,
     renderer: OutputRenderer,
+    pacing: OutputPacing,
+    last_presented: Option<Instant>,
+}
+
+impl OutputWindow {
+    fn pacing_status(&self) -> OutputPacing {
+        let mut pacing = self.pacing;
+        pacing.since_last_present_ms = self
+            .last_presented
+            .map_or(0.0, |last| last.elapsed().as_secs_f32() * 1000.0);
+        pacing
+    }
 }
 
 impl App {
     fn new(gpu: Gpu) -> Result<Self> {
         let media = MediaCache::new(&gpu)?;
+        let project = Project::demo();
         let mut app = Self {
             gpu,
             media,
-            project: Project::demo(),
+            saved_project: project.clone(),
+            project,
+            history: History::new(),
             ui_state: EditorState::default(),
             editor: None,
             outputs: Vec::new(),
+            preview: None,
+            preview_texture: None,
             monitors: Vec::new(),
             videos: VideoRuntime::new(),
             audio: AudioRuntime::new(),
@@ -498,19 +522,23 @@ impl App {
             let Some(output) = outputs.get_mut(*index) else {
                 continue;
             };
+            output.pacing.note_attempt();
             let Some(output_spec) = project.output(&output.id) else {
+                output.pacing.note_error();
                 continue;
             };
             let Some(stage) = project
                 .stage(&output_spec.stage_id)
                 .or_else(|| project.primary_stage())
             else {
+                output.pacing.note_error();
                 continue;
             };
             match output.renderer.prepare(gpu, media, stage, output_spec) {
-                Ok(Some(frame)) => prepared.push(frame),
-                Ok(None) => {}
+                Ok(Some(frame)) => prepared.push((*index, frame)),
+                Ok(None) => output.pacing.note_skipped(),
                 Err(error) => {
+                    output.pacing.note_error();
                     log::error!("output '{}' render failed: {error:#}", output_spec.name);
                 }
             }
@@ -523,17 +551,25 @@ impl App {
         let count = prepared.len();
         let mut frames = Vec::with_capacity(count);
         let mut command_buffers = Vec::with_capacity(count);
-        for prepared in prepared {
+        for (index, prepared) in prepared {
             let (frame, command_buffer) = prepared.finish();
-            frames.push(frame);
+            frames.push((index, frame));
             command_buffers.push(command_buffer);
         }
 
         // One submit for the whole group is the frame barrier: no output is
         // presented until every prepared frame in the batch is enqueued.
         gpu.queue().submit(command_buffers);
-        for frame in frames {
+        let now = Instant::now();
+        for (index, frame) in frames {
             gpu.queue().present(frame);
+            if let Some(output) = outputs.get_mut(index) {
+                let interval = output
+                    .last_presented
+                    .map(|last| now.duration_since(last).as_secs_f32() * 1000.0);
+                output.pacing.note_present(interval);
+                output.last_presented = Some(now);
+            }
         }
         if indices.len() > 1 {
             log::trace!("presented {count} grouped outputs in one batch");
@@ -541,7 +577,19 @@ impl App {
     }
 
     fn apply_actions(&mut self, actions: Vec<EditorAction>) {
+        let mut pending: Option<(Project, HistoryKey, &'static str)> = None;
         for action in actions {
+            // Finish the previous edit before starting the next one. Keeping
+            // the snapshot until here means an early `continue` below still
+            // commits the history entry at the end of the batch.
+            if let Some((before, key, label)) = pending.take() {
+                self.finish_history(before, key, label);
+            }
+            if let Some((key, label)) = history_key(&action) {
+                pending = Some((self.project.clone(), key, label));
+            } else {
+                self.history.break_coalescing();
+            }
             match action {
                 EditorAction::SetCorner {
                     surface,
@@ -1003,6 +1051,8 @@ impl App {
                     }
                 }
                 EditorAction::ReloadMedia => self.reload_media(),
+                EditorAction::Undo => self.undo(),
+                EditorAction::Redo => self.redo(),
                 EditorAction::SaveProject { path } => {
                     if let Err(error) = self.save_project(&path) {
                         log::error!("failed to save project: {error:#}");
@@ -1069,6 +1119,7 @@ impl App {
                 EditorAction::AddMedia => {
                     let dialog = media_file_dialog(&self.media_base);
                     if let Some(path) = dialog.pick_file() {
+                        self.record_history("add media");
                         let stored = self.stored_media_path(&path);
                         let kind = media_kind_from_path(&path, MediaKind::Image);
                         let name = path
@@ -1129,6 +1180,7 @@ impl App {
                     let fallback = asset.kind;
                     let dialog = media_file_dialog(&self.media_base);
                     if let Some(path) = dialog.pick_file() {
+                        let before = self.project.clone();
                         let stored = self.stored_media_path(&path);
                         let kind = media_kind_from_path(&path, fallback);
                         if let Some(asset) = self.project.media.get_mut(media) {
@@ -1137,9 +1189,82 @@ impl App {
                         self.apply_media_kind(media, kind);
                         self.ui_state.image_path = stored;
                         self.reload_media();
+                        if before != self.project {
+                            self.history
+                                .record(before, HistoryKey::Discrete, "replace media");
+                            self.history.break_coalescing();
+                        }
                     }
                 }
             }
+        }
+        if let Some((before, key, label)) = pending {
+            self.finish_history(before, key, label);
+        }
+    }
+
+    fn finish_history(&mut self, before: Project, key: HistoryKey, label: &'static str) {
+        if before != self.project {
+            self.history.record(before, key, label);
+        }
+    }
+
+    /// Record a snapshot for an edit whose actual mutation happens after a
+    /// dialog or another operation that may be cancelled.
+    fn record_history(&mut self, label: &'static str) {
+        self.history
+            .record(self.project.clone(), HistoryKey::Discrete, label);
+        self.history.break_coalescing();
+    }
+
+    fn undo(&mut self) {
+        let current = self.project.clone();
+        if let Some((project, label)) = self.history.undo(current) {
+            self.restore_project(project);
+            self.status_message = format!("Undid {label}");
+        }
+    }
+
+    fn redo(&mut self) {
+        let current = self.project.clone();
+        if let Some((project, label)) = self.history.redo(current) {
+            self.restore_project(project);
+            self.status_message = format!("Redid {label}");
+        }
+    }
+
+    fn restore_project(&mut self, project: Project) {
+        let media_changed = project.media != self.project.media
+            || project.audio != self.project.audio
+            || used_media_ids(&project) != used_media_ids(&self.project);
+        self.project = project;
+        self.ui_state.reset_text_buffers();
+        self.ui_state.selected_surface = self.ui_state.selected_surface.min(
+            self.project
+                .primary_stage()
+                .map_or(0, |stage| stage.surfaces.len().saturating_sub(1)),
+        );
+        self.ui_state.selected_layer = self.ui_state.selected_layer.min(
+            self.project
+                .primary_stage()
+                .map_or(0, |stage| stage.layers.len().saturating_sub(1)),
+        );
+        self.ui_state.selected_media = self
+            .ui_state
+            .selected_media
+            .min(self.project.media.len().saturating_sub(1));
+        self.ui_state.selected_output = self
+            .ui_state
+            .selected_output
+            .min(self.project.outputs.len().saturating_sub(1));
+        self.ui_state.selected_group = self
+            .ui_state
+            .selected_group
+            .min(self.project.output_groups.len().saturating_sub(1));
+        self.ui_state.cancel_drag();
+        self.pending_output_sync = true;
+        if media_changed {
+            self.reload_media();
         }
     }
 
@@ -1305,15 +1430,9 @@ impl App {
         let path = PathBuf::from(path);
         let json =
             serde_json::to_string_pretty(&self.project).context("failed to serialize project")?;
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)
-                    .with_context(|| format!("failed to create {}", parent.display()))?;
-            }
-        }
-        std::fs::write(&path, json)
-            .with_context(|| format!("failed to write {}", path.display()))?;
+        project_io::write_atomic(&path, json.as_bytes())?;
         self.ui_state.project_path = path.display().to_string();
+        self.saved_project = self.project.clone();
         self.status_message = format!("Saved {}", path.display());
         log::info!("saved project to {}", path.display());
         Ok(())
@@ -1332,6 +1451,8 @@ impl App {
         );
 
         self.project = project;
+        self.saved_project = self.project.clone();
+        self.history.clear();
         self.ui_state.project_path = path.display().to_string();
         self.media_base = path
             .parent()
@@ -1395,6 +1516,96 @@ impl App {
             audio_supported: cfg!(feature = "audio"),
             audio_error: self.audio.error().map(str::to_owned),
             monitors: self.monitors.clone(),
+            dirty: self.project != self.saved_project,
+            can_undo: self.history.can_undo(),
+            can_redo: self.history.can_redo(),
+            undo_label: self.history.undo_label().map(str::to_owned),
+            redo_label: self.history.redo_label().map(str::to_owned),
+            output_pacing: self
+                .project
+                .outputs
+                .iter()
+                .map(|spec| {
+                    self.outputs
+                        .iter()
+                        .find(|window| window.id == spec.id)
+                        .map_or(OutputPacing::default(), OutputWindow::pacing_status)
+                })
+                .collect(),
+        }
+    }
+
+    /// Keep the offscreen preview matched to the current stage aspect.
+    fn ensure_preview(&mut self) -> Result<()> {
+        let Some(stage) = self.project.primary_stage() else {
+            self.clear_preview();
+            return Ok(());
+        };
+        let width = 960u32;
+        let height = ((width as f32 / stage.aspect.max(0.1)).round() as u32).max(1);
+        if self
+            .preview
+            .as_ref()
+            .is_some_and(|preview| preview.size() == (width, height))
+        {
+            return Ok(());
+        }
+
+        let renderer = PreviewRenderer::new(&self.gpu, &self.media, width, height)?;
+        let App {
+            editor,
+            preview,
+            preview_texture,
+            ui_state,
+            ..
+        } = self;
+        let Some(editor) = editor.as_mut() else {
+            return Ok(());
+        };
+        let texture_id = editor.egui_renderer.register_native_texture(
+            self.gpu.device(),
+            renderer.view(),
+            wgpu::FilterMode::Linear,
+        );
+        if let Some(old) = preview_texture.replace(texture_id) {
+            editor.egui_renderer.free_texture(&old);
+        }
+        *preview = Some(renderer);
+        ui_state.preview_texture = Some(texture_id);
+        Ok(())
+    }
+
+    fn clear_preview(&mut self) {
+        if let Some(texture) = self.preview_texture.take() {
+            if let Some(editor) = self.editor.as_mut() {
+                editor.egui_renderer.free_texture(&texture);
+            }
+        }
+        self.preview = None;
+        self.ui_state.preview_texture = None;
+    }
+
+    fn render_preview(&mut self) {
+        if let Err(error) = self.ensure_preview() {
+            log::error!("failed to create preview: {error:#}");
+            self.clear_preview();
+            return;
+        }
+        let App {
+            gpu,
+            media,
+            project,
+            preview,
+            ..
+        } = self;
+        let Some(stage) = project.primary_stage() else {
+            return;
+        };
+        let Some(preview) = preview.as_mut() else {
+            return;
+        };
+        if let Err(error) = preview.render(gpu, media, stage) {
+            log::error!("preview render failed: {error:#}");
         }
     }
 
@@ -1480,6 +1691,7 @@ impl ApplicationHandler for App {
         );
         self.videos.poll(&self.gpu, &mut self.media);
 
+        self.render_preview();
         self.render_outputs();
 
         if let Some(editor) = self.editor.as_ref() {
@@ -1561,6 +1773,8 @@ fn create_output_window(
         id: spec.id.clone(),
         window,
         renderer,
+        pacing: OutputPacing::default(),
+        last_presented: None,
     })
 }
 
@@ -1608,6 +1822,79 @@ fn choose_monitor(
             }
         })
         .cloned()
+}
+
+fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
+    use EditorAction::*;
+    let key = match action {
+        SetCorner {
+            surface, corner, ..
+        } => (
+            HistoryKey::SurfaceCorner(*surface, *corner),
+            "move surface corner",
+        ),
+        ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
+        AddSurface => (HistoryKey::Discrete, "add surface"),
+        DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
+        RenameSurface { surface, .. } => (HistoryKey::SurfaceName(*surface), "rename surface"),
+        SetSurfaceVisibility { .. } => (HistoryKey::Discrete, "toggle surface visibility"),
+        SetSurfaceOpacity { surface, .. } => (
+            HistoryKey::SurfaceOpacity(*surface),
+            "change surface opacity",
+        ),
+        SetMediaPath { media, .. } => (HistoryKey::MediaPath(*media), "change media path"),
+        RenameLayer { layer, .. } => (HistoryKey::LayerName(*layer), "rename layer"),
+        SetLayerMedia { .. } => (HistoryKey::Discrete, "assign layer media"),
+        SetLayerVisibility { .. } => (HistoryKey::Discrete, "toggle layer visibility"),
+        SetLayerOpacity { layer, .. } => (HistoryKey::LayerOpacity(*layer), "change layer opacity"),
+        SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
+        SetLayerSurface { .. } => (HistoryKey::Discrete, "move layer to surface"),
+        AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
+        DeleteLayer { .. } => (HistoryKey::Discrete, "delete layer"),
+        ReorderLayer { .. } => (HistoryKey::Discrete, "reorder layer"),
+        SetShowAudio { .. } => (HistoryKey::Discrete, "change show audio"),
+        SetShowAudioVolume { .. } => (HistoryKey::ShowAudioVolume, "change show volume"),
+        SetShowAudioMuted { .. } => (HistoryKey::Discrete, "mute show audio"),
+        AddOutput => (HistoryKey::Discrete, "add output"),
+        DeleteOutput { .. } => (HistoryKey::Discrete, "delete output"),
+        SetOutputView { output, .. } => (HistoryKey::OutputView(*output), "change output view"),
+        SetOutputEnabled { .. } => (HistoryKey::Discrete, "toggle output"),
+        SetOutputFullscreen { .. } => (HistoryKey::Discrete, "change output mode"),
+        SetOutputEdgeBlend { output, .. } => {
+            (HistoryKey::OutputEdgeBlend(*output), "change edge blend")
+        }
+        SetOutputColor { output, .. } => (HistoryKey::OutputColor(*output), "change output color"),
+        SetOutputMonitor { .. } => (HistoryKey::Discrete, "assign output display"),
+        AddOutputGroup => (HistoryKey::Discrete, "add output group"),
+        DeleteOutputGroup { .. } => (HistoryKey::Discrete, "delete output group"),
+        SetOutputGroupMember { .. } => (HistoryKey::Discrete, "change output group"),
+        RemoveMedia { .. } => (HistoryKey::Discrete, "remove media"),
+        // These actions either change only runtime state or open a dialog and
+        // record history themselves after the user chooses a file.
+        ToggleTransport
+        | RestartTransport
+        | SetTransportLoop { .. }
+        | SeekTransport { .. }
+        | ReloadMedia
+        | SaveProject { .. }
+        | SaveProjectDialog
+        | LoadProject { .. }
+        | OpenProjectDialog
+        | AddMedia
+        | PickMediaFile { .. }
+        | Undo
+        | Redo => return None,
+    };
+    Some(key)
+}
+
+fn used_media_ids(project: &Project) -> Vec<MediaId> {
+    project
+        .media
+        .iter()
+        .filter(|asset| project.is_media_used(&asset.id))
+        .map(|asset| asset.id.clone())
+        .collect()
 }
 
 fn media_file_dialog(directory: &Path) -> rfd::FileDialog {

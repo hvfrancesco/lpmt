@@ -53,11 +53,20 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
   layer. The editor can select, show/hide, reorder, delete and create test-pattern layers, and the
   demo uses two surfaces/layers to exercise compositing.
-- **Project persistence skeleton:** JSON save/load in the editor plus `--project <path>` startup
-  loading, with native Open/Save-as dialogs and media import/replace/remove. The media picker accepts
-  images, videos and audio, infers `MediaKind` from the extension and rewrites layers that reference
-  a changed asset. Picked media inside the show directory is stored project-relative; external files
-  stay absolute. A missing asset falls back to the test card.
+- **Project persistence:** JSON save/load in the editor plus `--project <path>` startup loading,
+  with native Open/Save-as dialogs and media import/replace/remove. Saves are atomic: the JSON is
+  written and flushed to a temporary file in the destination directory, then renamed over the
+  previous project. The media picker accepts images, videos and audio, infers `MediaKind` from the
+  extension and rewrites layers that reference a changed asset. Picked media inside the show
+  directory is stored project-relative; external files stay absolute. A missing asset falls back to
+  the test card.
+- **Editor history and safety:** project edits are undoable/redoable (Ctrl+Z,
+  Ctrl+Shift+Z/Ctrl+Y). Continuous edits such as corner drags, opacity/volume sliders and name
+  typing are coalesced into one history step, the history is cleared when another project is
+  loaded, and the top bar marks unsaved changes relative to the last saved file. The live preview
+  viewport renders the composited stage offscreen, independently of the output windows, under the
+  surface/output outlines; clicking a surface makes it active and dragging any corner warps it.
+  Optional corner snapping locks a dragged corner to the nearest corner of another surface.
 - **Optional video slice:** the `video` Cargo feature uses `ffmpeg-next` on a worker thread,
   loops a media asset, keeps only the newest frame and updates the GPU texture in place. Players are
   shared by `MediaId` and follow the application's shared show clock: the transport pauses, resumes
@@ -80,14 +89,17 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
+- **Pacing diagnostics:** each output tracks attempted, presented, skipped/occluded and errored
+  frames plus an EMA frame interval. The Outputs inspector shows presented/missed counts, average
+  frame time and fps, and warns when a previously presenting output has gone stale.
 - **Per-output composition:** each output renders its layers into an offscreen scene target, then a
   composite pass applies left/right/top/bottom edge feathering and brightness/contrast/gamma
   correction. Correction happens after compositing, so overlapping outputs can be matched without
   changing the show content. The editor exposes all four edges and the three colour controls.
-- **Not implemented yet:** per-layer audio mix bus, masks/deformation, per-output frame pacing
-  diagnostics, OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
-- **Next implementation slice:** undo/redo and atomic saves, then a preview viewport independent
-  from the outputs. The legacy XML importer stays planned.
+- **Not implemented yet:** per-layer audio mix bus, masks/deformation, calibration LUTs, OSC/MIDI,
+  timeline and the legacy importer.
+- **Next implementation slice:** per-output calibration LUTs, richer test patterns and temporary
+  calibration guides on outputs. The legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -649,7 +661,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Video decode spike on target hardware: `ffmpeg-next` selected for the first backend;
       GStreamer deferred for hardware decode/capture.
 - [x] Multi-output present behaviour.
-- [ ] Output-group frame pacing diagnostics.
+- [x] Output-group frame pacing diagnostics.
 
 ### M1 — Minimal renderer
 
@@ -666,7 +678,9 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
       visibility/opacity.
 - [x] Ordered layer stack with visibility, opacity, surface assignment and basic blend modes.
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
-- [ ] Undo/redo.
+- [x] Atomic project saves and dirty-state tracking.
+- [x] Undo/redo for project edits with coalesced drags, sliders and typing.
+- [x] Stage preview shows every surface; click to select and drag any corner to warp.
 - [x] Video asset playback with background decoding and looped playback (optional feature).
 - [x] Shared player per `MediaId`, driven by one show clock with play/pause, restart, loop and
       seek/scrub controls.
@@ -675,7 +689,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
       `audio` feature).
 - [ ] Per-layer audio mix bus and device selection.
 - [ ] Hardware decode and per-output video timing.
-- Preview viewport separate from output.
+- [x] Live preview viewport separate from output, with corner snapping.
 - Acceptance: create a two-surface show from scratch, save, reload, play video.
 
 ### M3 — Multi-output and edge blending
@@ -684,7 +698,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Per-output edge blend and colour/gamma controls.
 - [x] Output groups and a shared frame barrier.
 - [x] Explicit display assignment per output.
-- [ ] Per-output pacing diagnostics and missed-present reporting.
+- [x] Per-output pacing diagnostics and missed-present reporting.
 - Acceptance: two overlapping 1080p outputs with a blended seam; confidence monitor unaffected.
 
 ### M4 — Mapping depth
