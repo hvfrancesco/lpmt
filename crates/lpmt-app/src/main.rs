@@ -14,11 +14,13 @@ use audio_runtime::AudioRuntime;
 use clock::ShowClock;
 use history::{History, HistoryKey};
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
+use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
     BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
@@ -62,6 +64,7 @@ struct App {
     ui_state: EditorState,
     editor: Option<EditorWindow>,
     outputs: Vec<OutputWindow>,
+    output_guides: HashMap<OutputId, GuideMode>,
     preview: Option<PreviewRenderer>,
     preview_texture: Option<egui::TextureId>,
     monitors: Vec<String>,
@@ -119,6 +122,7 @@ impl App {
             ui_state: EditorState::default(),
             editor: None,
             outputs: Vec::new(),
+            output_guides: HashMap::new(),
             preview: None,
             preview_texture: None,
             monitors: Vec::new(),
@@ -515,6 +519,7 @@ impl App {
             media,
             project,
             outputs,
+            output_guides,
             ..
         } = self;
         let mut prepared = Vec::new();
@@ -535,7 +540,14 @@ impl App {
                 output.pacing.note_error();
                 continue;
             };
-            match output.renderer.prepare(gpu, media, stage, output_spec) {
+            let guide = output_guides
+                .get(&output.id)
+                .copied()
+                .unwrap_or(GuideMode::None);
+            match output
+                .renderer
+                .prepare(gpu, media, stage, output_spec, guide)
+            {
                 Ok(Some(frame)) => prepared.push((*index, frame)),
                 Ok(None) => output.pacing.note_skipped(),
                 Err(error) => {
@@ -841,6 +853,50 @@ impl App {
                     stage.layers.push(layer);
                     self.ui_state.selected_layer = stage.layers.len() - 1;
                 }
+                EditorAction::AddLayerFromMedia { surface, media } => {
+                    let Some(asset) = self.project.media.get(media) else {
+                        continue;
+                    };
+                    if asset.kind == MediaKind::Audio {
+                        self.status_message =
+                            "Audio assets are assigned in the Show tab".to_owned();
+                        continue;
+                    }
+                    let media_id = asset.id.clone();
+                    let name = asset.name.clone();
+                    let kind = asset.kind;
+                    let Some(stage) = self.project.primary_stage_mut() else {
+                        continue;
+                    };
+                    let Some(surface_id) = stage
+                        .surfaces
+                        .get(surface)
+                        .or_else(|| stage.surfaces.first())
+                        .map(|surface| surface.id.clone())
+                    else {
+                        continue;
+                    };
+                    let mut index = stage.layers.len() + 1;
+                    let id = loop {
+                        let candidate = format!("layer-{index}");
+                        if !stage
+                            .layers
+                            .iter()
+                            .any(|layer| layer.id.as_str() == candidate)
+                        {
+                            break candidate;
+                        }
+                        index += 1;
+                    };
+                    let layer = match kind {
+                        MediaKind::Image => Layer::image(id, name, &surface_id, &media_id),
+                        MediaKind::Video => Layer::video(id, name, &surface_id, &media_id),
+                        MediaKind::Audio => unreachable!("audio is rejected above"),
+                    };
+                    stage.layers.push(layer);
+                    self.ui_state.selected_layer = stage.layers.len() - 1;
+                    self.reload_media();
+                }
                 EditorAction::DeleteLayer { layer } => {
                     let remaining = {
                         let Some(stage) = self.project.primary_stage_mut() else {
@@ -958,6 +1014,7 @@ impl App {
                     let removed = self.project.outputs.remove(output);
                     self.project.remove_output_from_groups(&removed.id);
                     self.outputs.retain(|window| window.id != removed.id);
+                    self.output_guides.remove(&removed.id);
                     self.ui_state.selected_output = self
                         .ui_state
                         .selected_output
@@ -1025,6 +1082,18 @@ impl App {
                         spec.calibration = None;
                         self.status_message = "Cleared calibration LUT".to_owned();
                     }
+                }
+                EditorAction::SetOutputGuide { output, guide } => {
+                    let Some(id) = self.project.outputs.get(output).map(|spec| spec.id.clone())
+                    else {
+                        continue;
+                    };
+                    if guide == GuideMode::None {
+                        self.output_guides.remove(&id);
+                    } else {
+                        self.output_guides.insert(id, guide);
+                    }
+                    self.status_message = format!("Output guide: {}", guide.label());
                 }
                 EditorAction::SetOutputMonitor { output, monitor } => {
                     let Some(spec) = self.project.outputs.get_mut(output) else {
@@ -1506,6 +1575,7 @@ impl App {
         self.project = project;
         self.saved_project = self.project.clone();
         self.history.clear();
+        self.output_guides.clear();
         self.ui_state.project_path = path.display().to_string();
         self.media_base = path
             .parent()
@@ -1583,6 +1653,17 @@ impl App {
                         .iter()
                         .find(|window| window.id == spec.id)
                         .map_or(OutputPacing::default(), OutputWindow::pacing_status)
+                })
+                .collect(),
+            output_guides: self
+                .project
+                .outputs
+                .iter()
+                .map(|spec| {
+                    self.output_guides
+                        .get(&spec.id)
+                        .copied()
+                        .unwrap_or(GuideMode::None)
                 })
                 .collect(),
         }
@@ -1904,6 +1985,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
         SetLayerSurface { .. } => (HistoryKey::Discrete, "move layer to surface"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
+        AddLayerFromMedia { .. } => (HistoryKey::Discrete, "add media layer"),
         DeleteLayer { .. } => (HistoryKey::Discrete, "delete layer"),
         ReorderLayer { .. } => (HistoryKey::Discrete, "reorder layer"),
         SetShowAudio { .. } => (HistoryKey::Discrete, "change show audio"),
@@ -1938,6 +2020,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | OpenProjectDialog
         | AddMedia
         | PickMediaFile { .. }
+        | SetOutputGuide { .. }
         | Undo
         | Redo => return None,
     };

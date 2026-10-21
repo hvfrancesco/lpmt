@@ -1,11 +1,12 @@
 //! The editor window. This module only knows about the domain model and egui;
 //! it emits actions instead of mutating renderer or window state directly.
 
-use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, Sense, Shape, Stroke, Vec2};
+use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, RichText, Sense, Shape, Stroke, Vec2};
+use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
-    BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaKind, OutputTarget, Point2, Project, Rect,
-    SourceSpec, Surface, SurfaceId, TestPattern,
+    BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaAsset, MediaKind, OutputTarget, Point2,
+    Project, Rect, SourceSpec, Surface, SurfaceId, TestPattern,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -26,6 +27,8 @@ pub struct EditorStatus {
     pub undo_label: Option<String>,
     pub redo_label: Option<String>,
     pub output_pacing: Vec<OutputPacing>,
+    /// Session-only guide mode, parallel to `project.outputs`.
+    pub output_guides: Vec<GuideMode>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -84,8 +87,39 @@ impl OutputPacing {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SidebarTab {
+    Show,
+    #[default]
+    Mapping,
+    Media,
+    Outputs,
+    Project,
+}
+
+impl SidebarTab {
+    pub const ALL: [Self; 5] = [
+        Self::Show,
+        Self::Mapping,
+        Self::Media,
+        Self::Outputs,
+        Self::Project,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Show => "Show",
+            Self::Mapping => "Mapping",
+            Self::Media => "Media",
+            Self::Outputs => "Outputs",
+            Self::Project => "Project",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct EditorState {
+    pub tab: SidebarTab,
     pub selected_surface: usize,
     pub selected_layer: usize,
     pub selected_media: usize,
@@ -107,6 +141,7 @@ pub struct EditorState {
 impl Default for EditorState {
     fn default() -> Self {
         Self {
+            tab: SidebarTab::Mapping,
             selected_surface: 0,
             selected_layer: 0,
             selected_media: 0,
@@ -205,6 +240,10 @@ pub enum EditorAction {
     AddLayer {
         surface: usize,
     },
+    AddLayerFromMedia {
+        surface: usize,
+        media: usize,
+    },
     DeleteLayer {
         layer: usize,
     },
@@ -259,6 +298,10 @@ pub enum EditorAction {
     ClearOutputLut {
         output: usize,
     },
+    SetOutputGuide {
+        output: usize,
+        guide: GuideMode,
+    },
     SetOutputMonitor {
         output: usize,
         monitor: Option<String>,
@@ -305,6 +348,14 @@ pub fn draw(
         }
         if ui.input(|input| input.key_pressed(egui::Key::Home)) {
             actions.push(EditorAction::RestartTransport);
+        }
+        if ui.input(|input| input.key_pressed(egui::Key::G)) {
+            if let Some(current) = status.output_guides.get(state.selected_output).copied() {
+                actions.push(EditorAction::SetOutputGuide {
+                    output: state.selected_output,
+                    guide: current.next(),
+                });
+            }
         }
         if ui.input(|input| input.modifiers.command) {
             if ui.input(|input| input.key_pressed(egui::Key::Z)) {
@@ -389,865 +440,1017 @@ pub fn draw(
     });
 
     egui::Panel::left("lpmt-inspector")
-        .resizable(false)
-        .default_size(340.0)
+        .resizable(true)
+        .default_size(380.0)
         .show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add_space(8.0);
-                ui.heading("Inspector");
-                ui.separator();
-
-                ui.heading("Transport");
+                ui.heading("Workspace");
                 ui.horizontal_wrapped(|ui| {
-                    let label = if status.transport.playing {
-                        "Pause"
-                    } else {
-                        "Play"
-                    };
-                    if ui.button(label).clicked() {
-                        actions.push(EditorAction::ToggleTransport);
-                    }
-                    if ui.button("Restart").clicked() {
-                        actions.push(EditorAction::RestartTransport);
-                    }
-                    let mut looping = status.transport.looping;
-                    if ui.checkbox(&mut looping, "Loop").changed() {
-                        actions.push(EditorAction::SetTransportLoop { looping });
-                    }
-                });
-                let time = match status.transport.duration_seconds {
-                    Some(duration) => format!(
-                        "{:.2} / {:.2} s",
-                        status.transport.position_seconds, duration
-                    ),
-                    None => format!("{:.2} s", status.transport.position_seconds),
-                };
-                ui.label(time);
-                if let Some(duration) = status
-                    .transport
-                    .duration_seconds
-                    .filter(|duration| *duration > 0.0)
-                {
-                    let mut position = state
-                        .transport_scrub
-                        .unwrap_or(status.transport.position_seconds as f32)
-                        .clamp(0.0, duration as f32);
-                    let response = ui.add(
-                        egui::Slider::new(&mut position, 0.0..=duration as f32).show_value(false),
-                    );
-                    if response.dragged() {
-                        state.transport_scrub = Some(position);
-                    }
-                    if response.drag_stopped() || (response.changed() && !response.dragged()) {
-                        state.transport_scrub = None;
-                        actions.push(EditorAction::SeekTransport {
-                            position: f64::from(position),
-                        });
-                    }
-                }
-                ui.label("One clock drives every video and output.");
-
-                ui.add_space(12.0);
-                ui.separator();
-                ui.heading("Audio");
-                if !status.audio_supported {
-                    ui.colored_label(
-                        Color32::from_rgb(255, 184, 92),
-                        "This build has no audio support. Rebuild with --features audio.",
-                    );
-                }
-                let audio_assets: Vec<(usize, &lpmt_core::model::MediaAsset)> = project
-                    .media
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, asset)| asset.kind == MediaKind::Audio)
-                    .collect();
-                let current_audio = project
-                    .audio_asset()
-                    .map_or("None", |asset| asset.name.as_str());
-                egui::ComboBox::from_id_salt("show-audio")
-                    .selected_text(current_audio)
-                    .show_ui(ui, |ui| {
+                    for tab in SidebarTab::ALL {
                         if ui
-                            .selectable_label(project.audio.media_id.is_none(), "None")
+                            .selectable_label(state.tab == tab, tab.label())
                             .clicked()
                         {
-                            actions.push(EditorAction::SetShowAudio { media: None });
+                            state.tab = tab;
                         }
-                        for (index, asset) in &audio_assets {
-                            let selected = project.audio.media_id.as_ref() == Some(&asset.id);
-                            if ui.selectable_label(selected, &asset.name).clicked() {
-                                actions.push(EditorAction::SetShowAudio {
-                                    media: Some(*index),
-                                });
-                            }
-                        }
-                    });
-                if audio_assets.is_empty() {
-                    ui.label("Add an audio file in the Media section.");
-                }
-                let mut volume = project.audio.volume;
-                if ui
-                    .add(egui::Slider::new(&mut volume, 0.0..=1.0).text("Volume"))
-                    .changed()
-                {
-                    actions.push(EditorAction::SetShowAudioVolume { volume });
-                }
-                let mut muted = project.audio.muted;
-                if ui.checkbox(&mut muted, "Mute").changed() {
-                    actions.push(EditorAction::SetShowAudioMuted { muted });
-                }
-                if let Some(error) = &status.audio_error {
-                    ui.colored_label(Color32::from_rgb(255, 120, 120), error);
-                } else if project.audio_asset().is_some() && status.audio_supported {
-                    ui.label("Follows the show clock.");
-                }
-
-                ui.add_space(12.0);
-                ui.separator();
-                ui.label("Surfaces");
-                for (index, surface) in stage.surfaces.iter().enumerate() {
-                    if ui
-                        .selectable_label(state.selected_surface == index, &surface.name)
-                        .clicked()
-                    {
-                        state.selected_surface = index;
-                        state.drag_corner = None;
-                    }
-                }
-                ui.checkbox(&mut state.snap_corners, "Snap corners to other surfaces");
-                let selected_surface_in_use = stage
-                    .surfaces
-                    .get(state.selected_surface)
-                    .is_some_and(|surface| {
-                        stage
-                            .layers
-                            .iter()
-                            .any(|layer| layer.surface_id == surface.id)
-                    });
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add surface").clicked() {
-                        actions.push(EditorAction::AddSurface);
-                        state.selected_surface = stage.surfaces.len();
-                    }
-                    let delete = ui.add_enabled(
-                        stage.surfaces.len() > 1 && !selected_surface_in_use,
-                        egui::Button::new("Delete surface"),
-                    );
-                    if delete.clicked() {
-                        let surface = state.selected_surface;
-                        actions.push(EditorAction::DeleteSurface { surface });
-                        state.selected_surface =
-                            surface.min(stage.surfaces.len().saturating_sub(2));
-                    }
-                    if selected_surface_in_use {
-                        delete.on_disabled_hover_text(
-                            "Reassign or delete the layers using this surface first",
-                        );
                     }
                 });
-
-                ui.add_space(12.0);
-                if let Some(surface) = stage.surfaces.get(state.selected_surface) {
-                    ui.label("Surface name");
-                    if ui
-                        .add(
-                            egui::TextEdit::singleline(&mut state.surface_name)
-                                .desired_width(f32::INFINITY),
+                if matches!(state.tab, SidebarTab::Mapping | SidebarTab::Media) {
+                    ui.label(
+                        RichText::new(
+                            "Surface = geometry · Layer = content on a surface · Media = source file",
                         )
-                        .changed()
+                        .small()
+                        .color(Color32::from_rgb(150, 162, 184)),
+                    );
+                }
+                ui.separator();
+
+                if state.tab == SidebarTab::Show {
+                        ui.heading("Transport");
+                        ui.horizontal_wrapped(|ui| {
+                        let label = if status.transport.playing {
+                            "Pause"
+                        } else {
+                            "Play"
+                        };
+                        if ui.button(label).clicked() {
+                            actions.push(EditorAction::ToggleTransport);
+                        }
+                        if ui.button("Restart").clicked() {
+                            actions.push(EditorAction::RestartTransport);
+                        }
+                        let mut looping = status.transport.looping;
+                        if ui.checkbox(&mut looping, "Loop").changed() {
+                            actions.push(EditorAction::SetTransportLoop { looping });
+                        }
+                    });
+                    let time = match status.transport.duration_seconds {
+                        Some(duration) => format!(
+                            "{:.2} / {:.2} s",
+                            status.transport.position_seconds, duration
+                        ),
+                        None => format!("{:.2} s", status.transport.position_seconds),
+                    };
+                    ui.label(time);
+                    if let Some(duration) = status
+                        .transport
+                        .duration_seconds
+                        .filter(|duration| *duration > 0.0)
                     {
-                        actions.push(EditorAction::RenameSurface {
-                            surface: state.selected_surface,
-                            name: state.surface_name.clone(),
-                        });
+                        let mut position = state
+                            .transport_scrub
+                            .unwrap_or(status.transport.position_seconds as f32)
+                            .clamp(0.0, duration as f32);
+                        let response = ui.add(
+                            egui::Slider::new(&mut position, 0.0..=duration as f32).show_value(false),
+                        );
+                        if response.dragged() {
+                            state.transport_scrub = Some(position);
+                        }
+                        if response.drag_stopped() || (response.changed() && !response.dragged()) {
+                            state.transport_scrub = None;
+                            actions.push(EditorAction::SeekTransport {
+                                position: f64::from(position),
+                            });
+                        }
                     }
+                    ui.label("One clock drives every video and output.");
 
-                    let mut visible = surface.visible;
-                    if ui.checkbox(&mut visible, "Visible").changed() {
-                        actions.push(EditorAction::SetSurfaceVisibility {
-                            surface: state.selected_surface,
-                            visible,
-                        });
+                    ui.add_space(12.0);
+                    ui.separator();
+                    ui.heading("Audio");
+                    if !status.audio_supported {
+                        ui.colored_label(
+                            Color32::from_rgb(255, 184, 92),
+                            "This build has no audio support. Rebuild with --features audio.",
+                        );
                     }
-                    let mut opacity = surface.opacity;
-                    if ui
-                        .add(
-                            egui::Slider::new(&mut opacity, 0.0..=1.0)
-                                .text("Opacity")
-                                .fixed_decimals(2),
-                        )
-                        .changed()
-                    {
-                        actions.push(EditorAction::SetSurfaceOpacity {
-                            surface: state.selected_surface,
-                            opacity,
-                        });
-                    }
-
-                    ui.label("Normalized stage coordinates");
-                    egui::Grid::new("surface-corners")
-                        .num_columns(3)
-                        .spacing([8.0, 6.0])
-                        .show(ui, |ui| {
-                            ui.label("Corner");
-                            ui.label("x");
-                            ui.label("y");
-                            ui.end_row();
-
-                            for (index, corner) in surface.corners.iter().enumerate() {
-                                ui.label(corner_name(index));
-                                let mut x = corner.x;
-                                let mut y = corner.y;
-                                let x_changed = ui
-                                    .add(egui::DragValue::new(&mut x).speed(0.001).range(0.0..=1.0))
-                                    .changed();
-                                let y_changed = ui
-                                    .add(egui::DragValue::new(&mut y).speed(0.001).range(0.0..=1.0))
-                                    .changed();
-                                if x_changed || y_changed {
-                                    actions.push(EditorAction::SetCorner {
-                                        surface: state.selected_surface,
-                                        corner: index,
-                                        value: Point2::new(x, y),
+                    let audio_assets: Vec<(usize, &lpmt_core::model::MediaAsset)> = project
+                        .media
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, asset)| asset.kind == MediaKind::Audio)
+                        .collect();
+                    let current_audio = project
+                        .audio_asset()
+                        .map_or("None", |asset| asset.name.as_str());
+                    egui::ComboBox::from_id_salt("show-audio")
+                        .selected_text(current_audio)
+                        .show_ui(ui, |ui| {
+                            if ui
+                                .selectable_label(project.audio.media_id.is_none(), "None")
+                                .clicked()
+                            {
+                                actions.push(EditorAction::SetShowAudio { media: None });
+                            }
+                            for (index, asset) in &audio_assets {
+                                let selected = project.audio.media_id.as_ref() == Some(&asset.id);
+                                if ui.selectable_label(selected, &asset.name).clicked() {
+                                    actions.push(EditorAction::SetShowAudio {
+                                        media: Some(*index),
                                     });
                                 }
-                                ui.end_row();
                             }
                         });
-
-                    ui.add_space(8.0);
-                    if ui.button("Reset to full stage").clicked() {
-                        actions.push(EditorAction::ResetSurface {
-                            surface: state.selected_surface,
-                        });
+                    if audio_assets.is_empty() {
+                        ui.label("Add an audio file in the Media tab.");
+                    }
+                    let mut volume = project.audio.volume;
+                    if ui
+                        .add(egui::Slider::new(&mut volume, 0.0..=1.0).text("Volume"))
+                        .changed()
+                    {
+                        actions.push(EditorAction::SetShowAudioVolume { volume });
+                    }
+                    let mut muted = project.audio.muted;
+                    if ui.checkbox(&mut muted, "Mute").changed() {
+                        actions.push(EditorAction::SetShowAudioMuted { muted });
+                    }
+                    if let Some(error) = &status.audio_error {
+                        ui.colored_label(Color32::from_rgb(255, 120, 120), error);
+                    } else if project.audio_asset().is_some() && status.audio_supported {
+                        ui.label("Follows the show clock.");
                     }
                 }
 
-                ui.add_space(16.0);
-                ui.separator();
-                ui.heading("Layers");
-                ui.label("Bottom to top");
-                for (index, layer) in stage.layers.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        let mut visible = layer.visible;
-                        if ui.checkbox(&mut visible, "").changed() {
-                            actions.push(EditorAction::SetLayerVisibility {
-                                layer: index,
+                if state.tab == SidebarTab::Mapping {
+                    ui.heading("Surfaces");
+                    ui.label("Geometry: the quad that content is projected through.");
+                    for (index, surface) in stage.surfaces.iter().enumerate() {
+                        let layers = stage
+                            .layers
+                            .iter()
+                            .filter(|layer| layer.surface_id == surface.id)
+                            .count();
+                        let suffix = if layers == 1 {
+                            "1 layer".to_owned()
+                        } else {
+                            format!("{layers} layers")
+                        };
+                        if ui
+                            .selectable_label(
+                                state.selected_surface == index,
+                                format!("{} · {suffix}", surface.name),
+                            )
+                            .clicked()
+                        {
+                            state.selected_surface = index;
+                            state.drag_corner = None;
+                        }
+                    }
+                    ui.checkbox(&mut state.snap_corners, "Snap corners to other surfaces");
+                    let selected_surface_in_use = stage
+                        .surfaces
+                        .get(state.selected_surface)
+                        .is_some_and(|surface| {
+                            stage
+                                .layers
+                                .iter()
+                                .any(|layer| layer.surface_id == surface.id)
+                        });
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.button("Add surface").clicked() {
+                            actions.push(EditorAction::AddSurface);
+                            state.selected_surface = stage.surfaces.len();
+                        }
+                        let delete = ui.add_enabled(
+                            stage.surfaces.len() > 1 && !selected_surface_in_use,
+                            egui::Button::new("Delete surface"),
+                        );
+                        if delete.clicked() {
+                            let surface = state.selected_surface;
+                            actions.push(EditorAction::DeleteSurface { surface });
+                            state.selected_surface =
+                                surface.min(stage.surfaces.len().saturating_sub(2));
+                        }
+                        if selected_surface_in_use {
+                            delete.on_disabled_hover_text(
+                                "Reassign or delete the layers using this surface first",
+                            );
+                        }
+                    });
+
+                    ui.add_space(12.0);
+                    if let Some(surface) = stage.surfaces.get(state.selected_surface) {
+                        ui.label(RichText::new("Selected surface").strong());
+                        ui.label("Surface name");
+                        if ui
+                            .add(
+                                egui::TextEdit::singleline(&mut state.surface_name)
+                                    .desired_width(f32::INFINITY),
+                            )
+                            .changed()
+                        {
+                            actions.push(EditorAction::RenameSurface {
+                                surface: state.selected_surface,
+                                name: state.surface_name.clone(),
+                            });
+                        }
+
+                        let mut visible = surface.visible;
+                        if ui.checkbox(&mut visible, "Visible").changed() {
+                            actions.push(EditorAction::SetSurfaceVisibility {
+                                surface: state.selected_surface,
                                 visible,
                             });
                         }
-                        let response = ui
-                            .selectable_label(
-                                state.selected_layer == index,
-                                format!("{} · {}", layer.name, layer.blend.label()),
+                        let mut opacity = surface.opacity;
+                        if ui
+                            .add(
+                                egui::Slider::new(&mut opacity, 0.0..=1.0)
+                                    .text("Opacity")
+                                    .fixed_decimals(2),
                             )
-                            .on_hover_text(layer_source(layer, project));
-                        if response.clicked() {
-                            state.selected_layer = index;
+                            .changed()
+                        {
+                            actions.push(EditorAction::SetSurfaceOpacity {
+                                surface: state.selected_surface,
+                                opacity,
+                            });
                         }
-                    });
-                }
 
-                ui.horizontal_wrapped(|ui| {
-                    if ui
-                        .add_enabled(!stage.surfaces.is_empty(), egui::Button::new("Add layer"))
-                        .clicked()
-                    {
-                        actions.push(EditorAction::AddLayer {
-                            surface: state.selected_surface,
-                        });
-                        state.selected_layer = stage.layers.len();
-                    }
-                    if ui
-                        .add_enabled(stage.layers.len() > 1, egui::Button::new("Delete layer"))
-                        .clicked()
-                    {
-                        let layer = state.selected_layer;
-                        actions.push(EditorAction::DeleteLayer { layer });
-                        state.selected_layer = layer.min(stage.layers.len().saturating_sub(2));
-                    }
-                    if ui
-                        .add_enabled(state.selected_layer > 0, egui::Button::new("Lower"))
-                        .clicked()
-                    {
-                        let layer = state.selected_layer;
-                        actions.push(EditorAction::ReorderLayer { layer, offset: -1 });
-                        state.selected_layer -= 1;
-                    }
-                    if ui
-                        .add_enabled(
-                            state.selected_layer + 1 < stage.layers.len(),
-                            egui::Button::new("Raise"),
-                        )
-                        .clicked()
-                    {
-                        let layer = state.selected_layer;
-                        actions.push(EditorAction::ReorderLayer { layer, offset: 1 });
-                        state.selected_layer += 1;
-                    }
-                });
+                        ui.label("Drag corners in the preview for quick warp.");
+                        egui::CollapsingHeader::new("Corners (numeric)")
+                            .default_open(false)
+                            .show(ui, |ui| {
+                                egui::Grid::new("surface-corners")
+                                    .num_columns(3)
+                                    .spacing([8.0, 6.0])
+                                    .show(ui, |ui| {
+                                        ui.label("Corner");
+                                        ui.label("x");
+                                        ui.label("y");
+                                        ui.end_row();
 
-                if let Some(layer) = stage.layers.get(state.selected_layer) {
-                    ui.add_space(6.0);
-                    ui.label("Layer name");
-                    if ui
-                        .add(
-                            egui::TextEdit::singleline(&mut state.layer_name)
-                                .desired_width(f32::INFINITY),
-                        )
-                        .changed()
-                    {
-                        actions.push(EditorAction::RenameLayer {
-                            layer: state.selected_layer,
-                            name: state.layer_name.clone(),
-                        });
-                    }
-                    let mut visible = layer.visible;
-                    if ui.checkbox(&mut visible, "Visible").changed() {
-                        actions.push(EditorAction::SetLayerVisibility {
-                            layer: state.selected_layer,
-                            visible,
-                        });
-                    }
+                                        for (index, corner) in surface.corners.iter().enumerate() {
+                                            ui.label(corner_name(index));
+                                            let mut x = corner.x;
+                                            let mut y = corner.y;
+                                            let x_changed = ui
+                                                .add(
+                                                    egui::DragValue::new(&mut x)
+                                                        .speed(0.001)
+                                                        .range(0.0..=1.0),
+                                                )
+                                                .changed();
+                                            let y_changed = ui
+                                                .add(
+                                                    egui::DragValue::new(&mut y)
+                                                        .speed(0.001)
+                                                        .range(0.0..=1.0),
+                                                )
+                                                .changed();
+                                            if x_changed || y_changed {
+                                                actions.push(EditorAction::SetCorner {
+                                                    surface: state.selected_surface,
+                                                    corner: index,
+                                                    value: Point2::new(x, y),
+                                                });
+                                            }
+                                            ui.end_row();
+                                        }
+                                    });
 
-                    let mut opacity = layer.opacity;
-                    if ui
-                        .add(
-                            egui::Slider::new(&mut opacity, 0.0..=1.0)
-                                .text("Opacity")
-                                .fixed_decimals(2),
-                        )
-                        .changed()
-                    {
-                        actions.push(EditorAction::SetLayerOpacity {
-                            layer: state.selected_layer,
-                            opacity,
-                        });
-                    }
-
-                    let mut blend = layer.blend;
-                    egui::ComboBox::from_label("Blend")
-                        .selected_text(blend.label())
-                        .show_ui(ui, |ui| {
-                            for mode in BlendMode::ALL {
-                                ui.selectable_value(&mut blend, mode, mode.label());
-                            }
-                        });
-                    if blend != layer.blend {
-                        actions.push(EditorAction::SetLayerBlend {
-                            layer: state.selected_layer,
-                            blend,
-                        });
-                    }
-
-                    if let SourceSpec::TestPattern { pattern } = &layer.source {
-                        let mut chosen = *pattern;
-                        egui::ComboBox::from_label("Test pattern")
-                            .selected_text(chosen.label())
-                            .show_ui(ui, |ui| {
-                                for candidate in TestPattern::ALL {
-                                    ui.selectable_value(&mut chosen, candidate, candidate.label());
+                                ui.add_space(8.0);
+                                if ui.button("Reset to full stage").clicked() {
+                                    actions.push(EditorAction::ResetSurface {
+                                        surface: state.selected_surface,
+                                    });
                                 }
                             });
-                        if chosen != *pattern {
-                            actions.push(EditorAction::SetLayerTestPattern {
-                                layer: state.selected_layer,
-                                pattern: chosen,
-                            });
-                        }
                     }
 
-                    let surface_index = stage
-                        .surfaces
-                        .iter()
-                        .position(|surface| surface.id == layer.surface_id)
-                        .unwrap_or(0);
-                    let mut chosen_surface = surface_index;
-                    let surface_name = stage
-                        .surfaces
-                        .get(surface_index)
-                        .map_or("missing surface", |surface| surface.name.as_str());
-                    egui::ComboBox::from_label("Surface")
-                        .selected_text(surface_name)
-                        .show_ui(ui, |ui| {
-                            for (index, surface) in stage.surfaces.iter().enumerate() {
-                                ui.selectable_value(&mut chosen_surface, index, &surface.name);
+                    ui.add_space(16.0);
+                    ui.separator();
+                    ui.heading("Layers");
+                    ui.label("Content stack, bottom to top. Each layer draws through a surface.");
+                    for (index, layer) in stage.layers.iter().enumerate() {
+                        let surface_index = stage
+                            .surfaces
+                            .iter()
+                            .position(|surface| surface.id == layer.surface_id);
+                        let surface_name = surface_index
+                            .and_then(|index| stage.surfaces.get(index))
+                            .map_or("missing surface", |surface| surface.name.as_str());
+                        ui.horizontal(|ui| {
+                            let mut visible = layer.visible;
+                            if ui.checkbox(&mut visible, "").changed() {
+                                actions.push(EditorAction::SetLayerVisibility {
+                                    layer: index,
+                                    visible,
+                                });
+                            }
+                            let response = ui
+                                .selectable_label(
+                                    state.selected_layer == index,
+                                    format!("{} · {surface_name}", layer.name),
+                                )
+                                .on_hover_text(layer_source(layer, project));
+                            if response.clicked() {
+                                state.selected_layer = index;
+                                if let Some(surface_index) = surface_index {
+                                    state.selected_surface = surface_index;
+                                    state.drag_corner = None;
+                                }
                             }
                         });
-                    if chosen_surface != surface_index {
-                        actions.push(EditorAction::SetLayerSurface {
-                            layer: state.selected_layer,
-                            surface: chosen_surface,
-                        });
                     }
-                } else {
-                    ui.label("No layers");
-                }
 
-                ui.add_space(16.0);
-                ui.separator();
-                ui.heading("Media");
-                if !status.video_supported
-                    && project
-                        .media
-                        .iter()
-                        .any(|asset| asset.kind == MediaKind::Video)
-                {
-                    ui.colored_label(
-                        Color32::from_rgb(255, 184, 92),
-                        "This build has no video support. Rebuild with --features video.",
-                    );
-                }
-                if let Some(layer) = stage.layers.get(state.selected_layer) {
-                    ui.label(format!(
-                        "Layer: {} · {}",
-                        layer.name,
-                        layer_source(layer, project)
-                    ));
-                }
-
-                if project.media.is_empty() {
-                    ui.label("No media assets");
-                }
-                for (index, asset) in project.media.iter().enumerate() {
-                    let kind = match asset.kind {
-                        MediaKind::Image => "Image",
-                        MediaKind::Video => "Video",
-                        MediaKind::Audio => "Audio",
-                    };
-                    if ui
-                        .selectable_label(
-                            state.selected_media == index,
-                            format!("{} · {kind}", asset.name),
-                        )
-                        .clicked()
-                    {
-                        state.selected_media = index;
-                        state.image_path.clone_from(&asset.path);
-                    }
-                }
-
-                let selected_media_used = project
-                    .media
-                    .get(state.selected_media)
-                    .is_some_and(|asset| project.is_media_used(&asset.id));
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add media…").clicked() {
-                        actions.push(EditorAction::AddMedia);
-                        state.selected_media = project.media.len();
-                    }
-                    let remove = ui.add_enabled(
-                        !project.media.is_empty() && !selected_media_used,
-                        egui::Button::new("Remove media"),
-                    );
-                    if remove.clicked() {
-                        let media = state.selected_media;
-                        actions.push(EditorAction::RemoveMedia { media });
-                        state.selected_media = media.min(project.media.len().saturating_sub(2));
-                    }
-                    if selected_media_used {
-                        remove.on_disabled_hover_text(
-                            "This asset is used by a layer or the show audio; reassign it first",
-                        );
-                    }
-                });
-
-                let selected_is_audio = project
-                    .media
-                    .get(state.selected_media)
-                    .is_some_and(|asset| asset.kind == MediaKind::Audio);
-
-                if project.media.get(state.selected_media).is_some() {
-                    ui.add_space(6.0);
-                    ui.label("Media path (relative to project)");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut state.image_path)
-                            .desired_width(f32::INFINITY),
-                    );
                     ui.horizontal_wrapped(|ui| {
-                        if ui.button("Browse…").clicked() {
-                            actions.push(EditorAction::PickMediaFile {
-                                media: state.selected_media,
+                        if ui
+                            .add_enabled(
+                                !stage.surfaces.is_empty(),
+                                egui::Button::new("Add test pattern"),
+                            )
+                            .on_hover_text("Adds a procedural test-pattern layer on the selected surface")
+                            .clicked()
+                        {
+                            actions.push(EditorAction::AddLayer {
+                                surface: state.selected_surface,
                             });
+                            state.selected_layer = stage.layers.len();
                         }
-                        if ui.button("Apply path").clicked() {
-                            actions.push(EditorAction::SetMediaPath {
-                                media: state.selected_media,
-                                path: state.image_path.clone(),
-                            });
+                        if ui
+                            .add_enabled(stage.layers.len() > 1, egui::Button::new("Delete layer"))
+                            .clicked()
+                        {
+                            let layer = state.selected_layer;
+                            actions.push(EditorAction::DeleteLayer { layer });
+                            state.selected_layer = layer.min(stage.layers.len().saturating_sub(2));
                         }
-                        if ui.button("Reload asset").clicked() {
-                            actions.push(EditorAction::ReloadMedia);
+                        if ui
+                            .add_enabled(state.selected_layer > 0, egui::Button::new("Lower"))
+                            .clicked()
+                        {
+                            let layer = state.selected_layer;
+                            actions.push(EditorAction::ReorderLayer { layer, offset: -1 });
+                            state.selected_layer -= 1;
                         }
                         if ui
                             .add_enabled(
-                                stage.layers.get(state.selected_layer).is_some()
-                                    && !selected_is_audio,
-                                egui::Button::new("Use for layer"),
+                                state.selected_layer + 1 < stage.layers.len(),
+                                egui::Button::new("Raise"),
                             )
                             .clicked()
                         {
-                            actions.push(EditorAction::SetLayerMedia {
+                            let layer = state.selected_layer;
+                            actions.push(EditorAction::ReorderLayer { layer, offset: 1 });
+                            state.selected_layer += 1;
+                        }
+                    });
+
+                    if let Some(layer) = stage.layers.get(state.selected_layer) {
+                        ui.add_space(6.0);
+                        ui.label(RichText::new("Selected layer").strong());
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label("Source:");
+                            ui.label(layer_source(layer, project));
+                        });
+                        if let Some(media_index) = layer_media_index(layer, project) {
+                            if ui.button("Choose in Media pool").clicked() {
+                                state.tab = SidebarTab::Media;
+                                state.selected_media = media_index;
+                                if let Some(asset) = project.media.get(media_index) {
+                                    state.image_path.clone_from(&asset.path);
+                                }
+                            }
+                        }
+                        ui.label("Layer name");
+                        if ui
+                            .add(
+                                egui::TextEdit::singleline(&mut state.layer_name)
+                                    .desired_width(f32::INFINITY),
+                            )
+                            .changed()
+                        {
+                            actions.push(EditorAction::RenameLayer {
                                 layer: state.selected_layer,
-                                media: state.selected_media,
+                                name: state.layer_name.clone(),
                             });
                         }
-                        if selected_is_audio && ui.button("Use as show audio").clicked() {
-                            actions.push(EditorAction::SetShowAudio {
-                                media: Some(state.selected_media),
+                        let mut visible = layer.visible;
+                        if ui.checkbox(&mut visible, "Visible").changed() {
+                            actions.push(EditorAction::SetLayerVisibility {
+                                layer: state.selected_layer,
+                                visible,
+                            });
+                        }
+
+                        let mut opacity = layer.opacity;
+                        if ui
+                            .add(
+                                egui::Slider::new(&mut opacity, 0.0..=1.0)
+                                    .text("Opacity")
+                                    .fixed_decimals(2),
+                            )
+                            .changed()
+                        {
+                            actions.push(EditorAction::SetLayerOpacity {
+                                layer: state.selected_layer,
+                                opacity,
+                            });
+                        }
+
+                        let mut blend = layer.blend;
+                        egui::ComboBox::from_label("Blend")
+                            .selected_text(blend.label())
+                            .show_ui(ui, |ui| {
+                                for mode in BlendMode::ALL {
+                                    ui.selectable_value(&mut blend, mode, mode.label());
+                                }
+                            });
+                        if blend != layer.blend {
+                            actions.push(EditorAction::SetLayerBlend {
+                                layer: state.selected_layer,
+                                blend,
+                            });
+                        }
+
+                        if let SourceSpec::TestPattern { pattern } = &layer.source {
+                            let mut chosen = *pattern;
+                            egui::ComboBox::from_label("Test pattern")
+                                .selected_text(chosen.label())
+                                .show_ui(ui, |ui| {
+                                    for candidate in TestPattern::ALL {
+                                        ui.selectable_value(&mut chosen, candidate, candidate.label());
+                                    }
+                                });
+                            if chosen != *pattern {
+                                actions.push(EditorAction::SetLayerTestPattern {
+                                    layer: state.selected_layer,
+                                    pattern: chosen,
+                                });
+                            }
+                        }
+
+                        let surface_index = stage
+                            .surfaces
+                            .iter()
+                            .position(|surface| surface.id == layer.surface_id)
+                            .unwrap_or(0);
+                        let mut chosen_surface = surface_index;
+                        let surface_name = stage
+                            .surfaces
+                            .get(surface_index)
+                            .map_or("missing surface", |surface| surface.name.as_str());
+                        egui::ComboBox::from_label("Surface")
+                            .selected_text(surface_name)
+                            .show_ui(ui, |ui| {
+                                for (index, surface) in stage.surfaces.iter().enumerate() {
+                                    ui.selectable_value(&mut chosen_surface, index, &surface.name);
+                                }
+                            });
+                        if chosen_surface != surface_index {
+                            actions.push(EditorAction::SetLayerSurface {
+                                layer: state.selected_layer,
+                                surface: chosen_surface,
+                            });
+                        }
+                    } else {
+                        ui.label("No layers");
+                    }
+                }
+
+                if state.tab == SidebarTab::Media {
+                        ui.heading("Media pool");
+                        ui.label("Source files available to layers and the show audio.");
+                        if !status.video_supported
+                            && project
+                                .media
+                                .iter()
+                                .any(|asset| asset.kind == MediaKind::Video)
+                        {
+                            ui.colored_label(
+                                Color32::from_rgb(255, 184, 92),
+                                "This build has no video support. Rebuild with --features video.",
+                            );
+                        }
+
+                        ui.horizontal_wrapped(|ui| {
+                            if ui.button("Add media…").clicked() {
+                                actions.push(EditorAction::AddMedia);
+                                state.selected_media = project.media.len();
+                            }
+                            if let Some(layer) = stage.layers.get(state.selected_layer) {
+                                let surface = stage
+                                    .surface(&layer.surface_id)
+                                    .map_or("missing surface", |surface| surface.name.as_str());
+                                ui.label(format!("Target layer: {} on {surface}", layer.name));
+                            }
+                        });
+                        ui.separator();
+
+                        if project.media.is_empty() {
+                            ui.label("No media yet. Add an image, video or audio file.");
+                        }
+                        for (index, asset) in project.media.iter().enumerate() {
+                            ui.horizontal_wrapped(|ui| {
+                                if ui
+                                    .selectable_label(
+                                        state.selected_media == index,
+                                        format!("{} · {}", asset.name, media_kind_label(asset.kind)),
+                                    )
+                                    .clicked()
+                                {
+                                    state.selected_media = index;
+                                    state.image_path.clone_from(&asset.path);
+                                }
+                            });
+                            let usage = media_usage(project, asset);
+                            ui.label(
+                                RichText::new(&usage)
+                                    .small()
+                                    .color(Color32::from_rgb(132, 144, 166)),
+                            );
+                        }
+
+                        let selected_media_used = project
+                            .media
+                            .get(state.selected_media)
+                            .is_some_and(|asset| project.is_media_used(&asset.id));
+                        if let Some(asset) = project.media.get(state.selected_media) {
+                            ui.add_space(10.0);
+                            ui.separator();
+                            ui.heading("Selected asset");
+                            ui.label(format!(
+                                "{} · {}",
+                                asset.name,
+                                media_kind_label(asset.kind)
+                            ));
+                            ui.label(format!("Used by: {}", media_usage(project, asset)));
+
+                            ui.label("Media path (relative to project)");
+                            ui.add(
+                                egui::TextEdit::singleline(&mut state.image_path)
+                                    .desired_width(f32::INFINITY),
+                            );
+                            ui.horizontal_wrapped(|ui| {
+                                if ui.button("Browse…").clicked() {
+                                    actions.push(EditorAction::PickMediaFile {
+                                        media: state.selected_media,
+                                    });
+                                }
+                                if ui.button("Apply path").clicked() {
+                                    actions.push(EditorAction::SetMediaPath {
+                                        media: state.selected_media,
+                                        path: state.image_path.clone(),
+                                    });
+                                }
+                                if ui.button("Reload asset").clicked() {
+                                    actions.push(EditorAction::ReloadMedia);
+                                }
+                            });
+
+                            if asset.kind == MediaKind::Audio {
+                                if ui.button("Assign as show audio").clicked() {
+                                    actions.push(EditorAction::SetShowAudio {
+                                        media: Some(state.selected_media),
+                                    });
+                                }
+                                if !status.audio_supported {
+                                    ui.add_space(10.0);
+                                    ui.label("Audio support is not compiled into this build.");
+                                    ui.label("Rebuild with `cargo run -p lpmt-app --features audio`.");
+                                }
+                            } else {
+                                let target = stage.layers.get(state.selected_layer);
+                                let assign_label = target.map_or_else(
+                                    || "Select a layer in Mapping".to_owned(),
+                                    |layer| format!("Assign to {}", layer.name),
+                                );
+                                if ui
+                                    .add_enabled(target.is_some(), egui::Button::new(assign_label))
+                                    .clicked()
+                                {
+                                    actions.push(EditorAction::SetLayerMedia {
+                                        layer: state.selected_layer,
+                                        media: state.selected_media,
+                                    });
+                                }
+                                if let Some(layer) = target {
+                                    let surface = stage
+                                        .surface(&layer.surface_id)
+                                        .map_or("missing surface", |surface| surface.name.as_str());
+                                    ui.label(format!("Replaces the source on {surface}."));
+                                }
+                                let add_surface = stage
+                                    .surfaces
+                                    .get(state.selected_surface)
+                                    .map_or("selected surface", |surface| surface.name.as_str());
+                                if ui
+                                    .add_enabled(
+                                        !stage.surfaces.is_empty(),
+                                        egui::Button::new(format!(
+                                            "Add as new layer on {add_surface}"
+                                        )),
+                                    )
+                                    .clicked()
+                                {
+                                    actions.push(EditorAction::AddLayerFromMedia {
+                                        surface: state.selected_surface,
+                                        media: state.selected_media,
+                                    });
+                                }
+                                if asset.kind == MediaKind::Video && !status.video_supported {
+                                    ui.add_space(10.0);
+                                    ui.label("Video support is not compiled into this build.");
+                                    ui.label("Rebuild with `cargo run -p lpmt-app --features video`.");
+                                }
+                            }
+
+                            ui.horizontal_wrapped(|ui| {
+                                let remove = ui.add_enabled(
+                                    !selected_media_used,
+                                    egui::Button::new("Remove media"),
+                                );
+                                if remove.clicked() {
+                                    let media = state.selected_media;
+                                    actions.push(EditorAction::RemoveMedia { media });
+                                    state.selected_media =
+                                        media.min(project.media.len().saturating_sub(2));
+                                }
+                                if selected_media_used {
+                                    remove.on_disabled_hover_text(
+                                        "This asset is used by a layer or the show audio; reassign it first",
+                                    );
+                                }
+                            });
+                        }
+                }
+
+                if state.tab == SidebarTab::Project {
+                    ui.heading("Project file");
+                    ui.add(
+                        egui::TextEdit::singleline(&mut state.project_path)
+                            .desired_width(f32::INFINITY),
+                    );
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.button("Save").clicked() {
+                            actions.push(EditorAction::SaveProject {
+                                path: state.project_path.clone(),
+                            });
+                        }
+                        if ui.button("Save as…").clicked() {
+                            actions.push(EditorAction::SaveProjectDialog);
+                        }
+                        if ui.button("Open…").clicked() {
+                            actions.push(EditorAction::OpenProjectDialog);
+                        }
+                        if ui.button("Load path").clicked() {
+                            actions.push(EditorAction::LoadProject {
+                                path: state.project_path.clone(),
                             });
                         }
                     });
                 }
 
-                let selected_is_video = project
-                    .media
-                    .get(state.selected_media)
-                    .is_some_and(|asset| asset.kind == MediaKind::Video);
-                if selected_is_video && !status.video_supported {
-                    ui.add_space(10.0);
-                    ui.label("Video support is not compiled into this build.");
-                    ui.label("Rebuild with `cargo run -p lpmt-app --features video`.");
-                }
-                if selected_is_audio && !status.audio_supported {
-                    ui.add_space(10.0);
-                    ui.label("Audio support is not compiled into this build.");
-                    ui.label("Rebuild with `cargo run -p lpmt-app --features audio`.");
-                }
-
-                ui.add_space(16.0);
-                ui.separator();
-                ui.heading("Project file");
-                ui.add(
-                    egui::TextEdit::singleline(&mut state.project_path)
-                        .desired_width(f32::INFINITY),
-                );
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Save").clicked() {
-                        actions.push(EditorAction::SaveProject {
-                            path: state.project_path.clone(),
-                        });
-                    }
-                    if ui.button("Save as…").clicked() {
-                        actions.push(EditorAction::SaveProjectDialog);
-                    }
-                    if ui.button("Open…").clicked() {
-                        actions.push(EditorAction::OpenProjectDialog);
-                    }
-                    if ui.button("Load path").clicked() {
-                        actions.push(EditorAction::LoadProject {
-                            path: state.project_path.clone(),
-                        });
-                    }
-                });
-
-                ui.add_space(16.0);
-                ui.separator();
-                ui.heading("Outputs");
-                ui.label(&status.output);
-                if let Some(pacing) = status.output_pacing.get(state.selected_output) {
-                    ui.separator();
-                    ui.label(format!(
-                        "{} presented · {} missed",
-                        pacing.presented,
-                        pacing.missed()
-                    ));
-                    if let Some(fps) = pacing.fps() {
+                if state.tab == SidebarTab::Outputs {
+                    ui.heading("Outputs");
+                    ui.label(&status.output);
+                    if let Some(pacing) = status.output_pacing.get(state.selected_output) {
+                        ui.separator();
                         ui.label(format!(
-                            "{fps:.1} fps · {:.1} ms average",
-                            pacing.average_interval_ms
+                            "{} presented · {} missed",
+                            pacing.presented,
+                            pacing.missed()
                         ));
-                    } else {
-                        ui.label("Waiting for the first presented frame…");
+                        if let Some(fps) = pacing.fps() {
+                            ui.label(format!(
+                                "{fps:.1} fps · {:.1} ms average",
+                                pacing.average_interval_ms
+                            ));
+                        } else {
+                            ui.label("Waiting for the first presented frame…");
+                        }
+                        if pacing.skipped > 0 || pacing.errors > 0 {
+                            ui.label(format!(
+                                "{} skipped · {} errors",
+                                pacing.skipped, pacing.errors
+                            ));
+                        }
+                        if pacing.presented > 0 && pacing.since_last_present_ms > 1000.0 {
+                            ui.colored_label(
+                                Color32::from_rgb(255, 190, 90),
+                                format!(
+                                    "No present for {:.1}s",
+                                    pacing.since_last_present_ms / 1000.0
+                                ),
+                            );
+                        }
+                        ui.separator();
                     }
-                    if pacing.skipped > 0 || pacing.errors > 0 {
-                        ui.label(format!(
-                            "{} skipped · {} errors",
-                            pacing.skipped, pacing.errors
-                        ));
-                    }
-                    if pacing.presented > 0 && pacing.since_last_present_ms > 1000.0 {
-                        ui.colored_label(
-                            Color32::from_rgb(255, 190, 90),
-                            format!(
-                                "No present for {:.1}s",
-                                pacing.since_last_present_ms / 1000.0
-                            ),
+
+                    for (index, output) in project.outputs.iter().enumerate() {
+                        let state_label = if output.enabled { "" } else { " · closed" };
+                        let guide = status
+                            .output_guides
+                            .get(index)
+                            .copied()
+                            .unwrap_or_default();
+                        let guide_label = if guide == GuideMode::None {
+                            String::new()
+                        } else {
+                            format!(" · {}", guide.label())
+                        };
+                        let label = format!(
+                            "{} · {}{state_label}{guide_label}",
+                            output.name,
+                            view_label(output.view)
                         );
-                    }
-                    ui.separator();
-                }
-
-                for (index, output) in project.outputs.iter().enumerate() {
-                    let state_label = if output.enabled { "" } else { " · closed" };
-                    let label =
-                        format!("{} · {}{state_label}", output.name, view_label(output.view));
-                    if ui
-                        .selectable_label(state.selected_output == index, label)
-                        .clicked()
-                    {
-                        state.selected_output = index;
-                    }
-                }
-
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add output").clicked() {
-                        actions.push(EditorAction::AddOutput);
-                        state.selected_output = project.outputs.len();
-                    }
-                    if ui
-                        .add_enabled(
-                            project.outputs.len() > 1,
-                            egui::Button::new("Delete output"),
-                        )
-                        .clicked()
-                    {
-                        let output = state.selected_output;
-                        actions.push(EditorAction::DeleteOutput { output });
-                        state.selected_output = output.min(project.outputs.len().saturating_sub(2));
-                    }
-                });
-
-                if let Some(output) = project.outputs.get(state.selected_output) {
-                    ui.add_space(6.0);
-                    ui.heading(&output.name);
-
-                    let mut enabled = output.enabled;
-                    if ui.checkbox(&mut enabled, "Open window").changed() {
-                        actions.push(EditorAction::SetOutputEnabled {
-                            output: state.selected_output,
-                            enabled,
-                        });
-                    }
-
-                    let mut fullscreen = matches!(output.target, OutputTarget::Fullscreen { .. });
-                    if ui.checkbox(&mut fullscreen, "Fullscreen").changed() {
-                        actions.push(EditorAction::SetOutputFullscreen {
-                            output: state.selected_output,
-                            fullscreen,
-                        });
-                    }
-                    match &output.target {
-                        OutputTarget::Windowed { width, height } => {
-                            ui.label(format!("Window {width}×{height}"));
+                        if ui
+                            .selectable_label(state.selected_output == index, label)
+                            .clicked()
+                        {
+                            state.selected_output = index;
                         }
-                        OutputTarget::Fullscreen { monitor } => {
-                            let mut chosen = monitor.clone();
-                            egui::ComboBox::from_label("Display")
-                                .selected_text(
-                                    chosen.as_deref().unwrap_or("Automatic (unused display)"),
-                                )
-                                .show_ui(ui, |ui| {
-                                    ui.selectable_value(
-                                        &mut chosen,
-                                        None,
-                                        "Automatic (unused display)",
-                                    );
-                                    for name in &status.monitors {
-                                        ui.selectable_value(&mut chosen, Some(name.clone()), name);
-                                    }
-                                });
-                            if chosen != *monitor {
-                                actions.push(EditorAction::SetOutputMonitor {
-                                    output: state.selected_output,
-                                    monitor: chosen,
-                                });
-                            }
-                        }
-                    }
-
-                    ui.label("Stage view (normalized)");
-                    let mut view = output.view;
-                    egui::Grid::new("output-view")
-                        .num_columns(2)
-                        .spacing([8.0, 6.0])
-                        .show(ui, |ui| {
-                            for (label, value) in [
-                                ("X", &mut view.x),
-                                ("Y", &mut view.y),
-                                ("Width", &mut view.width),
-                                ("Height", &mut view.height),
-                            ] {
-                                ui.label(label);
-                                ui.add(
-                                    egui::DragValue::new(value)
-                                        .speed(0.001)
-                                        .range(0.0..=1.0)
-                                        .fixed_decimals(3),
-                                );
-                                ui.end_row();
-                            }
-                        });
-                    if view != output.view {
-                        view.width = view.width.clamp(0.01, (1.0 - view.x).max(0.01));
-                        view.height = view.height.clamp(0.01, (1.0 - view.y).max(0.01));
-                        actions.push(EditorAction::SetOutputView {
-                            output: state.selected_output,
-                            view,
-                        });
                     }
 
                     ui.horizontal_wrapped(|ui| {
-                        for (label, preset) in [
-                            ("Full stage", Rect::FULL),
-                            ("Left half", Rect::new(0.0, 0.0, 0.5, 1.0)),
-                            ("Right half", Rect::new(0.5, 0.0, 0.5, 1.0)),
-                        ] {
-                            if ui.button(label).clicked() {
-                                actions.push(EditorAction::SetOutputView {
-                                    output: state.selected_output,
-                                    view: preset,
-                                });
-                            }
+                        if ui.button("Add output").clicked() {
+                            actions.push(EditorAction::AddOutput);
+                            state.selected_output = project.outputs.len();
+                        }
+                        if ui
+                            .add_enabled(
+                                project.outputs.len() > 1,
+                                egui::Button::new("Delete output"),
+                            )
+                            .clicked()
+                        {
+                            let output = state.selected_output;
+                            actions.push(EditorAction::DeleteOutput { output });
+                            state.selected_output = output.min(project.outputs.len().saturating_sub(2));
                         }
                     });
 
-                    ui.add_space(8.0);
-                    ui.label("Edge blend");
-                    let mut edge_blend = output.edge_blend;
-                    egui::Grid::new("output-edge-blend")
-                        .num_columns(2)
-                        .spacing([8.0, 6.0])
-                        .show(ui, |ui| {
-                            for (label, value) in [
-                                ("Left", &mut edge_blend.left),
-                                ("Right", &mut edge_blend.right),
-                                ("Top", &mut edge_blend.top),
-                                ("Bottom", &mut edge_blend.bottom),
-                            ] {
-                                ui.label(label);
-                                ui.add(
-                                    egui::Slider::new(value, 0.0..=0.5)
-                                        .fixed_decimals(3)
-                                        .show_value(true),
-                                );
-                                ui.end_row();
-                            }
-                        });
-                    if edge_blend != output.edge_blend {
-                        actions.push(EditorAction::SetOutputEdgeBlend {
-                            output: state.selected_output,
-                            edge_blend: edge_blend.clamped(),
-                        });
-                    }
+                    if let Some(output) = project.outputs.get(state.selected_output) {
+                        ui.add_space(6.0);
+                        ui.heading(&output.name);
 
-                    ui.add_space(8.0);
-                    ui.label("Output colour");
-                    let mut color = output.color;
-                    egui::Grid::new("output-color")
-                        .num_columns(2)
-                        .spacing([8.0, 6.0])
-                        .show(ui, |ui| {
-                            for (label, value, range) in [
-                                ("Brightness", &mut color.brightness, 0.0..=4.0),
-                                ("Contrast", &mut color.contrast, 0.0..=4.0),
-                                ("Gamma", &mut color.gamma, 0.1..=4.0),
-                            ] {
-                                ui.label(label);
-                                ui.add(
-                                    egui::Slider::new(value, range)
-                                        .fixed_decimals(2)
-                                        .show_value(true),
-                                );
-                                ui.end_row();
-                            }
-                        });
-                    if color != output.color {
-                        actions.push(EditorAction::SetOutputColor {
-                            output: state.selected_output,
-                            color: color.clamped(),
-                        });
-                    }
-
-                    ui.add_space(8.0);
-                    ui.label("Calibration LUT (1D RGB)");
-                    if let Some(lut) = &output.calibration {
-                        ui.label(format!("{} · {LUT_SAMPLES} samples/channel", lut.name));
-                        if lut.is_identity() {
-                            ui.label("Neutral curves");
+                        let mut enabled = output.enabled;
+                        if ui.checkbox(&mut enabled, "Open window").changed() {
+                            actions.push(EditorAction::SetOutputEnabled {
+                                output: state.selected_output,
+                                enabled,
+                            });
                         }
-                        if ui.button("Clear LUT").clicked() {
-                            actions.push(EditorAction::ClearOutputLut {
+
+                        let mut fullscreen = matches!(output.target, OutputTarget::Fullscreen { .. });
+                        if ui.checkbox(&mut fullscreen, "Fullscreen").changed() {
+                            actions.push(EditorAction::SetOutputFullscreen {
+                                output: state.selected_output,
+                                fullscreen,
+                            });
+                        }
+                        match &output.target {
+                            OutputTarget::Windowed { width, height } => {
+                                ui.label(format!("Window {width}×{height}"));
+                            }
+                            OutputTarget::Fullscreen { monitor } => {
+                                let mut chosen = monitor.clone();
+                                egui::ComboBox::from_label("Display")
+                                    .selected_text(
+                                        chosen.as_deref().unwrap_or("Automatic (unused display)"),
+                                    )
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(
+                                            &mut chosen,
+                                            None,
+                                            "Automatic (unused display)",
+                                        );
+                                        for name in &status.monitors {
+                                            ui.selectable_value(&mut chosen, Some(name.clone()), name);
+                                        }
+                                    });
+                                if chosen != *monitor {
+                                    actions.push(EditorAction::SetOutputMonitor {
+                                        output: state.selected_output,
+                                        monitor: chosen,
+                                    });
+                                }
+                            }
+                        }
+
+                        ui.label("Stage view (normalized)");
+                        let mut view = output.view;
+                        egui::Grid::new("output-view")
+                            .num_columns(2)
+                            .spacing([8.0, 6.0])
+                            .show(ui, |ui| {
+                                for (label, value) in [
+                                    ("X", &mut view.x),
+                                    ("Y", &mut view.y),
+                                    ("Width", &mut view.width),
+                                    ("Height", &mut view.height),
+                                ] {
+                                    ui.label(label);
+                                    ui.add(
+                                        egui::DragValue::new(value)
+                                            .speed(0.001)
+                                            .range(0.0..=1.0)
+                                            .fixed_decimals(3),
+                                    );
+                                    ui.end_row();
+                                }
+                            });
+                        if view != output.view {
+                            view.width = view.width.clamp(0.01, (1.0 - view.x).max(0.01));
+                            view.height = view.height.clamp(0.01, (1.0 - view.y).max(0.01));
+                            actions.push(EditorAction::SetOutputView {
+                                output: state.selected_output,
+                                view,
+                            });
+                        }
+
+                        ui.horizontal_wrapped(|ui| {
+                            for (label, preset) in [
+                                ("Full stage", Rect::FULL),
+                                ("Left half", Rect::new(0.0, 0.0, 0.5, 1.0)),
+                                ("Right half", Rect::new(0.5, 0.0, 0.5, 1.0)),
+                            ] {
+                                if ui.button(label).clicked() {
+                                    actions.push(EditorAction::SetOutputView {
+                                        output: state.selected_output,
+                                        view: preset,
+                                    });
+                                }
+                            }
+                        });
+
+                        ui.add_space(8.0);
+                        ui.label("Edge blend");
+                        let mut edge_blend = output.edge_blend;
+                        egui::Grid::new("output-edge-blend")
+                            .num_columns(2)
+                            .spacing([8.0, 6.0])
+                            .show(ui, |ui| {
+                                for (label, value) in [
+                                    ("Left", &mut edge_blend.left),
+                                    ("Right", &mut edge_blend.right),
+                                    ("Top", &mut edge_blend.top),
+                                    ("Bottom", &mut edge_blend.bottom),
+                                ] {
+                                    ui.label(label);
+                                    ui.add(
+                                        egui::Slider::new(value, 0.0..=0.5)
+                                            .fixed_decimals(3)
+                                            .show_value(true),
+                                    );
+                                    ui.end_row();
+                                }
+                            });
+                        if edge_blend != output.edge_blend {
+                            actions.push(EditorAction::SetOutputEdgeBlend {
+                                output: state.selected_output,
+                                edge_blend: edge_blend.clamped(),
+                            });
+                        }
+
+                        ui.add_space(8.0);
+                        ui.label("Output colour");
+                        let mut color = output.color;
+                        egui::Grid::new("output-color")
+                            .num_columns(2)
+                            .spacing([8.0, 6.0])
+                            .show(ui, |ui| {
+                                for (label, value, range) in [
+                                    ("Brightness", &mut color.brightness, 0.0..=4.0),
+                                    ("Contrast", &mut color.contrast, 0.0..=4.0),
+                                    ("Gamma", &mut color.gamma, 0.1..=4.0),
+                                ] {
+                                    ui.label(label);
+                                    ui.add(
+                                        egui::Slider::new(value, range)
+                                            .fixed_decimals(2)
+                                            .show_value(true),
+                                    );
+                                    ui.end_row();
+                                }
+                            });
+                        if color != output.color {
+                            actions.push(EditorAction::SetOutputColor {
+                                output: state.selected_output,
+                                color: color.clamped(),
+                            });
+                        }
+
+                        ui.add_space(8.0);
+                        ui.label("Calibration LUT (1D RGB)");
+                        if let Some(lut) = &output.calibration {
+                            ui.label(format!("{} · {LUT_SAMPLES} samples/channel", lut.name));
+                            if lut.is_identity() {
+                                ui.label("Neutral curves");
+                            }
+                            if ui.button("Clear LUT").clicked() {
+                                actions.push(EditorAction::ClearOutputLut {
+                                    output: state.selected_output,
+                                });
+                            }
+                        } else {
+                            ui.label("None");
+                        }
+                        if ui.button("Load 1D .cube…").clicked() {
+                            actions.push(EditorAction::LoadOutputLut {
                                 output: state.selected_output,
                             });
                         }
-                    } else {
-                        ui.label("None");
-                    }
-                    if ui.button("Load 1D .cube…").clicked() {
-                        actions.push(EditorAction::LoadOutputLut {
-                            output: state.selected_output,
-                        });
-                    }
-                    ui.label("Applied in display space after colour correction.");
+                        ui.label("Applied in display space after colour correction.");
 
-                    if (!color.is_identity() || !edge_blend.is_none())
-                        && ui.button("Reset blend and colour").clicked()
-                    {
-                        actions.push(EditorAction::SetOutputEdgeBlend {
-                            output: state.selected_output,
-                            edge_blend: EdgeBlend::NONE,
-                        });
-                        actions.push(EditorAction::SetOutputColor {
-                            output: state.selected_output,
-                            color: ColorCorrection::IDENTITY,
-                        });
+                        ui.add_space(8.0);
+                        ui.label("Calibration guides (temporary)");
+                        let current_guide = status
+                            .output_guides
+                            .get(state.selected_output)
+                            .copied()
+                            .unwrap_or_default();
+                        let mut chosen_guide = current_guide;
+                        egui::ComboBox::from_id_salt("output-guide")
+                            .selected_text(chosen_guide.label())
+                            .show_ui(ui, |ui| {
+                                for guide in GuideMode::ALL {
+                                    ui.selectable_value(&mut chosen_guide, guide, guide.label());
+                                }
+                            });
+                        if chosen_guide != current_guide {
+                            actions.push(EditorAction::SetOutputGuide {
+                                output: state.selected_output,
+                                guide: chosen_guide,
+                            });
+                        }
+                        ui.label("Session only, not saved. Press G to cycle.");
+
+                        if (!color.is_identity() || !edge_blend.is_none())
+                            && ui.button("Reset blend and colour").clicked()
+                        {
+                            actions.push(EditorAction::SetOutputEdgeBlend {
+                                output: state.selected_output,
+                                edge_blend: EdgeBlend::NONE,
+                            });
+                            actions.push(EditorAction::SetOutputColor {
+                                output: state.selected_output,
+                                color: ColorCorrection::IDENTITY,
+                            });
+                        }
+                    }
+
+                    ui.add_space(16.0);
+                    ui.separator();
+                    ui.heading("Output groups");
+                    ui.label("Grouped outputs render one frame and present together.");
+                    for (index, group) in project.output_groups.iter().enumerate() {
+                        if ui
+                            .selectable_label(
+                                state.selected_group == index,
+                                format!("{} · {} output(s)", group.name, group.outputs.len()),
+                            )
+                            .clicked()
+                        {
+                            state.selected_group = index;
+                        }
+                    }
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.button("Add group").clicked() {
+                            actions.push(EditorAction::AddOutputGroup);
+                            state.selected_group = project.output_groups.len();
+                        }
+                        if ui
+                            .add_enabled(
+                                !project.output_groups.is_empty(),
+                                egui::Button::new("Delete group"),
+                            )
+                            .clicked()
+                        {
+                            let group = state.selected_group;
+                            actions.push(EditorAction::DeleteOutputGroup { group });
+                            state.selected_group =
+                                group.min(project.output_groups.len().saturating_sub(2));
+                        }
+                    });
+                    if let Some(group) = project.output_groups.get(state.selected_group) {
+                        ui.add_space(6.0);
+                        ui.label(format!("Members of {}", group.name));
+                        for (output_index, output) in project.outputs.iter().enumerate() {
+                            let mut member = group.outputs.contains(&output.id);
+                            if ui.checkbox(&mut member, &output.name).changed() {
+                                actions.push(EditorAction::SetOutputGroupMember {
+                                    group: state.selected_group,
+                                    output: output_index,
+                                    member,
+                                });
+                            }
+                        }
+                        ui.label("An output belongs to at most one group.");
                     }
                 }
 
                 ui.add_space(16.0);
                 ui.separator();
-                ui.heading("Output groups");
-                ui.label("Grouped outputs render one frame and present together.");
-                for (index, group) in project.output_groups.iter().enumerate() {
-                    if ui
-                        .selectable_label(
-                            state.selected_group == index,
-                            format!("{} · {} output(s)", group.name, group.outputs.len()),
-                        )
-                        .clicked()
-                    {
-                        state.selected_group = index;
-                    }
-                }
-                ui.horizontal_wrapped(|ui| {
-                    if ui.button("Add group").clicked() {
-                        actions.push(EditorAction::AddOutputGroup);
-                        state.selected_group = project.output_groups.len();
-                    }
-                    if ui
-                        .add_enabled(
-                            !project.output_groups.is_empty(),
-                            egui::Button::new("Delete group"),
-                        )
-                        .clicked()
-                    {
-                        let group = state.selected_group;
-                        actions.push(EditorAction::DeleteOutputGroup { group });
-                        state.selected_group =
-                            group.min(project.output_groups.len().saturating_sub(2));
-                    }
-                });
-                if let Some(group) = project.output_groups.get(state.selected_group) {
-                    ui.add_space(6.0);
-                    ui.label(format!("Members of {}", group.name));
-                    for (output_index, output) in project.outputs.iter().enumerate() {
-                        let mut member = group.outputs.contains(&output.id);
-                        if ui.checkbox(&mut member, &output.name).changed() {
-                            actions.push(EditorAction::SetOutputGroupMember {
-                                group: state.selected_group,
-                                output: output_index,
-                                member,
-                            });
-                        }
-                    }
-                    ui.label("An output belongs to at most one group.");
-                }
-
-                ui.add_space(16.0);
                 ui.label(format!("Stage aspect: {:.2}:1", stage.aspect));
-                ui.label("Click a surface in the preview to edit it; drag any corner to warp.");
+                if state.tab == SidebarTab::Mapping {
+                    ui.label("Click a surface in the preview to edit it; drag any corner to warp.");
+                }
                 ui.add_space(8.0);
             });
         });
@@ -1540,6 +1743,49 @@ fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
     }
 }
 
+fn layer_media_index(layer: &lpmt_core::model::Layer, project: &Project) -> Option<usize> {
+    let media_id = match &layer.source {
+        SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id,
+        SourceSpec::TestPattern { .. } => return None,
+    };
+    project.media.iter().position(|asset| &asset.id == media_id)
+}
+
+fn media_kind_label(kind: MediaKind) -> &'static str {
+    match kind {
+        MediaKind::Image => "image",
+        MediaKind::Video => "video",
+        MediaKind::Audio => "audio",
+    }
+}
+
+fn media_usage(project: &Project, asset: &MediaAsset) -> String {
+    let mut roles = Vec::new();
+    if project.audio.media_id.as_ref() == Some(&asset.id) {
+        roles.push("show audio".to_owned());
+    }
+    for stage in &project.stages {
+        for layer in &stage.layers {
+            let uses_asset = matches!(
+                &layer.source,
+                SourceSpec::Image { media_id } | SourceSpec::Video { media_id }
+                    if media_id == &asset.id
+            );
+            if uses_asset {
+                let surface = stage
+                    .surface(&layer.surface_id)
+                    .map_or("missing surface", |surface| surface.name.as_str());
+                roles.push(format!("layer {} on {surface}", layer.name));
+            }
+        }
+    }
+    if roles.is_empty() {
+        "unused".to_owned()
+    } else {
+        roles.join(" · ")
+    }
+}
+
 fn view_label(view: Rect) -> String {
     format!(
         "{:.0}..{:.0}% x {:.0}..{:.0}%",
@@ -1747,6 +1993,42 @@ mod tests {
         assert_eq!(pacing.missed(), 2);
         assert_eq!(pacing.average_interval_ms, 20.0);
         assert_eq!(pacing.fps(), Some(50.0));
+    }
+
+    #[test]
+    fn media_usage_explains_layer_and_show_audio_roles() {
+        let mut project = Project::demo();
+        let image = media_usage(&project, &project.media[0]);
+        assert!(image.contains("layer ofTheo on Surface 1"), "{image}");
+        assert_eq!(media_usage(&project, &project.media[1]), "unused");
+
+        let audio = MediaAsset::audio("media-tone", "tone", "assets/audio/tone.wav");
+        let audio_id = audio.id.clone();
+        project.media.push(audio);
+        project.audio.media_id = Some(audio_id);
+        let asset = project.media.last().unwrap();
+        assert_eq!(media_usage(&project, asset), "show audio");
+    }
+
+    #[test]
+    fn layer_media_index_maps_a_layer_to_the_pool() {
+        let project = Project::demo();
+        let layer = &project.stages[0].layers[0];
+        assert_eq!(layer_media_index(layer, &project), Some(0));
+
+        let pattern = lpmt_core::model::Layer::test_pattern(
+            "pattern",
+            "Pattern",
+            &project.stages[0].surfaces[0].id,
+        );
+        assert_eq!(layer_media_index(&pattern, &project), None);
+    }
+
+    #[test]
+    fn sidebar_tabs_have_distinct_labels() {
+        let labels: std::collections::HashSet<&str> =
+            SidebarTab::ALL.iter().map(|tab| tab.label()).collect();
+        assert_eq!(labels.len(), SidebarTab::ALL.len());
     }
 
     #[test]

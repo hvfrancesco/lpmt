@@ -102,10 +102,17 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   output; it is resampled to 32 samples per channel, stored in the project and applied in display
   space after colour correction. Standard `0..1` domains are supported and 3D `.cube` files are
   rejected with a clear diagnostic.
+- **Temporary output guides:** grid, centre crosshair, safe-area frames and rule-of-thirds lines can
+  be shown per output. They live in application session state, not the project, and are drawn after
+  calibration so their colour is predictable. `G` cycles the selected output's guide.
+- **Workspace structure:** the inspector is split into Show, Mapping, Media, Outputs and Project
+  tabs. Mapping shows surfaces and layers together and keeps the layer-to-surface relationship
+  visible; the Media pool reports each asset's role and can assign visual media to the selected
+  layer or create a new layer directly.
 - **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
   and the legacy importer.
-- **Next implementation slice:** temporary calibration guides on outputs and multi-select,
-  align/distribute for surfaces. The legacy XML importer stays planned.
+- **Next implementation slice:** multi-select, align/distribute for surfaces, media thumbnails and
+  drag-and-drop assignment. The legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -628,9 +635,10 @@ The importer is the bridge that makes the rewrite trustworthy to existing users.
 
 - Separate **Editor** window; output windows never contain controls or debug overlays by default.
 - Panels: Stages/Surfaces/Layers tree, inspector, media library, output configuration, timeline,
-  preview/confidence view, logs and diagnostics.
-- Editing happens in a preview viewport. Optionally show editor guides on an output for calibration,
-  but as an explicit temporary mode.
+  preview/confidence view, logs and diagnostics. The current editor groups these into Show,
+  Mapping, Media, Outputs and Project tabs, with a media pool that displays asset roles.
+- Editing happens in a preview viewport. Calibration guides can be shown on an output as an explicit
+  temporary session mode; they are never stored in the project.
 - Direct manipulation: corner handles, grid points, rotation, snap, multi-select, align/distribute.
 - Undo/redo for every command; keyboard shortcuts are configurable bindings.
 - Output status: connected display, resolution, refresh, frame time, frame ID, blend preview.
@@ -714,7 +722,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - Grid warp, Bézier-compatible patches, polygon/rectangular/circular masks, crops.
 - Colourisation, chroma key and advanced blend modes.
 - [x] 1D per-output calibration LUTs and projection test patterns.
-- [ ] Temporary calibration guides, 3D LUTs and broader calibration diagnostics.
+- [x] Temporary calibration guides on outputs.
+- [ ] 3D LUTs and broader calibration diagnostics.
 - Acceptance: feature parity with LPMT 1’s core mapping and masking.
 
 ### M5 — Show control

@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
+use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::{CalibrationLut, LUT_SAMPLES};
 use lpmt_core::model::{BlendMode, ColorCorrection, EdgeBlend, OutputSpec, Rect, Stage};
 use winit::window::Window;
@@ -95,19 +96,26 @@ struct CompositeUniforms {
     edge_blend: [f32; 4],
     color: [f32; 4],
     lut_size: u32,
-    _lut_padding: [u32; 3],
+    guide_mode: u32,
+    _lut_padding: [u32; 2],
     lut_red: [[f32; 4]; LUT_SLOTS],
     lut_green: [[f32; 4]; LUT_SLOTS],
     lut_blue: [[f32; 4]; LUT_SLOTS],
 }
 
 impl CompositeUniforms {
-    fn new(edge: EdgeBlend, color: ColorCorrection, calibration: Option<&CalibrationLut>) -> Self {
+    fn new(
+        edge: EdgeBlend,
+        color: ColorCorrection,
+        calibration: Option<&CalibrationLut>,
+        guide: GuideMode,
+    ) -> Self {
         let mut uniforms = Self {
             edge_blend: [edge.left, edge.right, edge.top, edge.bottom],
             color: [color.brightness, color.contrast, color.gamma, 0.0],
             lut_size: 0,
-            _lut_padding: [0; 3],
+            guide_mode: guide.shader_value(),
+            _lut_padding: [0; 2],
             lut_red: [[0.0; 4]; LUT_SLOTS],
             lut_green: [[0.0; 4]; LUT_SLOTS],
             lut_blue: [[0.0; 4]; LUT_SLOTS],
@@ -135,9 +143,9 @@ struct Composite {
     // Brightness, contrast, gamma, unused.
     color: vec4<f32>,
     lut_size: u32,
+    guide_mode: u32,
     _lut_padding0: u32,
     _lut_padding1: u32,
-    _lut_padding2: u32,
     lut_red: array<vec4<f32>, 8>,
     lut_green: array<vec4<f32>, 8>,
     lut_blue: array<vec4<f32>, 8>,
@@ -203,6 +211,66 @@ fn sample_lut(table: array<vec4<f32>, 8>, input: f32) -> f32 {
     return mix(lut_component(table, low), lut_component(table, high), t);
 }
 
+fn line_at(value: f32, center: f32, pixels: f32, width_px: f32) -> f32 {
+    let width = width_px / max(pixels, 1.0);
+    let distance = abs(value - center);
+    return 1.0 - smoothstep(width, width * 2.0, distance);
+}
+
+fn repeating_line(value: f32, spacing: f32, pixels: f32, width_px: f32) -> f32 {
+    let distance = abs(fract(value / spacing + 0.5) - 0.5) * spacing;
+    let width = width_px / max(pixels, 1.0);
+    return 1.0 - smoothstep(width, width * 2.0, distance);
+}
+
+fn guide_mask(uv: vec2<f32>, mode: u32) -> f32 {
+    let size = vec2<f32>(textureDimensions(scene_texture));
+
+    if (mode == 1u) {
+        // Eight-cell alignment grid plus a stronger centre cross.
+        let grid = max(
+            repeating_line(uv.x, 0.125, size.x, 1.0),
+            repeating_line(uv.y, 0.125, size.y, 1.0),
+        );
+        let axes = max(
+            line_at(uv.x, 0.5, size.x, 1.5),
+            line_at(uv.y, 0.5, size.y, 1.5),
+        );
+        return max(grid, axes);
+    }
+    if (mode == 2u) {
+        return max(
+            line_at(uv.x, 0.5, size.x, 1.5),
+            line_at(uv.y, 0.5, size.y, 1.5),
+        );
+    }
+    if (mode == 3u) {
+        // Outer 5% action-safe frame and an inner 10% title-safe frame.
+        let outer = max(
+            max(line_at(uv.x, 0.05, size.x, 1.5), line_at(uv.x, 0.95, size.x, 1.5)),
+            max(line_at(uv.y, 0.05, size.y, 1.5), line_at(uv.y, 0.95, size.y, 1.5)),
+        );
+        let inner = max(
+            max(line_at(uv.x, 0.10, size.x, 1.0), line_at(uv.x, 0.90, size.x, 1.0)),
+            max(line_at(uv.y, 0.10, size.y, 1.0), line_at(uv.y, 0.90, size.y, 1.0)),
+        );
+        return max(outer, inner);
+    }
+    if (mode == 4u) {
+        return max(
+            max(
+                line_at(uv.x, 0.333333, size.x, 1.0),
+                line_at(uv.x, 0.666667, size.x, 1.0),
+            ),
+            max(
+                line_at(uv.y, 0.333333, size.y, 1.0),
+                line_at(uv.y, 0.666667, size.y, 1.0),
+            ),
+        );
+    }
+    return 0.0;
+}
+
 fn composite_color(frag_coord: vec4<f32>) -> vec4<f32> {
     let dimensions = vec2<f32>(textureDimensions(scene_texture));
     let uv = frag_coord.xy / dimensions;
@@ -234,6 +302,14 @@ fn composite_color(frag_coord: vec4<f32>) -> vec4<f32> {
     }
 
     rgb = rgb * feather;
+
+    // Guides are a session-only setup aid. Draw them after calibration and
+    // feathering so their colour and position are predictable on every output.
+    if (composite.guide_mode > 0u) {
+        let mask = guide_mask(uv, composite.guide_mode);
+        rgb = mix(rgb, vec3<f32>(1.0, 0.82, 0.2), mask * 0.9);
+    }
+
     return vec4<f32>(rgb, 1.0);
 }
 
@@ -269,6 +345,7 @@ struct StageTarget<'a> {
     edge_blend: EdgeBlend,
     color: ColorCorrection,
     calibration: Option<&'a CalibrationLut>,
+    guide: GuideMode,
     width: u32,
     height: u32,
     target: &'a wgpu::TextureView,
@@ -400,8 +477,12 @@ impl StageRenderer {
         let pipelines = BlendMode::ALL
             .map(|blend| create_pipeline(gpu, &shader, &pipeline_layout, SCENE_FORMAT, blend));
 
-        let composite_uniforms =
-            CompositeUniforms::new(EdgeBlend::NONE, ColorCorrection::IDENTITY, None);
+        let composite_uniforms = CompositeUniforms::new(
+            EdgeBlend::NONE,
+            ColorCorrection::IDENTITY,
+            None,
+            GuideMode::None,
+        );
         let composite_uniform_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("lpmt-output-composite-uniforms"),
             size: std::mem::size_of::<CompositeUniforms>() as u64,
@@ -503,6 +584,7 @@ impl StageRenderer {
             edge_blend: edge,
             color,
             calibration,
+            guide,
             width,
             height,
             target,
@@ -514,7 +596,7 @@ impl StageRenderer {
         gpu.queue().write_buffer(
             &self.composite_uniform_buffer,
             0,
-            bytemuck::bytes_of(&CompositeUniforms::new(edge, color, calibration)),
+            bytemuck::bytes_of(&CompositeUniforms::new(edge, color, calibration, guide)),
         );
 
         let mut draws = Vec::new();
@@ -735,6 +817,7 @@ impl OutputRenderer {
         media: &MediaCache,
         stage: &Stage,
         output: &OutputSpec,
+        guide: GuideMode,
     ) -> Result<Option<PreparedFrame>> {
         if self.config.width == 0 || self.config.height == 0 {
             return Ok(None);
@@ -776,6 +859,7 @@ impl OutputRenderer {
                 edge_blend: output.edge_blend.clamped(),
                 color: output.color.clamped(),
                 calibration: output.calibration.as_ref(),
+                guide,
                 width: self.config.width,
                 height: self.config.height,
                 target: &target,
@@ -843,6 +927,7 @@ impl PreviewRenderer {
                 edge_blend: EdgeBlend::NONE,
                 color: ColorCorrection::IDENTITY,
                 calibration: None,
+                guide: GuideMode::None,
                 width: self.width,
                 height: self.height,
                 target: &self.view,
@@ -1022,7 +1107,8 @@ mod tests {
         assert_eq!(offset_of!(CompositeUniforms, edge_blend), 0);
         assert_eq!(offset_of!(CompositeUniforms, color), 16);
         assert_eq!(offset_of!(CompositeUniforms, lut_size), 32);
-        assert_eq!(offset_of!(CompositeUniforms, _lut_padding), 36);
+        assert_eq!(offset_of!(CompositeUniforms, guide_mode), 36);
+        assert_eq!(offset_of!(CompositeUniforms, _lut_padding), 40);
         assert_eq!(offset_of!(CompositeUniforms, lut_red), 48);
         assert_eq!(offset_of!(CompositeUniforms, lut_green), 48 + 128);
         assert_eq!(offset_of!(CompositeUniforms, lut_blue), 48 + 256);
@@ -1032,8 +1118,12 @@ mod tests {
     #[test]
     fn composite_uniforms_skip_a_neutral_lut() {
         let lut = CalibrationLut::identity("neutral");
-        let uniforms =
-            CompositeUniforms::new(EdgeBlend::NONE, ColorCorrection::IDENTITY, Some(&lut));
+        let uniforms = CompositeUniforms::new(
+            EdgeBlend::NONE,
+            ColorCorrection::IDENTITY,
+            Some(&lut),
+            GuideMode::None,
+        );
         assert_eq!(uniforms.lut_size, 0);
     }
 
@@ -1041,12 +1131,27 @@ mod tests {
     fn composite_uniforms_fill_each_calibration_channel() {
         let lut =
             CalibrationLut::from_triples("test", &[[0.0, 0.0, 0.0], [1.0, 0.5, 1.0]]).unwrap();
-        let uniforms =
-            CompositeUniforms::new(EdgeBlend::NONE, ColorCorrection::IDENTITY, Some(&lut));
+        let uniforms = CompositeUniforms::new(
+            EdgeBlend::NONE,
+            ColorCorrection::IDENTITY,
+            Some(&lut),
+            GuideMode::None,
+        );
         assert_eq!(uniforms.lut_size, LUT_SAMPLES as u32);
         assert_eq!(uniforms.lut_red[0][0], 0.0);
         assert_eq!(uniforms.lut_red[LUT_SLOTS - 1][3], 1.0);
         assert_eq!(uniforms.lut_green[LUT_SLOTS - 1][3], 0.5);
         assert_eq!(uniforms.lut_blue[LUT_SLOTS - 1][3], 1.0);
+    }
+
+    #[test]
+    fn composite_uniforms_store_the_guide_mode() {
+        let uniforms = CompositeUniforms::new(
+            EdgeBlend::NONE,
+            ColorCorrection::IDENTITY,
+            None,
+            GuideMode::SafeArea,
+        );
+        assert_eq!(uniforms.guide_mode, GuideMode::SafeArea.shader_value());
     }
 }
