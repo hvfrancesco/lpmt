@@ -185,9 +185,9 @@ When a test-pattern layer is selected, its **Test pattern** selector switches
 between the checker, alignment grid, colour bars, grayscale ramp and RGB
 convergence card.
 
-The demo also defines two outputs: **Main output** (full stage, fullscreen on a
-secondary display when available) and **Right half** (windowed, view
-`x=0.5..1.0`). The **Outputs** section adds or deletes outputs, toggles their
+The demo also defines two outputs: **Main output** (full stage, windowed at
+1280×720) and **Right half** (windowed, view `x=0.5..1.0`). Either can be made
+fullscreen on an explicitly chosen display from the Outputs section. The **Outputs** section adds or deletes outputs, toggles their
 window, chooses fullscreen and an explicit display, edits the normalized view
 rectangle, applies `Full stage` / `Left half` / `Right half` presets, and sets
 edge blending plus brightness/contrast/gamma. The same section loads or clears a

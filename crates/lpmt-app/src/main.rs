@@ -272,6 +272,12 @@ impl App {
             .filter(|spec| spec.enabled && !self.outputs.iter().any(|output| output.id == spec.id))
             .map(|spec| spec.id.clone())
             .collect();
+        let editor_monitor = self
+            .editor
+            .as_ref()
+            .and_then(|editor| editor.window.current_monitor())
+            .and_then(|monitor| monitor.name());
+        log::debug!("editor monitor: {editor_monitor:?}");
 
         for id in missing {
             let used_monitors = self.used_fullscreen_monitors();
@@ -283,6 +289,7 @@ impl App {
                     event_loop,
                     spec,
                     &used_monitors,
+                    editor_monitor.as_deref(),
                     cascade,
                 ),
                 None => continue,
@@ -2369,6 +2376,7 @@ fn create_output_window(
     event_loop: &ActiveEventLoop,
     spec: &OutputSpec,
     used_monitors: &[String],
+    editor_monitor: Option<&str>,
     cascade: i32,
 ) -> Result<OutputWindow> {
     let mut attributes = Window::default_attributes()
@@ -2386,12 +2394,20 @@ fn create_output_window(
                 .with_position(PhysicalPosition::new(80 + cascade * 40, 80 + cascade * 40));
         }
         OutputTarget::Fullscreen { monitor } => {
-            let monitor = choose_monitor(event_loop, monitor.as_deref(), used_monitors);
+            let monitor = choose_monitor(
+                event_loop,
+                monitor.as_deref(),
+                used_monitors,
+                editor_monitor,
+            );
             if let Some(monitor) = monitor {
-                let on_primary = primary_name.as_deref() == monitor.name().as_deref();
-                if !on_primary {
+                let monitor_name = monitor.name();
+                let on_editor_display =
+                    editor_monitor.is_some() && editor_monitor == monitor_name.as_deref();
+                let on_primary = primary_name.as_deref() == monitor_name.as_deref();
+                if !on_primary && !on_editor_display {
                     // Dedicated projector displays can stay tear-free. On the
-                    // primary display use the non-blocking windowed fallback,
+                    // primary/editor display use the non-blocking fallback,
                     // even if the user explicitly requested fullscreen.
                     preferred_present_mode = Some(wgpu::PresentMode::Fifo);
                 }
@@ -2451,6 +2467,7 @@ fn choose_monitor(
     event_loop: &ActiveEventLoop,
     preferred: Option<&str>,
     used: &[String],
+    editor_monitor: Option<&str>,
 ) -> Option<MonitorHandle> {
     let monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
     if let Some(preferred) = preferred {
@@ -2462,17 +2479,26 @@ fn choose_monitor(
         }
     }
 
-    let primary = event_loop.primary_monitor();
-    // Only auto-assign a secondary display. The primary display belongs to the
-    // editor, and a fullscreen output there can throttle presentation while
-    // the editor is focused. A user can still assign it explicitly.
+    // With one display there is no safe fullscreen target: it would cover the
+    // editor. If the platform does not expose a primary monitor, treat the
+    // first monitor as the editor-owned display rather than guessing.
+    if monitors.len() < 2 {
+        return None;
+    }
+    let primary_name = event_loop
+        .primary_monitor()
+        .and_then(|monitor| monitor.name())
+        .or_else(|| monitors.first().and_then(|monitor| monitor.name()));
     monitors
         .iter()
         .find(|monitor| {
-            primary.as_ref() != Some(*monitor)
-                && !used
-                    .iter()
-                    .any(|name| monitor.name().as_deref() == Some(name.as_str()))
+            let name = monitor.name();
+            let is_editor = editor_monitor.is_some() && editor_monitor == name.as_deref();
+            let is_primary = primary_name.as_deref() == name.as_deref();
+            let is_used = used
+                .iter()
+                .any(|used_name| name.as_deref() == Some(used_name.as_str()));
+            !is_editor && !is_primary && !is_used
         })
         .cloned()
 }

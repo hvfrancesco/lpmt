@@ -147,11 +147,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Next implementation slice:** M5.1 show control — MIDI and configurable hotkeys on the parameter/
   binding layer, persisted bindings, then the timeline with numeric/colour/trigger tracks.
 
-Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
-goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
-shows `x=0.5..1.0` of the stage. On a single-monitor machine, outputs that request auto-fullscreen
-open as windows so the editor remains usable; an explicit display assignment is required to force
-fullscreen on the primary display.
+Run `cargo run -p lpmt-app` from the repository root. The demo opens two windowed outputs: the
+full-stage main output and a “Right half” view (`x=0.5..1.0`). Fullscreen is opt-in from the
+Outputs section. Auto-fullscreen never targets the editor’s display; on a single-monitor machine
+such outputs open as windows. An explicit display assignment is required to force fullscreen on
+the editor or primary display.
 
 ---
 

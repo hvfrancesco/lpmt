@@ -1050,7 +1050,11 @@ impl Project {
         layer2.opacity = 0.8;
         layer2.blend = BlendMode::Screen;
 
-        let main_output = OutputSpec::full_stage("output-1", "Main output", &stage_id);
+        let mut main_output = OutputSpec::full_stage("output-1", "Main output", &stage_id);
+        main_output.target = OutputTarget::Windowed {
+            width: 1280,
+            height: 720,
+        };
         let mut right_half = OutputSpec::full_stage("output-2", "Right half", &stage_id);
         right_half.view = Rect::new(0.5, 0.0, 0.5, 1.0);
         right_half.target = OutputTarget::Windowed {
@@ -1177,6 +1181,11 @@ mod tests {
             .outputs
             .iter()
             .all(|output| output.stage_id == project.stages[0].id));
+        // Startup must not place a fullscreen output above the editor.
+        assert!(project
+            .outputs
+            .iter()
+            .all(|output| matches!(output.target, OutputTarget::Windowed { .. })));
     }
 
     #[test]
