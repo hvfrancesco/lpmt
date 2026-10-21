@@ -17,7 +17,7 @@ const PATTERN_SIZE: u32 = 512;
 
 struct TextureEntry {
     texture: wgpu::Texture,
-    _view: wgpu::TextureView,
+    view: wgpu::TextureView,
     width: u32,
     height: u32,
     bind_group: wgpu::BindGroup,
@@ -35,6 +35,9 @@ pub struct MediaCache {
     sampler: wgpu::Sampler,
     test_patterns: HashMap<TestPattern, TextureEntry>,
     media: HashMap<MediaId, TextureEntry>,
+    /// Bumped whenever a media texture is replaced. The application uses this
+    /// to refresh egui thumbnail registrations without polling every frame.
+    revision: u64,
 }
 
 impl MediaCache {
@@ -95,6 +98,7 @@ impl MediaCache {
             sampler,
             test_patterns,
             media: HashMap::new(),
+            revision: 0,
         })
     }
 
@@ -109,6 +113,16 @@ impl MediaCache {
 
     pub fn clear(&mut self) {
         self.media.clear();
+        self.revision = self.revision.wrapping_add(1);
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// Texture view suitable for registering as an egui thumbnail.
+    pub fn texture_view(&self, id: &MediaId) -> Option<&wgpu::TextureView> {
+        self.media.get(id).map(|entry| &entry.view)
     }
 
     /// Upload a decoded still image. Re-uploading the same media ID replaces
@@ -132,6 +146,7 @@ impl MediaCache {
             },
         )?;
         self.media.insert(media_id, entry);
+        self.revision = self.revision.wrapping_add(1);
         Ok(())
     }
 
@@ -251,7 +266,7 @@ fn create_texture_entry(
 
     Ok(TextureEntry {
         texture,
-        _view: view,
+        view,
         width,
         height,
         bind_group,

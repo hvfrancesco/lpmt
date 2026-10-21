@@ -13,9 +13,9 @@ layer compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
-guides and multi-surface mapping. The inspector is split into Show, Mapping,
-Media, Outputs and Project tabs, with a media pool that shows how each asset is
-used.
+guides, multi-surface mapping and thumbnail media picking. Mapping uses an
+inline editable hierarchy beside the live preview with a bottom media shelf;
+Calibration and Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -29,11 +29,10 @@ used.
   visibility/opacity/blend/surface assignments are editable.
 - Optional **corner snapping**: when enabled, dragging a surface corner snaps it
   to the nearest corner of another surface within a small screen-space
-  threshold, with a visible snap target. The toggle lives in the Surfaces
-  section.
+  threshold, with a visible snap target. The toggle lives in the hierarchy.
 - **Multi-surface mapping:** Shift-click surfaces in the preview or list to add
   or remove them from the selection. Dragging any selected surface moves the
-  whole selection; the Mapping tab can align left/centre/right or
+  whole selection; the properties panel can align left/centre/right or
   top/middle/bottom to the selection bounds and distribute three or more
   surface centres horizontally or vertically. Multi-surface moves are one
   coalesced undo step.
@@ -58,19 +57,25 @@ used.
 - **Calibration LUTs:** load a Resolve-style 1D `.cube` file for the selected
   output. The curves are resampled to 32 samples per channel, stored in the
   project (so the show remains portable), and applied after colour correction.
-  The Load/Clear controls are in the Outputs section; standard `0..1` domains
-  and per-channel curves are supported, while 3D `.cube` files are rejected for
+  The Load/Clear controls are in Calibration mode; standard `0..1` domains and
+  per-channel curves are supported, while 3D `.cube` files are rejected for
   now.
 - **Temporary calibration guides:** each output can show a grid, centre
   crosshair, safe-area frames or rule-of-thirds lines. Guides are session-only
   and never saved into the project; press `G` to cycle the selected output.
-- **Tabbed workspace and media pool:** the inspector separates Show, Mapping,
-  Media, Outputs and Project. The Media tab has an explicit target-layer
-  selector, lists every asset with its current role, can assign an image/video
-  to that layer, add it as a new layer on all selected surfaces, or make an
-  audio file the show track. Mapping shows each layer's assigned surfaces and
-  can jump to the asset in the Media pool. Importing or reloading media keeps
-  the current target layer selected.
+- **Inline Mapping editor and media shelf:** Mapping is a single editable
+  hierarchy beside a larger live preview. The active surface and active layer
+  expand inline, so renaming, source selection, assigned surfaces, opacity,
+  blend and ordering all live next to the object they affect. The bottom media
+  shelf has an explicit target-layer selector, thumbnails for images and decoded
+  video, and every asset's current role. It can assign an image/video to the
+  selected layer, add it as a new layer on all selected surfaces, or make an
+  audio file the show track. **Choose media** (`M`) opens a thumbnail picker
+  without leaving the layer. Importing or reloading media keeps the current
+  target layer selected.
+- **Workspace modes:** **F1 Mapping**, **F2 Calibration** and **F3 Show** switch
+  between authoring, output calibration and transport/audio. Project open/save
+  lives in the top **Project** menu.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, one-or-more surface assignment and `Normal`, `Add`, `Screen` or
   `Multiply` blending. A single layer can drive several surfaces without
@@ -90,9 +95,9 @@ used.
   shared clock, restarts on a show loop and stays silent after its own end when
   a longer video defines the show duration.
 - One **show clock** is authoritative for every output, video player and the
-  show audio track. The Inspector transport (play/pause, restart, loop, scrub)
-  drives it; players are paused, resumed and resynced to the clock, and a paused
-  scrub decodes one preview frame so the output still updates.
+  show audio track. The **Show** mode transport (play/pause, restart, loop,
+  scrub) drives it; players are paused, resumed and resynced to the clock, and a
+  paused scrub decodes one preview frame so the output still updates.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -111,12 +116,12 @@ used.
 ### Next session
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
-patterns, output guides, multi-surface mapping and the tabbed/media-pool
-workspace are now in place. The next implementation slice is **media workflow
-polish**:
+patterns, output guides, multi-surface mapping and the inline Mapping editor
+with thumbnail picking are now in place. The next implementation slice is
+**mapping depth**:
 
-- thumbnails in the media pool and drag-and-drop assignment;
-- quick replace/add-layer actions directly from the pool;
+- grid warp controls for curved or irregular surfaces;
+- polygon/rectangular masks and crops;
 - 3D LUT support and richer per-output calibration diagnostics later.
 
 Audio is on the shared clock; a per-layer mix bus and timeline remain later
@@ -185,18 +190,20 @@ cargo run -p lpmt-app --features video
 
 Windows support for the video feature is not validated yet.
 
-In the editor's **Media** section, select `fingers · Video` and click **Use for
-layer**. Video assets are opened when a layer uses them; unused video entries do
-not start a decoder.
+In the **media shelf**, select `fingers · Video` and click **Use for layer**.
+Video assets are opened when a layer uses them; unused video entries do not
+start a decoder.
 
-Playback is controlled by the **Transport** section at the top of the Inspector,
-not by individual assets. The transport starts paused: press **Play** to advance
+Playback is controlled by the **Transport** section in **Show** mode, not by
+individual assets. The transport starts paused: press **Play** to advance
 the shared show clock. Every used video follows that clock, is paused/resumed
 with it and is seeked when it drifts. **Restart** returns to zero and plays;
 **Loop** repeats the show at its duration (the longest used video until a real
 timeline exists). Scrubbing while paused decodes a single preview frame at the
-new position. **Space** toggles play/pause, **Home** restarts and **G** cycles
-the selected output's calibration guide when no text field has focus.
+new position. **Space** toggles play/pause, **Home** restarts, **G** cycles the
+selected output's calibration guide, **M** opens the media picker for the
+selected layer and **F1/F2/F3** switch Mapping, Calibration and Show when no
+text field has focus.
 
 **Add media…** imports a new image, video or audio asset. The file picker
 accepts all three types even when replacing an existing asset; the kind is
@@ -207,11 +214,11 @@ show track must be reassigned first.
 
 #### If video does not play
 
-- **Start the transport.** The show clock starts paused; press **Play** in the
-  Inspector. A video that is assigned to a layer but not visible may also be
+- **Start the transport.** The show clock starts paused; press **Play** in
+  **Show** mode. A video that is assigned to a layer but not visible may also be
   behind another layer or outside its surface.
 - **Check the build feature.** A default `cargo run -p lpmt-app` has no video
-  support. The Media section shows an amber warning and the status bar names the
+  support. The media shelf shows an amber warning and the status bar names the
   failed assets with `rebuild with --features video`. Use
   `cargo run -p lpmt-app --features video`.
 - **Check the path.** Media paths are resolved relative to the project file, not
@@ -240,9 +247,9 @@ cargo run -p lpmt-app --features audio
 Use `--features video,audio` for a show with both. macOS uses CoreAudio without
 extra packages; Windows support is not validated yet.
 
-Select an asset in **Media**, then click **Assign as show audio** or choose it
-from the **Audio** section in the **Show** tab. Set **Volume** and **Mute**
-there. The track is
+Select an audio asset in the **media shelf**, then click **Assign as show
+audio** or choose it from **Audio** in **Show** mode. Set **Volume** and
+**Mute** there. The track is
 controlled only by the shared **Transport**: it starts paused, follows
 play/pause and scrubs, restarts on **Restart**, and wraps with **Loop**. If the
 audio is shorter than the longest video, it plays once and restarts at the next
@@ -287,20 +294,21 @@ The architecture, output topology and milestones are documented in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md). The short version: **one virtual Stage
 per show, many Outputs as views of that Stage**.
 
-In the editor, all surfaces are outlined in the live preview viewport. Click one
-to make it active, then drag its corners or edit them numerically; the sidebar
-list selects the same active surface. With **Snap corners to other surfaces**
-enabled, a dragged corner locks onto another surface's nearest corner.
-Shift-click surfaces, or drag a selected surface, to edit several at once; the
-Mapping tab exposes align and distribute actions. Selecting a layer highlights
-its assigned surface (or keeps the current surface when it is one of several),
-and its source can jump directly to the asset in the **Media** tab. The media
-pool reports whether each asset is unused, used by a layer, or assigned as show
-audio, and can add a visual asset as a new layer on every selected surface.
-The **Outputs** tab shows pacing, calibration LUT controls and temporary
-calibration guides. Audio and transport live in the **Show** tab. Use the
-**Project** tab to save or load the JSON show file; **Undo**/**Redo** in the top
-bar or Ctrl+Z / Ctrl+Shift+Z step through project edits.
+In Mapping, all surfaces are outlined in the live preview. Click one to make it
+active; its settings expand inline in the left editor, while the matching layer
+editor stays next to its own layer row. Drag corners in the preview or use the
+collapsed numeric fields. With **Snap corners** enabled, a dragged corner locks
+onto another surface's nearest corner. Shift-click surfaces, or drag a selected
+surface, to edit several at once; align and distribute actions appear under the
+surface list. The active layer card contains its name, thumbnail source,
+**Choose media…** button, assigned-surface checkboxes, opacity, blend and order
+controls. The bottom media shelf reports whether each asset is unused, used by a
+layer, or assigned as show audio, and can add a visual asset as a new layer on
+every selected surface.
+**Calibration** mode shows pacing, calibration LUT controls and temporary
+calibration guides. Audio and transport live in **Show** mode. Use the top
+**Project** menu to save or load the JSON show file; **Undo**/**Redo** in the
+top bar or Ctrl+Z / Ctrl+Shift+Z step through project edits.
 
 ## Legacy LPMT 1 archive
 

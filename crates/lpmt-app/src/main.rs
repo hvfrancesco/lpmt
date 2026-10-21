@@ -69,6 +69,8 @@ struct App {
     output_guides: HashMap<OutputId, GuideMode>,
     preview: Option<PreviewRenderer>,
     preview_texture: Option<egui::TextureId>,
+    media_thumbnails: HashMap<MediaId, egui::TextureId>,
+    thumbnail_revision: u64,
     monitors: Vec<String>,
     videos: VideoRuntime,
     audio: AudioRuntime,
@@ -127,6 +129,8 @@ impl App {
             output_guides: HashMap::new(),
             preview: None,
             preview_texture: None,
+            media_thumbnails: HashMap::new(),
+            thumbnail_revision: 0,
             monitors: Vec::new(),
             videos: VideoRuntime::new(),
             audio: AudioRuntime::new(),
@@ -366,6 +370,7 @@ impl App {
     }
 
     fn render_editor(&mut self) {
+        self.sync_media_thumbnails();
         let status = self.status();
         let App {
             gpu,
@@ -1476,7 +1481,9 @@ impl App {
         }
 
         for asset in &project.media {
-            if asset.kind != MediaKind::Image || !project.is_media_used(&asset.id) {
+            // Load every image, even when unused: the media pool and the
+            // layer picker show a thumbnail for each visual asset.
+            if asset.kind != MediaKind::Image {
                 continue;
             }
 
@@ -1690,7 +1697,51 @@ impl App {
                         .unwrap_or(GuideMode::None)
                 })
                 .collect(),
+            media_thumbnails: self.media_thumbnails.clone(),
         }
+    }
+
+    /// Register one reusable egui texture per loaded media asset for the media
+    /// pool and layer picker. Video textures update in place, so the same
+    /// registration keeps showing the latest decoded frame.
+    fn sync_media_thumbnails(&mut self) {
+        let revision = self.media.revision();
+        if revision == self.thumbnail_revision {
+            return;
+        }
+
+        let App {
+            gpu,
+            media,
+            project,
+            editor,
+            media_thumbnails,
+            thumbnail_revision,
+            ..
+        } = self;
+        let Some(editor) = editor.as_mut() else {
+            return;
+        };
+
+        for texture in media_thumbnails.values() {
+            editor.egui_renderer.free_texture(texture);
+        }
+        media_thumbnails.clear();
+        for asset in project
+            .media
+            .iter()
+            .filter(|asset| asset.kind != MediaKind::Audio)
+        {
+            if let Some(view) = media.texture_view(&asset.id) {
+                let texture = editor.egui_renderer.register_native_texture(
+                    gpu.device(),
+                    view,
+                    wgpu::FilterMode::Linear,
+                );
+                media_thumbnails.insert(asset.id.clone(), texture);
+            }
+        }
+        *thumbnail_revision = revision;
     }
 
     /// Keep the offscreen preview matched to the current stage aspect.

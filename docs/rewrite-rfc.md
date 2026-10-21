@@ -107,18 +107,21 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Temporary output guides:** grid, centre crosshair, safe-area frames and rule-of-thirds lines can
   be shown per output. They live in application session state, not the project, and are drawn after
   calibration so their colour is predictable. `G` cycles the selected output's guide.
-- **Workspace structure:** the inspector is split into Show, Mapping, Media, Outputs and Project
-  tabs. Mapping shows surfaces and layers together and keeps the layer-to-surface relationship
-  visible; the Media pool has an explicit target-layer selector, reports each asset's role and can
-  assign visual media to that layer or create a new layer on the selected surfaces.
+- **Workspace structure:** Mapping is a single editable hierarchy beside a large preview, with a
+  bottom media shelf. The active surface and active layer expand inline, keeping rename, source,
+  assigned surfaces, opacity and order next to the object they affect. Calibration and Show are
+  separate modes (`F1`/`F2`/`F3`), and project open/save lives in the top Project menu. The media
+  shelf has an explicit target-layer selector, image/video thumbnails, reports each asset's role and
+  can assign visual media to that layer or create a new layer on the selected surfaces. The layer
+  card opens an in-app thumbnail picker without leaving Mapping.
 - **Multi-surface mapping:** Shift-click adds or removes surfaces from the selection. Dragging a
   selected surface moves the whole selection within the normalized stage; align left/centre/right,
   top/middle/bottom and distribute centres horizontally/vertically operate on the selection bounds.
   Multi-surface drags coalesce into one undo step.
 - **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
   and the legacy importer.
-- **Next implementation slice:** media thumbnails and drag-and-drop assignment from the pool. The
-  legacy XML importer stays planned.
+- **Next implementation slice:** grid warp and masks for mapping depth. The legacy XML importer
+  stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -642,7 +645,7 @@ The importer is the bridge that makes the rewrite trustworthy to existing users.
 - Separate **Editor** window; output windows never contain controls or debug overlays by default.
 - Panels: Stages/Surfaces/Layers tree, inspector, media library, output configuration, timeline,
   preview/confidence view, logs and diagnostics. The current editor groups these into Show,
-  Mapping, Media, Outputs and Project tabs, with a media pool that displays asset roles.
+  Mapping (inline editable hierarchy, preview and media shelf), Calibration and Show modes.
 - Editing happens in a preview viewport. Calibration guides can be shown on an output as an explicit
   temporary session mode; they are never stored in the project.
 - Direct manipulation: corner handles, grid points, rotation, snap, multi-select, align/distribute.
@@ -701,6 +704,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Ordered layer stack with visibility, opacity, one-or-more surface assignment and basic blend
       modes.
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
+- [x] Media thumbnails, an in-app layer media picker and explicit target-layer assignment.
+- [x] Inline Mapping editor, separate Calibration/Show modes and a bottom media shelf.
 - [x] Atomic project saves and dirty-state tracking.
 - [x] Undo/redo for project edits with coalesced drags, sliders and typing.
 - [x] Stage preview shows every surface; click to select and drag any corner to warp.
