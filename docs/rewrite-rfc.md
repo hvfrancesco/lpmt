@@ -46,8 +46,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   their normalized coordinates, change media paths, reload media, and changes appear on every
   output.
 - **Core schema v2 seed:** `Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`, `SourceSpec`,
-  `ShowAudio`, `OutputSpec` and `OutputGroup` with stable IDs, JSON serialization and homography
-  tests.
+  `ShowAudio`, `OutputSpec`, `OutputGroup`, `TestPattern` and `CalibrationLut` with stable IDs,
+  JSON serialization and homography/LUT tests.
 - **Ordered layer stack:** the renderer composites visible layers bottom-to-top with per-layer
   visibility, opacity, surface assignment and Normal/Add/Screen/Multiply blend modes. Each layer
   uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
@@ -93,13 +93,19 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   frames plus an EMA frame interval. The Outputs inspector shows presented/missed counts, average
   frame time and fps, and warns when a previously presenting output has gone stale.
 - **Per-output composition:** each output renders its layers into an offscreen scene target, then a
-  composite pass applies left/right/top/bottom edge feathering and brightness/contrast/gamma
-  correction. Correction happens after compositing, so overlapping outputs can be matched without
-  changing the show content. The editor exposes all four edges and the three colour controls.
-- **Not implemented yet:** per-layer audio mix bus, masks/deformation, calibration LUTs, OSC/MIDI,
-  timeline and the legacy importer.
-- **Next implementation slice:** per-output calibration LUTs, richer test patterns and temporary
-  calibration guides on outputs. The legacy XML importer stays planned.
+  composite pass applies left/right/top/bottom edge feathering, brightness/contrast/gamma
+  correction and an optional 1D RGB calibration LUT. Correction happens after compositing, so
+  overlapping outputs can be matched without changing the show content. The editor exposes all four
+  edges, the three colour controls and LUT load/clear actions.
+- **Test patterns and calibration:** test-pattern layers can select checker, alignment grid, colour
+  bars, grayscale ramp or RGB convergence cards. A Resolve-style 1D `.cube` LUT can be loaded per
+  output; it is resampled to 32 samples per channel, stored in the project and applied in display
+  space after colour correction. Standard `0..1` domains are supported and 3D `.cube` files are
+  rejected with a clear diagnostic.
+- **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
+  and the legacy importer.
+- **Next implementation slice:** temporary calibration guides on outputs and multi-select,
+  align/distribute for surfaces. The legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -240,10 +246,10 @@ expensive and mostly wasted. Render **each output independently** from the same 
 3. Present all outputs for frame N from the same state.
 
 The current renderer already separates the last two output steps: layers are composited into an
-offscreen scene texture, then a fullscreen composite pass applies edge blending and colour
-correction before presenting. That pass is the natural place for later calibration LUTs and masks.
-Group members are prepared together in one application tick, submitted in a single queue call and
-then presented as a batch; outputs outside the group remain independent.
+offscreen scene texture, then a fullscreen composite pass applies edge blending, colour correction
+and the optional 1D calibration LUT before presenting. That pass is also the natural place for
+masks and future 3D LUTs. Group members are prepared together in one application tick, submitted in
+a single queue call and then presented as a batch; outputs outside the group remain independent.
 
 A full-stage render target remains available as an optional mode for effects that must cross output
 boundaries (large blur, stage-wide feedback, preview thumbnails). It is not the default path.
@@ -496,7 +502,9 @@ Decide and document:
 - 8-bit per channel initially, with 10-bit and HDR output as a later option;
 - consistent alpha handling and premultiplied alpha rules;
 - edge-blend curve evaluated in the intended domain, with a configurable gamma to match projectors;
-- optional test patterns and per-output calibration (black level, white point, gamma).
+- per-output 1D calibration curves loaded from `.cube` files and applied in display space;
+- optional test patterns (checker, grid, colour bars, grayscale, convergence) for alignment and
+  projector matching. 3D LUTs and HDR output remain later work.
 
 Colour correctness across projectors matters as much as warp correctness. Make it an explicit output
 concern, not an accidental consequence of blend functions.
@@ -705,7 +713,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 - Grid warp, Bézier-compatible patches, polygon/rectangular/circular masks, crops.
 - Colourisation, chroma key and advanced blend modes.
-- Output calibration and test patterns.
+- [x] 1D per-output calibration LUTs and projection test patterns.
+- [ ] Temporary calibration guides, 3D LUTs and broader calibration diagnostics.
 - Acceptance: feature parity with LPMT 1’s core mapping and masking.
 
 ### M5 — Show control

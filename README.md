@@ -11,8 +11,8 @@ The original LPMT 1 source and data are preserved in
 **Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
 layer compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
-presentation, a live editor preview, corner snapping and per-output pacing
-diagnostics.
+presentation, a live editor preview, corner snapping, per-output pacing
+diagnostics, 1D calibration LUTs and a set of projection test patterns.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -39,11 +39,18 @@ diagnostics.
   presented and missed frames, skipped/occluded frames, errors, average frame
   interval and fps.
 - Outputs render images or looping video through a four-corner projective warp,
-  with a checker test card as fallback.
+  with a procedural test pattern as fallback. Test-pattern layers can select a
+  checker, alignment grid, colour bars, grayscale ramp or RGB convergence card.
 - Each output renders through an offscreen scene pass followed by a composite
-  pass that applies per-edge blending (left/right/top/bottom feather) and
-  per-output brightness, contrast and gamma. This is the base for projector
-  seam matching.
+  pass that applies per-edge blending (left/right/top/bottom feather),
+  per-output brightness/contrast/gamma and an optional display-space 1D RGB
+  calibration LUT. This is the base for projector seam matching.
+- **Calibration LUTs:** load a Resolve-style 1D `.cube` file for the selected
+  output. The curves are resampled to 32 samples per channel, stored in the
+  project (so the show remains portable), and applied after colour correction.
+  The Load/Clear controls are in the Outputs section; standard `0..1` domains
+  and per-channel curves are supported, while 3D `.cube` files are rejected for
+  now.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, surface assignment and `Normal`, `Add`, `Screen` or `Multiply`
   blending. The demo has two warped surfaces and two layers.
@@ -72,20 +79,21 @@ diagnostics.
   **Ctrl+Z**, **Ctrl+Shift+Z** or **Ctrl+Y** work when no text field has focus.
   The top bar marks unsaved changes.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
-- Homography, media decoding, undo history, atomic-save and JSON compatibility
-  unit tests.
+- Homography, LUT parsing, test-pattern generation, media decoding, undo
+  history, atomic-save and JSON compatibility unit tests.
 - Fullscreen outputs claim an unused secondary monitor when one is present; the
   next outputs open as windows (960×540 or 1280×720) so the editor stays
   reachable. With a single display the first fullscreen output uses it.
 
 ### Next session
 
-The preview viewport, corner snapping and per-output pacing diagnostics are now
-in place. The next implementation slice is **calibration and test patterns**:
+The preview viewport, corner snapping, per-output pacing diagnostics,
+calibration LUTs and test patterns are now in place. The next implementation
+slice is **calibration guides and mapping polish**:
 
-- per-output calibration LUTs and richer test patterns;
-- calibration guides that can be shown temporarily on an output;
-- multi-select, align and distribute for surfaces.
+- temporary grid, crosshair and safe-area guides on an output;
+- multi-select, align and distribute for surfaces;
+- 3D LUT support and richer per-output calibration diagnostics later.
 
 Audio is on the shared clock; a per-layer mix bus and timeline remain later
 work. The legacy XML importer remains planned; the full roadmap is in
@@ -114,13 +122,17 @@ background layer and [`assets/images/car.jpg`](assets/images/car.jpg) on a small
 `Screen`-blended layer. Missing assets fall back to the procedural checker card.
 Use the **Layers** section to select a layer, toggle it, change opacity or blend
 mode, move it between surfaces, reorder it, or add/delete test-pattern layers.
+When a test-pattern layer is selected, its **Test pattern** selector switches
+between the checker, alignment grid, colour bars, grayscale ramp and RGB
+convergence card.
 
 The demo also defines two outputs: **Main output** (full stage, fullscreen on a
 secondary display when available) and **Right half** (windowed, view
 `x=0.5..1.0`). The **Outputs** section adds or deletes outputs, toggles their
 window, chooses fullscreen and an explicit display, edits the normalized view
 rectangle, applies `Full stage` / `Left half` / `Right half` presets, and sets
-edge blending plus brightness/contrast/gamma. The **Output groups** section
+edge blending plus brightness/contrast/gamma. The same section loads or clears a
+1D calibration `.cube` for the selected output. The **Output groups** section
 assigns outputs to synchronized groups; the demo puts both outputs in
 **Main wall**. The stage preview outlines every open output view.
 
@@ -251,10 +263,11 @@ In the editor, all surfaces are outlined in the live preview viewport. Click one
 to make it active, then drag its corners or edit them numerically; the sidebar
 list selects the same active surface. With **Snap corners to other surfaces**
 enabled, a dragged corner locks onto another surface's nearest corner. The
-**Outputs** section also shows pacing for the selected output. The **Layers**
-section selects the active layer and edits its visibility, opacity, blend mode,
-surface, order and lifetime. Use the **Media** section to change a media path,
-reload it or assign images/videos to the active layer; audio assets are assigned
+**Outputs** section also shows pacing for the selected output and its calibration
+LUT controls. The **Layers** section selects the active layer and edits its
+visibility, opacity, blend mode, test pattern, surface, order and lifetime. Use
+the **Media** section to change a media path, reload it or assign images/videos
+to the active layer; audio assets are assigned
 to the show track in the **Audio** section. The **Transport** section at the top
 plays, pauses, restarts, loops and scrubs the shared show clock, which also
 drives the show audio. The **Outputs** section manages output windows and their

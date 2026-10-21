@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::homography::{Homography, HomographyError};
+use crate::lut::CalibrationLut;
 
 macro_rules! id_type {
     ($name:ident) => {
@@ -169,10 +170,34 @@ impl BlendMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TestPattern {
     Checker,
+    Grid,
+    ColorBars,
+    Grayscale,
+    Convergence,
+}
+
+impl TestPattern {
+    pub const ALL: [Self; 5] = [
+        Self::Checker,
+        Self::Grid,
+        Self::ColorBars,
+        Self::Grayscale,
+        Self::Convergence,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Checker => "Checker",
+            Self::Grid => "Alignment grid",
+            Self::ColorBars => "Colour bars",
+            Self::Grayscale => "Grayscale ramp",
+            Self::Convergence => "Convergence",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -413,6 +438,9 @@ pub struct OutputSpec {
     pub edge_blend: EdgeBlend,
     #[serde(default)]
     pub color: ColorCorrection,
+    /// Optional display-space 1D RGB calibration curves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calibration: Option<CalibrationLut>,
 }
 
 impl OutputSpec {
@@ -426,6 +454,7 @@ impl OutputSpec {
             enabled: true,
             edge_blend: EdgeBlend::NONE,
             color: ColorCorrection::IDENTITY,
+            calibration: None,
         }
     }
 }
@@ -750,13 +779,41 @@ mod tests {
             let output = output.as_object_mut().unwrap();
             output.remove("edge_blend");
             output.remove("color");
+            output.remove("calibration");
         }
 
         let project: Project = serde_json::from_value(value).unwrap();
-        assert!(project
-            .outputs
-            .iter()
-            .all(|output| output.edge_blend.is_none() && output.color.is_identity()));
+        assert!(project.outputs.iter().all(|output| {
+            output.edge_blend.is_none()
+                && output.color.is_identity()
+                && output.calibration.is_none()
+        }));
+    }
+
+    #[test]
+    fn calibration_lut_round_trips_with_the_project() {
+        let mut project = Project::demo();
+        project.outputs[0].calibration = Some(CalibrationLut::identity("test display"));
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+        assert_eq!(
+            round_trip.outputs[0]
+                .calibration
+                .as_ref()
+                .map(|lut| lut.name.as_str()),
+            Some("test display")
+        );
+    }
+
+    #[test]
+    fn every_test_pattern_has_a_distinct_label() {
+        let mut labels = std::collections::HashSet::new();
+        for pattern in TestPattern::ALL {
+            assert!(labels.insert(pattern.label()), "{pattern:?} is duplicated");
+            let json = serde_json::to_string(&pattern).unwrap();
+            assert_eq!(serde_json::from_str::<TestPattern>(&json).unwrap(), pattern);
+        }
     }
 
     #[test]

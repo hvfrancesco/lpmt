@@ -4,4 +4,5 @@
 //! UI. It is the authoritative description of a project.
 
 pub mod homography;
+pub mod lut;
 pub mod model;

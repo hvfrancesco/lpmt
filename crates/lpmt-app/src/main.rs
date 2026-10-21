@@ -19,6 +19,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
+use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
     BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
     OutputTarget, Point2, Project, SourceSpec, Surface, TestPattern,
@@ -781,6 +782,17 @@ impl App {
                         layer.blend = blend;
                     }
                 }
+                EditorAction::SetLayerTestPattern { layer, pattern } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        if let SourceSpec::TestPattern { pattern: current } = &mut layer.source {
+                            *current = pattern;
+                        }
+                    }
+                }
                 EditorAction::SetLayerSurface { layer, surface } => {
                     let Some(surface_id) = self
                         .project
@@ -971,6 +983,47 @@ impl App {
                 EditorAction::SetOutputColor { output, color } => {
                     if let Some(spec) = self.project.outputs.get_mut(output) {
                         spec.color = color.clamped();
+                    }
+                }
+                EditorAction::LoadOutputLut { output } => {
+                    let dialog = rfd::FileDialog::new()
+                        .set_directory(&self.media_base)
+                        .add_filter("1D calibration LUT", &["cube"]);
+                    let Some(path) = dialog.pick_file() else {
+                        continue;
+                    };
+                    let fallback_name = path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("calibration.cube");
+                    let source = match std::fs::read_to_string(&path) {
+                        Ok(source) => source,
+                        Err(error) => {
+                            self.status_message =
+                                format!("LUT load failed: {}: {error}", path.display());
+                            log::warn!("failed to read LUT {}: {error}", path.display());
+                            continue;
+                        }
+                    };
+                    let lut = match parse_cube_1d(&source, fallback_name) {
+                        Ok(lut) => lut,
+                        Err(error) => {
+                            self.status_message = format!("LUT load failed: {error}");
+                            log::warn!("failed to parse LUT {}: {error}", path.display());
+                            continue;
+                        }
+                    };
+                    let name = lut.name.clone();
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.calibration = Some(lut);
+                    }
+                    self.status_message = format!("Loaded LUT '{name}'");
+                    log::info!("loaded calibration LUT '{name}' from {}", path.display());
+                }
+                EditorAction::ClearOutputLut { output } => {
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.calibration = None;
+                        self.status_message = "Cleared calibration LUT".to_owned();
                     }
                 }
                 EditorAction::SetOutputMonitor { output, monitor } => {
@@ -1848,6 +1901,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerVisibility { .. } => (HistoryKey::Discrete, "toggle layer visibility"),
         SetLayerOpacity { layer, .. } => (HistoryKey::LayerOpacity(*layer), "change layer opacity"),
         SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
+        SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
         SetLayerSurface { .. } => (HistoryKey::Discrete, "move layer to surface"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
         DeleteLayer { .. } => (HistoryKey::Discrete, "delete layer"),
@@ -1864,6 +1918,8 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             (HistoryKey::OutputEdgeBlend(*output), "change edge blend")
         }
         SetOutputColor { output, .. } => (HistoryKey::OutputColor(*output), "change output color"),
+        LoadOutputLut { .. } => (HistoryKey::Discrete, "load calibration LUT"),
+        ClearOutputLut { .. } => (HistoryKey::Discrete, "clear calibration LUT"),
         SetOutputMonitor { .. } => (HistoryKey::Discrete, "assign output display"),
         AddOutputGroup => (HistoryKey::Discrete, "add output group"),
         DeleteOutputGroup { .. } => (HistoryKey::Discrete, "delete output group"),

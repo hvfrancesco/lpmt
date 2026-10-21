@@ -8,12 +8,12 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use lpmt_core::model::{MediaId, SourceSpec};
+use lpmt_core::model::{MediaId, SourceSpec, TestPattern};
 use lpmt_media::DecodedImage;
 
 use crate::gpu::Gpu;
 
-const CHECKER_SIZE: u32 = 512;
+const PATTERN_SIZE: u32 = 512;
 
 struct TextureEntry {
     texture: wgpu::Texture,
@@ -33,7 +33,7 @@ struct ImageData<'a> {
 pub struct MediaCache {
     texture_bind_group_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
-    checker: TextureEntry,
+    test_patterns: HashMap<TestPattern, TextureEntry>,
     media: HashMap<MediaId, TextureEntry>,
 }
 
@@ -73,23 +73,27 @@ impl MediaCache {
             ..Default::default()
         });
 
-        let checker_pixels = create_checker_pixels();
-        let checker = create_texture_entry(
-            gpu,
-            &texture_bind_group_layout,
-            &sampler,
-            "lpmt-checker",
-            ImageData {
-                width: CHECKER_SIZE,
-                height: CHECKER_SIZE,
-                rgba: &checker_pixels,
-            },
-        )?;
+        let mut test_patterns = HashMap::new();
+        for pattern in TestPattern::ALL {
+            let pixels = create_pattern_pixels(pattern);
+            let entry = create_texture_entry(
+                gpu,
+                &texture_bind_group_layout,
+                &sampler,
+                &format!("lpmt-pattern-{pattern:?}"),
+                ImageData {
+                    width: PATTERN_SIZE,
+                    height: PATTERN_SIZE,
+                    rgba: &pixels,
+                },
+            )?;
+            test_patterns.insert(pattern, entry);
+        }
 
         Ok(Self {
             texture_bind_group_layout,
             sampler,
-            checker,
+            test_patterns,
             media: HashMap::new(),
         })
     }
@@ -164,9 +168,24 @@ impl MediaCache {
             SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => self
                 .media
                 .get(media_id)
-                .map_or(&self.checker.bind_group, |entry| &entry.bind_group),
-            SourceSpec::TestPattern { .. } => &self.checker.bind_group,
+                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group),
+            SourceSpec::TestPattern { pattern } => {
+                let entry = self
+                    .test_patterns
+                    .get(pattern)
+                    .or_else(|| self.test_patterns.get(&TestPattern::Checker))
+                    .expect("the checker test pattern is always generated");
+                &entry.bind_group
+            }
         }
+    }
+
+    fn checker_bind_group(&self) -> &wgpu::BindGroup {
+        &self
+            .test_patterns
+            .get(&TestPattern::Checker)
+            .expect("the checker test pattern is always generated")
+            .bind_group
     }
 }
 
@@ -274,8 +293,18 @@ fn write_image(gpu: &Gpu, texture: &wgpu::Texture, image: ImageData<'_>) -> Resu
     Ok(())
 }
 
+fn create_pattern_pixels(pattern: TestPattern) -> Vec<u8> {
+    match pattern {
+        TestPattern::Checker => create_checker_pixels(),
+        TestPattern::Grid => create_grid_pixels(false),
+        TestPattern::ColorBars => create_color_bars_pixels(),
+        TestPattern::Grayscale => create_grayscale_pixels(),
+        TestPattern::Convergence => create_grid_pixels(true),
+    }
+}
+
 fn create_checker_pixels() -> Vec<u8> {
-    let size = CHECKER_SIZE;
+    let size = PATTERN_SIZE;
     let mut pixels = vec![0_u8; (size * size * 4) as usize];
     let tints: [[u8; 3]; 4] = [
         [235, 72, 64],
@@ -290,13 +319,207 @@ fn create_checker_pixels() -> Vec<u8> {
             let quadrant = (usize::from(x >= size / 2)) + 2 * usize::from(y >= size / 2);
             let tint = tints[quadrant];
             let value = if cell == 0 { 1.0 } else { 0.42 };
-            let index = ((y * size + x) * 4) as usize;
-            pixels[index] = (f32::from(tint[0]) * value) as u8;
-            pixels[index + 1] = (f32::from(tint[1]) * value) as u8;
-            pixels[index + 2] = (f32::from(tint[2]) * value) as u8;
-            pixels[index + 3] = 255;
+            set_pixel(
+                &mut pixels,
+                size,
+                x,
+                y,
+                tint.map(|channel| (f32::from(channel) * value) as u8),
+            );
         }
     }
 
     pixels
+}
+
+fn create_grid_pixels(convergence: bool) -> Vec<u8> {
+    let size = PATTERN_SIZE;
+    let mut pixels = vec![0_u8; (size * size * 4) as usize];
+    let grid = [196, 202, 214];
+    let axis = [255, 214, 92];
+    let spacing = 32;
+
+    for y in 0..size {
+        for x in 0..size {
+            let on_grid = x % spacing == 0 || y % spacing == 0;
+            let on_axis = x == size / 2 || y == size / 2;
+            let color = if on_axis {
+                axis
+            } else if on_grid {
+                grid
+            } else {
+                [10, 11, 15]
+            };
+            set_pixel(&mut pixels, size, x, y, color);
+        }
+    }
+
+    if convergence {
+        for y in (0..size).step_by(spacing as usize) {
+            for x in (0..size).step_by(spacing as usize) {
+                if x % 64 != 0 || y % 64 != 0 {
+                    continue;
+                }
+                fill_rect(
+                    &mut pixels,
+                    size,
+                    x.saturating_sub(4),
+                    y.saturating_sub(1),
+                    2,
+                    2,
+                    [255, 48, 48],
+                );
+                fill_rect(
+                    &mut pixels,
+                    size,
+                    x.saturating_sub(1),
+                    y.saturating_sub(1),
+                    2,
+                    2,
+                    [48, 255, 96],
+                );
+                fill_rect(
+                    &mut pixels,
+                    size,
+                    x + 2,
+                    y.saturating_sub(1),
+                    2,
+                    2,
+                    [64, 128, 255],
+                );
+            }
+        }
+    }
+
+    pixels
+}
+
+fn create_color_bars_pixels() -> Vec<u8> {
+    let size = PATTERN_SIZE;
+    let mut pixels = vec![0_u8; (size * size * 4) as usize];
+    let bars = [
+        [235, 235, 235],
+        [235, 235, 24],
+        [24, 235, 235],
+        [24, 235, 24],
+        [235, 24, 235],
+        [235, 24, 24],
+        [24, 24, 235],
+        [24, 24, 24],
+    ];
+    let split = size * 3 / 4;
+
+    for y in 0..size {
+        for x in 0..size {
+            let color = if y < split {
+                bars[(x * bars.len() as u32 / size) as usize]
+            } else {
+                let step = (x * 16 / size).min(15) as u8;
+                let value = step * 17;
+                [value, value, value]
+            };
+            set_pixel(&mut pixels, size, x, y, color);
+        }
+    }
+
+    fill_rect(
+        &mut pixels,
+        size,
+        0,
+        split.saturating_sub(2),
+        size,
+        2,
+        [0, 0, 0],
+    );
+    pixels
+}
+
+fn create_grayscale_pixels() -> Vec<u8> {
+    let size = PATTERN_SIZE;
+    let mut pixels = vec![0_u8; (size * size * 4) as usize];
+    let split = size * 4 / 5;
+
+    for y in 0..size {
+        for x in 0..size {
+            let value = if y < split {
+                let step = (x * 16 / size).min(15) as u8;
+                step * 17
+            } else {
+                (x * 255 / (size - 1)) as u8
+            };
+            set_pixel(&mut pixels, size, x, y, [value, value, value]);
+        }
+    }
+
+    pixels
+}
+
+fn set_pixel(pixels: &mut [u8], size: u32, x: u32, y: u32, color: [u8; 3]) {
+    if x >= size || y >= size {
+        return;
+    }
+    let index = ((y * size + x) * 4) as usize;
+    pixels[index] = color[0];
+    pixels[index + 1] = color[1];
+    pixels[index + 2] = color[2];
+    pixels[index + 3] = 255;
+}
+
+fn fill_rect(
+    pixels: &mut [u8],
+    size: u32,
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+    color: [u8; 3],
+) {
+    for row in y..(y + height).min(size) {
+        for column in x..(x + width).min(size) {
+            set_pixel(pixels, size, column, row, color);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pixel(pixels: &[u8], size: u32, x: u32, y: u32) -> [u8; 4] {
+        let index = ((y * size + x) * 4) as usize;
+        pixels[index..index + 4].try_into().unwrap()
+    }
+
+    #[test]
+    fn every_test_pattern_is_opaque_and_full_size() {
+        for pattern in TestPattern::ALL {
+            let pixels = create_pattern_pixels(pattern);
+            assert_eq!(pixels.len(), (PATTERN_SIZE * PATTERN_SIZE * 4) as usize);
+            assert!(pixels
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .all(|pixel| pixel[3] == 255));
+        }
+    }
+
+    #[test]
+    fn grayscale_pattern_has_black_and_white_extremes() {
+        let pixels = create_pattern_pixels(TestPattern::Grayscale);
+        assert_eq!(pixel(&pixels, PATTERN_SIZE, 0, 0), [0, 0, 0, 255]);
+        assert_eq!(
+            pixel(&pixels, PATTERN_SIZE, PATTERN_SIZE - 1, 0),
+            [255, 255, 255, 255]
+        );
+    }
+
+    #[test]
+    fn color_bars_keep_white_and_black_bars_in_the_top_row() {
+        let pixels = create_pattern_pixels(TestPattern::ColorBars);
+        assert_eq!(pixel(&pixels, PATTERN_SIZE, 8, 8), [235, 235, 235, 255]);
+        assert_eq!(
+            pixel(&pixels, PATTERN_SIZE, PATTERN_SIZE - 8, 8),
+            [24, 24, 24, 255]
+        );
+    }
 }

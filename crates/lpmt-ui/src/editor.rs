@@ -2,9 +2,10 @@
 //! it emits actions instead of mutating renderer or window state directly.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, Sense, Shape, Stroke, Vec2};
+use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
     BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaKind, OutputTarget, Point2, Project, Rect,
-    SourceSpec, Surface, SurfaceId,
+    SourceSpec, Surface, SurfaceId, TestPattern,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -193,6 +194,10 @@ pub enum EditorAction {
         layer: usize,
         blend: BlendMode,
     },
+    SetLayerTestPattern {
+        layer: usize,
+        pattern: TestPattern,
+    },
     SetLayerSurface {
         layer: usize,
         surface: usize,
@@ -247,6 +252,12 @@ pub enum EditorAction {
     SetOutputColor {
         output: usize,
         color: ColorCorrection,
+    },
+    LoadOutputLut {
+        output: usize,
+    },
+    ClearOutputLut {
+        output: usize,
     },
     SetOutputMonitor {
         output: usize,
@@ -730,6 +741,23 @@ pub fn draw(
                         });
                     }
 
+                    if let SourceSpec::TestPattern { pattern } = &layer.source {
+                        let mut chosen = *pattern;
+                        egui::ComboBox::from_label("Test pattern")
+                            .selected_text(chosen.label())
+                            .show_ui(ui, |ui| {
+                                for candidate in TestPattern::ALL {
+                                    ui.selectable_value(&mut chosen, candidate, candidate.label());
+                                }
+                            });
+                        if chosen != *pattern {
+                            actions.push(EditorAction::SetLayerTestPattern {
+                                layer: state.selected_layer,
+                                pattern: chosen,
+                            });
+                        }
+                    }
+
                     let surface_index = stage
                         .surfaces
                         .iter()
@@ -1131,6 +1159,29 @@ pub fn draw(
                             color: color.clamped(),
                         });
                     }
+
+                    ui.add_space(8.0);
+                    ui.label("Calibration LUT (1D RGB)");
+                    if let Some(lut) = &output.calibration {
+                        ui.label(format!("{} · {LUT_SAMPLES} samples/channel", lut.name));
+                        if lut.is_identity() {
+                            ui.label("Neutral curves");
+                        }
+                        if ui.button("Clear LUT").clicked() {
+                            actions.push(EditorAction::ClearOutputLut {
+                                output: state.selected_output,
+                            });
+                        }
+                    } else {
+                        ui.label("None");
+                    }
+                    if ui.button("Load 1D .cube…").clicked() {
+                        actions.push(EditorAction::LoadOutputLut {
+                            output: state.selected_output,
+                        });
+                    }
+                    ui.label("Applied in display space after colour correction.");
+
                     if (!color.is_identity() || !edge_blend.is_none())
                         && ui.button("Reset blend and colour").clicked()
                     {
@@ -1485,7 +1536,7 @@ fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
         SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => project
             .media_asset(media_id)
             .map_or_else(|| "missing media".to_owned(), |asset| asset.name.clone()),
-        SourceSpec::TestPattern { .. } => "test pattern".to_owned(),
+        SourceSpec::TestPattern { pattern } => format!("test pattern · {}", pattern.label()),
     }
 }
 
