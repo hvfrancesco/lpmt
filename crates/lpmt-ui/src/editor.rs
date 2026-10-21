@@ -1,12 +1,14 @@
 //! The editor window. This module only knows about the domain model and egui;
 //! it emits actions instead of mutating renderer or window state directly.
 
+use std::collections::BTreeSet;
+
 use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, RichText, Sense, Shape, Stroke, Vec2};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
     BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaAsset, MediaKind, OutputTarget, Point2,
-    Project, Rect, SourceSpec, Surface, SurfaceId, TestPattern,
+    Project, Rect, SourceSpec, Stage, Surface, SurfaceId, TestPattern,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -118,9 +120,17 @@ impl SidebarTab {
 }
 
 #[derive(Debug)]
+struct SurfaceMoveDrag {
+    start_stage: Point2,
+    originals: Vec<(usize, [Point2; 4])>,
+}
+
+#[derive(Debug)]
 pub struct EditorState {
     pub tab: SidebarTab,
+    /// Active surface shown in the inspector and with edit handles.
     pub selected_surface: usize,
+    selected_surfaces: BTreeSet<usize>,
     pub selected_layer: usize,
     pub selected_media: usize,
     pub selected_output: usize,
@@ -132,6 +142,7 @@ pub struct EditorState {
     surface_name_id: Option<SurfaceId>,
     layer_name_id: Option<LayerId>,
     drag_corner: Option<usize>,
+    surface_move: Option<SurfaceMoveDrag>,
     transport_scrub: Option<f32>,
     pub snap_corners: bool,
     snap_target: Option<Pos2>,
@@ -143,6 +154,7 @@ impl Default for EditorState {
         Self {
             tab: SidebarTab::Mapping,
             selected_surface: 0,
+            selected_surfaces: BTreeSet::from([0]),
             selected_layer: 0,
             selected_media: 0,
             selected_output: 0,
@@ -154,6 +166,7 @@ impl Default for EditorState {
             surface_name_id: None,
             layer_name_id: None,
             drag_corner: None,
+            surface_move: None,
             transport_scrub: None,
             snap_corners: true,
             snap_target: None,
@@ -175,8 +188,89 @@ impl EditorState {
     /// the editor (for example after undo).
     pub fn cancel_drag(&mut self) {
         self.drag_corner = None;
+        self.surface_move = None;
         self.snap_target = None;
     }
+
+    pub fn is_surface_selected(&self, index: usize) -> bool {
+        self.selected_surfaces.contains(&index)
+    }
+
+    pub fn select_only_surface(&mut self, index: usize) {
+        self.selected_surface = index;
+        self.selected_surfaces.clear();
+        self.selected_surfaces.insert(index);
+        self.drag_corner = None;
+        self.surface_move = None;
+    }
+
+    /// Shift-click behaviour: add/remove a surface while keeping at least one
+    /// selected. The clicked surface becomes the active inspector target.
+    pub fn toggle_surface_selection(&mut self, index: usize) {
+        if self.selected_surfaces.contains(&index) {
+            if self.selected_surfaces.len() > 1 {
+                self.selected_surfaces.remove(&index);
+                if self.selected_surface == index {
+                    self.selected_surface = *self
+                        .selected_surfaces
+                        .iter()
+                        .next()
+                        .expect("at least one surface remains selected");
+                }
+            }
+        } else {
+            self.selected_surfaces.insert(index);
+            self.selected_surface = index;
+        }
+        self.drag_corner = None;
+        self.surface_move = None;
+    }
+
+    pub fn normalize_surface_selection(&mut self, surface_count: usize) {
+        if surface_count == 0 {
+            self.selected_surface = 0;
+            self.selected_surfaces.clear();
+            return;
+        }
+        self.selected_surface = self.selected_surface.min(surface_count - 1);
+        self.selected_surfaces
+            .retain(|index| *index < surface_count);
+        if self.selected_surfaces.is_empty() {
+            self.selected_surfaces.insert(self.selected_surface);
+        } else if !self.selected_surfaces.contains(&self.selected_surface) {
+            self.selected_surface = *self
+                .selected_surfaces
+                .iter()
+                .next()
+                .expect("the selection is not empty");
+        }
+    }
+
+    pub fn remove_surface_selection(&mut self, removed: usize, remaining: usize) {
+        let mut selection = BTreeSet::new();
+        for index in std::mem::take(&mut self.selected_surfaces) {
+            if index < removed {
+                selection.insert(index);
+            } else if index > removed {
+                selection.insert(index - 1);
+            }
+        }
+        self.selected_surfaces = selection;
+        if self.selected_surface > removed {
+            self.selected_surface -= 1;
+        }
+        self.normalize_surface_selection(remaining);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceGeometryEdit {
+    /// Continuous whole-surface drag; coalesced in undo history.
+    Move,
+    /// One-shot alignment of two or more selected surfaces.
+    Align,
+    /// One-shot distribution of three or more selected surfaces.
+    Distribute,
 }
 
 #[derive(Debug, Clone)]
@@ -185,6 +279,10 @@ pub enum EditorAction {
         surface: usize,
         corner: usize,
         value: Point2,
+    },
+    SetSurfaceCorners {
+        surfaces: Vec<(usize, [Point2; 4])>,
+        edit: SurfaceGeometryEdit,
     },
     ResetSurface {
         surface: usize,
@@ -233,15 +331,15 @@ pub enum EditorAction {
         layer: usize,
         pattern: TestPattern,
     },
-    SetLayerSurface {
+    SetLayerSurfaces {
         layer: usize,
-        surface: usize,
+        surfaces: Vec<usize>,
     },
     AddLayer {
-        surface: usize,
+        surfaces: Vec<usize>,
     },
     AddLayerFromMedia {
-        surface: usize,
+        surfaces: Vec<usize>,
         media: usize,
     },
     DeleteLayer {
@@ -379,9 +477,7 @@ pub fn draw(
     if state.selected_layer >= stage.layers.len() {
         state.selected_layer = stage.layers.len().saturating_sub(1);
     }
-    if state.selected_surface >= stage.surfaces.len() {
-        state.selected_surface = stage.surfaces.len().saturating_sub(1);
-    }
+    state.normalize_surface_selection(stage.surfaces.len());
     if state.selected_media >= project.media.len() {
         state.selected_media = 0;
         if let Some(asset) = project.media.first() {
@@ -578,162 +674,166 @@ pub fn draw(
                 if state.tab == SidebarTab::Mapping {
                     ui.heading("Surfaces");
                     ui.label("Geometry: the quad that content is projected through.");
+                    let shift = ui.input(|input| input.modifiers.shift);
                     for (index, surface) in stage.surfaces.iter().enumerate() {
                         let layers = stage
                             .layers
                             .iter()
-                            .filter(|layer| layer.surface_id == surface.id)
+                            .filter(|layer| layer.uses_surface(&surface.id))
                             .count();
                         let suffix = if layers == 1 {
                             "1 layer".to_owned()
                         } else {
                             format!("{layers} layers")
                         };
+                        let label = format!("{} · {suffix}", surface.name);
+                        let text = if state.selected_surface == index {
+                            RichText::new(label).strong()
+                        } else {
+                            RichText::new(label)
+                        };
                         if ui
-                            .selectable_label(
-                                state.selected_surface == index,
-                                format!("{} · {suffix}", surface.name),
-                            )
+                            .selectable_label(state.is_surface_selected(index), text)
                             .clicked()
                         {
-                            state.selected_surface = index;
-                            state.drag_corner = None;
+                            if shift {
+                                state.toggle_surface_selection(index);
+                            } else {
+                                state.select_only_surface(index);
+                            }
                         }
                     }
+                    ui.label(
+                        RichText::new(format!(
+                            "{} selected · Shift-click to add or remove",
+                            state.selected_surfaces.len()
+                        ))
+                        .small()
+                        .color(Color32::from_rgb(132, 144, 166)),
+                    );
                     ui.checkbox(&mut state.snap_corners, "Snap corners to other surfaces");
-                    let selected_surface_in_use = stage
+                    let selected_surface_blocking = stage
                         .surfaces
                         .get(state.selected_surface)
                         .is_some_and(|surface| {
-                            stage
-                                .layers
-                                .iter()
-                                .any(|layer| layer.surface_id == surface.id)
+                            stage.layers.iter().any(|layer| {
+                                layer.surface_ids.len() <= 1 && layer.uses_surface(&surface.id)
+                            })
                         });
                     ui.horizontal_wrapped(|ui| {
                         if ui.button("Add surface").clicked() {
                             actions.push(EditorAction::AddSurface);
-                            state.selected_surface = stage.surfaces.len();
                         }
                         let delete = ui.add_enabled(
-                            stage.surfaces.len() > 1 && !selected_surface_in_use,
+                            stage.surfaces.len() > 1 && !selected_surface_blocking,
                             egui::Button::new("Delete surface"),
                         );
                         if delete.clicked() {
                             let surface = state.selected_surface;
                             actions.push(EditorAction::DeleteSurface { surface });
-                            state.selected_surface =
-                                surface.min(stage.surfaces.len().saturating_sub(2));
                         }
-                        if selected_surface_in_use {
+                        if selected_surface_blocking {
                             delete.on_disabled_hover_text(
-                                "Reassign or delete the layers using this surface first",
+                                "Reassign layers that only use this surface first",
                             );
                         }
                     });
 
-                    ui.add_space(12.0);
-                    if let Some(surface) = stage.surfaces.get(state.selected_surface) {
-                        ui.label(RichText::new("Selected surface").strong());
-                        ui.label("Surface name");
-                        if ui
-                            .add(
-                                egui::TextEdit::singleline(&mut state.surface_name)
-                                    .desired_width(f32::INFINITY),
-                            )
-                            .changed()
-                        {
-                            actions.push(EditorAction::RenameSurface {
-                                surface: state.selected_surface,
-                                name: state.surface_name.clone(),
-                            });
-                        }
-
-                        let mut visible = surface.visible;
-                        if ui.checkbox(&mut visible, "Visible").changed() {
-                            actions.push(EditorAction::SetSurfaceVisibility {
-                                surface: state.selected_surface,
-                                visible,
-                            });
-                        }
-                        let mut opacity = surface.opacity;
-                        if ui
-                            .add(
-                                egui::Slider::new(&mut opacity, 0.0..=1.0)
-                                    .text("Opacity")
-                                    .fixed_decimals(2),
-                            )
-                            .changed()
-                        {
-                            actions.push(EditorAction::SetSurfaceOpacity {
-                                surface: state.selected_surface,
-                                opacity,
-                            });
-                        }
-
-                        ui.label("Drag corners in the preview for quick warp.");
-                        egui::CollapsingHeader::new("Corners (numeric)")
-                            .default_open(false)
-                            .show(ui, |ui| {
-                                egui::Grid::new("surface-corners")
-                                    .num_columns(3)
-                                    .spacing([8.0, 6.0])
-                                    .show(ui, |ui| {
-                                        ui.label("Corner");
-                                        ui.label("x");
-                                        ui.label("y");
-                                        ui.end_row();
-
-                                        for (index, corner) in surface.corners.iter().enumerate() {
-                                            ui.label(corner_name(index));
-                                            let mut x = corner.x;
-                                            let mut y = corner.y;
-                                            let x_changed = ui
-                                                .add(
-                                                    egui::DragValue::new(&mut x)
-                                                        .speed(0.001)
-                                                        .range(0.0..=1.0),
-                                                )
-                                                .changed();
-                                            let y_changed = ui
-                                                .add(
-                                                    egui::DragValue::new(&mut y)
-                                                        .speed(0.001)
-                                                        .range(0.0..=1.0),
-                                                )
-                                                .changed();
-                                            if x_changed || y_changed {
-                                                actions.push(EditorAction::SetCorner {
-                                                    surface: state.selected_surface,
-                                                    corner: index,
-                                                    value: Point2::new(x, y),
-                                                });
-                                            }
-                                            ui.end_row();
-                                        }
-                                    });
-
-                                ui.add_space(8.0);
-                                if ui.button("Reset to full stage").clicked() {
-                                    actions.push(EditorAction::ResetSurface {
-                                        surface: state.selected_surface,
+                    let selected_indices: Vec<usize> =
+                        state.selected_surfaces.iter().copied().collect();
+                    let can_align = selected_indices.len() >= 2;
+                    let can_distribute = selected_indices.len() >= 3;
+                    ui.add_space(8.0);
+                    ui.label("Align selected (uses the selection bounds)");
+                    ui.horizontal_wrapped(|ui| {
+                        for (label, align) in [
+                            ("Left", SurfaceAlign::Left),
+                            ("Center X", SurfaceAlign::CenterX),
+                            ("Right", SurfaceAlign::Right),
+                            ("Top", SurfaceAlign::Top),
+                            ("Center Y", SurfaceAlign::CenterY),
+                            ("Bottom", SurfaceAlign::Bottom),
+                        ] {
+                            if ui
+                                .add_enabled(can_align, egui::Button::new(label))
+                                .clicked()
+                            {
+                                let surfaces =
+                                    align_surfaces(&stage.surfaces, &selected_indices, align);
+                                if !surfaces.is_empty() {
+                                    actions.push(EditorAction::SetSurfaceCorners {
+                                        surfaces,
+                                        edit: SurfaceGeometryEdit::Align,
                                     });
                                 }
-                            });
+                            }
+                        }
+                    });
+                    ui.horizontal_wrapped(|ui| {
+                        if ui
+                            .add_enabled(
+                                can_distribute,
+                                egui::Button::new("Distribute horizontally"),
+                            )
+                            .on_hover_text("Evenly space selected surface centres horizontally")
+                            .clicked()
+                        {
+                            let surfaces = distribute_surfaces(
+                                &stage.surfaces,
+                                &selected_indices,
+                                DistributeAxis::Horizontal,
+                            );
+                            if !surfaces.is_empty() {
+                                actions.push(EditorAction::SetSurfaceCorners {
+                                    surfaces,
+                                    edit: SurfaceGeometryEdit::Distribute,
+                                });
+                            }
+                        }
+                        if ui
+                            .add_enabled(
+                                can_distribute,
+                                egui::Button::new("Distribute vertically"),
+                            )
+                            .on_hover_text("Evenly space selected surface centres vertically")
+                            .clicked()
+                        {
+                            let surfaces = distribute_surfaces(
+                                &stage.surfaces,
+                                &selected_indices,
+                                DistributeAxis::Vertical,
+                            );
+                            if !surfaces.is_empty() {
+                                actions.push(EditorAction::SetSurfaceCorners {
+                                    surfaces,
+                                    edit: SurfaceGeometryEdit::Distribute,
+                                });
+                            }
+                        }
+                    });
+                    if !can_align {
+                        ui.label("Select two or more surfaces to align them.");
+                    }
+
+                    ui.add_space(12.0);
+                    if let Some(surface) = stage.surfaces.get(state.selected_surface) {
+                        egui::CollapsingHeader::new(format!(
+                            "Surface settings · {}",
+                            surface.name
+                        ))
+                        .default_open(false)
+                        .show(ui, |ui| {
+                            draw_surface_settings(ui, state, surface, &mut actions);
+                        });
                     }
 
                     ui.add_space(16.0);
                     ui.separator();
                     ui.heading("Layers");
-                    ui.label("Content stack, bottom to top. Each layer draws through a surface.");
+                    ui.label("Content stack, bottom to top. Each layer can draw through one or more surfaces.");
                     for (index, layer) in stage.layers.iter().enumerate() {
-                        let surface_index = stage
-                            .surfaces
-                            .iter()
-                            .position(|surface| surface.id == layer.surface_id);
-                        let surface_name = surface_index
-                            .and_then(|index| stage.surfaces.get(index))
-                            .map_or("missing surface", |surface| surface.name.as_str());
+                        let surface_indices = layer_surface_indices(stage, layer);
+                        let surface_label = layer_surface_label(stage, layer);
                         ui.horizontal(|ui| {
                             let mut visible = layer.visible;
                             if ui.checkbox(&mut visible, "").changed() {
@@ -745,30 +845,44 @@ pub fn draw(
                             let response = ui
                                 .selectable_label(
                                     state.selected_layer == index,
-                                    format!("{} · {surface_name}", layer.name),
+                                    format!("{} · {surface_label}", layer.name),
                                 )
                                 .on_hover_text(layer_source(layer, project));
                             if response.clicked() {
                                 state.selected_layer = index;
-                                if let Some(surface_index) = surface_index {
-                                    state.selected_surface = surface_index;
-                                    state.drag_corner = None;
+                                if !surface_indices.contains(&state.selected_surface) {
+                                    if let Some(first) = surface_indices.first() {
+                                        state.select_only_surface(*first);
+                                    }
                                 }
                             }
                         });
                     }
 
+                    let new_layer_surfaces: Vec<usize> =
+                        state.selected_surfaces.iter().copied().collect();
+                    let new_layer_label = if new_layer_surfaces.len() == 1 {
+                        format!(
+                            "Add test pattern on {}",
+                            stage
+                                .surfaces
+                                .get(state.selected_surface)
+                                .map_or("surface", |surface| surface.name.as_str())
+                        )
+                    } else {
+                        format!("Add test pattern on {} surfaces", new_layer_surfaces.len())
+                    };
                     ui.horizontal_wrapped(|ui| {
                         if ui
                             .add_enabled(
-                                !stage.surfaces.is_empty(),
-                                egui::Button::new("Add test pattern"),
+                                !new_layer_surfaces.is_empty(),
+                                egui::Button::new(new_layer_label),
                             )
-                            .on_hover_text("Adds a procedural test-pattern layer on the selected surface")
+                            .on_hover_text("Adds a procedural test-pattern layer on every selected surface")
                             .clicked()
                         {
                             actions.push(EditorAction::AddLayer {
-                                surface: state.selected_surface,
+                                surfaces: new_layer_surfaces,
                             });
                             state.selected_layer = stage.layers.len();
                         }
@@ -816,6 +930,40 @@ pub fn draw(
                                     state.image_path.clone_from(&asset.path);
                                 }
                             }
+                        }
+                        ui.add_space(6.0);
+                        ui.label("Assigned surfaces");
+                        let assigned_count = layer_surface_indices(stage, layer).len();
+                        for (index, surface) in stage.surfaces.iter().enumerate() {
+                            let mut assigned = layer.uses_surface(&surface.id);
+                            let is_last = assigned && assigned_count <= 1;
+                            let response = ui.add_enabled(
+                                !is_last,
+                                egui::Checkbox::new(&mut assigned, &surface.name),
+                            );
+                            if response.changed() {
+                                let mut ids = layer_surface_indices(stage, layer);
+                                if assigned {
+                                    if !ids.contains(&index) {
+                                        ids.push(index);
+                                    }
+                                } else {
+                                    ids.retain(|assigned| *assigned != index);
+                                }
+                                ids.sort_unstable();
+                                actions.push(EditorAction::SetLayerSurfaces {
+                                    layer: state.selected_layer,
+                                    surfaces: ids,
+                                });
+                            }
+                            if is_last {
+                                response.on_disabled_hover_text(
+                                    "A layer must be assigned to at least one surface",
+                                );
+                            }
+                        }
+                        if assigned_count > 1 {
+                            ui.label("This layer is drawn through each checked surface.");
                         }
                         ui.label("Layer name");
                         if ui
@@ -885,29 +1033,6 @@ pub fn draw(
                             }
                         }
 
-                        let surface_index = stage
-                            .surfaces
-                            .iter()
-                            .position(|surface| surface.id == layer.surface_id)
-                            .unwrap_or(0);
-                        let mut chosen_surface = surface_index;
-                        let surface_name = stage
-                            .surfaces
-                            .get(surface_index)
-                            .map_or("missing surface", |surface| surface.name.as_str());
-                        egui::ComboBox::from_label("Surface")
-                            .selected_text(surface_name)
-                            .show_ui(ui, |ui| {
-                                for (index, surface) in stage.surfaces.iter().enumerate() {
-                                    ui.selectable_value(&mut chosen_surface, index, &surface.name);
-                                }
-                            });
-                        if chosen_surface != surface_index {
-                            actions.push(EditorAction::SetLayerSurface {
-                                layer: state.selected_layer,
-                                surface: chosen_surface,
-                            });
-                        }
                     } else {
                         ui.label("No layers");
                     }
@@ -928,18 +1053,32 @@ pub fn draw(
                             );
                         }
 
-                        ui.horizontal_wrapped(|ui| {
-                            if ui.button("Add media…").clicked() {
-                                actions.push(EditorAction::AddMedia);
-                                state.selected_media = project.media.len();
-                            }
-                            if let Some(layer) = stage.layers.get(state.selected_layer) {
-                                let surface = stage
-                                    .surface(&layer.surface_id)
-                                    .map_or("missing surface", |surface| surface.name.as_str());
-                                ui.label(format!("Target layer: {} on {surface}", layer.name));
-                            }
-                        });
+                        if ui.button("Add media…").clicked() {
+                            actions.push(EditorAction::AddMedia);
+                            state.selected_media = project.media.len();
+                        }
+                        ui.label("Assign selected media to");
+                        let target_name = stage
+                            .layers
+                            .get(state.selected_layer)
+                            .map_or("No layer selected", |layer| layer.name.as_str());
+                        egui::ComboBox::from_id_salt("media-target-layer")
+                            .selected_text(target_name)
+                            .show_ui(ui, |ui| {
+                                for (index, layer) in stage.layers.iter().enumerate() {
+                                    ui.selectable_value(
+                                        &mut state.selected_layer,
+                                        index,
+                                        &layer.name,
+                                    );
+                                }
+                            });
+                        if let Some(layer) = stage.layers.get(state.selected_layer) {
+                            ui.label(format!(
+                                "Drawn on: {}",
+                                layer_surface_label(stage, layer)
+                            ));
+                        }
                         ui.separator();
 
                         if project.media.is_empty() {
@@ -1030,26 +1169,36 @@ pub fn draw(
                                     });
                                 }
                                 if let Some(layer) = target {
-                                    let surface = stage
-                                        .surface(&layer.surface_id)
-                                        .map_or("missing surface", |surface| surface.name.as_str());
-                                    ui.label(format!("Replaces the source on {surface}."));
+                                    ui.label(format!(
+                                        "Replaces the source on {}.",
+                                        layer_surface_label(stage, layer)
+                                    ));
                                 }
-                                let add_surface = stage
-                                    .surfaces
-                                    .get(state.selected_surface)
-                                    .map_or("selected surface", |surface| surface.name.as_str());
+                                let new_surfaces: Vec<usize> =
+                                    state.selected_surfaces.iter().copied().collect();
+                                let add_label = if new_surfaces.len() == 1 {
+                                    format!(
+                                        "Add as new layer on {}",
+                                        stage
+                                            .surfaces
+                                            .get(state.selected_surface)
+                                            .map_or("surface", |surface| surface.name.as_str())
+                                    )
+                                } else {
+                                    format!(
+                                        "Add as new layer on {} surfaces",
+                                        new_surfaces.len()
+                                    )
+                                };
                                 if ui
                                     .add_enabled(
-                                        !stage.surfaces.is_empty(),
-                                        egui::Button::new(format!(
-                                            "Add as new layer on {add_surface}"
-                                        )),
+                                        !new_surfaces.is_empty(),
+                                        egui::Button::new(add_label),
                                     )
                                     .clicked()
                                 {
                                     actions.push(EditorAction::AddLayerFromMedia {
-                                        surface: state.selected_surface,
+                                        surfaces: new_surfaces,
                                         media: state.selected_media,
                                     });
                                 }
@@ -1530,7 +1679,13 @@ pub fn draw(
                 continue;
             }
             let points = surface_points(preview, surface);
-            let (stroke_color, fill_color) = if surface.visible {
+            let selected = state.is_surface_selected(index);
+            let (stroke_color, fill_color) = if selected {
+                (
+                    Color32::from_rgb(120, 220, 140),
+                    Color32::from_rgba_unmultiplied(120, 220, 140, 24),
+                )
+            } else if surface.visible {
                 (
                     Color32::from_rgb(108, 120, 142),
                     Color32::from_rgba_unmultiplied(96, 108, 132, 16),
@@ -1541,15 +1696,17 @@ pub fn draw(
             painter.add(Shape::convex_polygon(
                 points.clone(),
                 fill_color,
-                Stroke::new(1.0, stroke_color),
+                Stroke::new(if selected { 2.0 } else { 1.0 }, stroke_color),
             ));
             painter.text(
                 polygon_center(&points),
                 Align2::CENTER_CENTER,
-                if surface.visible {
-                    surface.name.clone()
-                } else {
+                if !surface.visible {
                     format!("{} (hidden)", surface.name)
+                } else if selected {
+                    format!("{} · selected", surface.name)
+                } else {
+                    surface.name.clone()
                 },
                 FontId::proportional(10.0),
                 stroke_color,
@@ -1608,10 +1765,15 @@ pub fn draw(
                 Color32::from_rgba_unmultiplied(74, 144, 226, 38),
                 Stroke::new(2.0, Color32::from_rgb(108, 182, 255)),
             ));
+            let selection_count = state.selected_surfaces.len();
             painter.text(
                 polygon_center(&points),
                 Align2::CENTER_CENTER,
-                format!("{} · editing", surface.name),
+                if selection_count > 1 {
+                    format!("{} · editing · {selection_count} selected", surface.name)
+                } else {
+                    format!("{} · editing", surface.name)
+                },
                 FontId::proportional(11.0),
                 Color32::from_rgb(190, 220, 255),
             );
@@ -1638,16 +1800,18 @@ pub fn draw(
             }
         }
 
-        // Click a surface to make it active. Dragging starts from the nearest
-        // corner of any surface, not only from the currently active one.
+        // Click a surface to make it active. Shift-click toggles membership in
+        // the selection; dragging a selected surface moves the whole selection.
+        let shift = ui.input(|input| input.modifiers.shift);
         if response.clicked() {
             if let Some(index) = response
                 .interact_pointer_pos()
                 .and_then(|pointer| surface_at(preview, &stage.surfaces, pointer))
             {
-                if state.selected_surface != index {
-                    state.selected_surface = index;
-                    state.drag_corner = None;
+                if shift {
+                    state.toggle_surface_selection(index);
+                } else {
+                    state.select_only_surface(index);
                 }
             }
         }
@@ -1661,11 +1825,33 @@ pub fn draw(
                     pointer,
                     18.0,
                 ) {
-                    state.selected_surface = surface;
+                    state.select_only_surface(surface);
                     state.drag_corner = Some(corner);
                 } else if let Some(surface) = surface_at(preview, &stage.surfaces, pointer) {
-                    state.selected_surface = surface;
-                    state.drag_corner = None;
+                    if shift && !state.is_surface_selected(surface) {
+                        state.toggle_surface_selection(surface);
+                    } else if !state.is_surface_selected(surface) {
+                        state.select_only_surface(surface);
+                    } else {
+                        state.selected_surface = surface;
+                        state.drag_corner = None;
+                    }
+                    let originals = state
+                        .selected_surfaces
+                        .iter()
+                        .filter_map(|index| {
+                            stage
+                                .surfaces
+                                .get(*index)
+                                .map(|surface| (*index, surface.corners))
+                        })
+                        .collect::<Vec<_>>();
+                    if !originals.is_empty() {
+                        state.surface_move = Some(SurfaceMoveDrag {
+                            start_stage: preview_to_stage(preview, pointer),
+                            originals,
+                        });
+                    }
                 }
             }
         }
@@ -1692,11 +1878,32 @@ pub fn draw(
                     corner: index,
                     value,
                 });
+            } else if let (Some(pointer), Some(drag)) =
+                (response.interact_pointer_pos(), &state.surface_move)
+            {
+                let current = preview_to_stage(preview, pointer);
+                let (dx, dy) = clamp_translation(
+                    &drag.originals,
+                    current.x - drag.start_stage.x,
+                    current.y - drag.start_stage.y,
+                );
+                if dx.abs() > f32::EPSILON || dy.abs() > f32::EPSILON {
+                    let surfaces = drag
+                        .originals
+                        .iter()
+                        .map(|(index, corners)| (*index, translated_corners(*corners, dx, dy)))
+                        .collect();
+                    actions.push(EditorAction::SetSurfaceCorners {
+                        surfaces,
+                        edit: SurfaceGeometryEdit::Move,
+                    });
+                }
             }
         }
 
         if response.drag_stopped() {
             state.drag_corner = None;
+            state.surface_move = None;
             state.snap_target = None;
         }
 
@@ -1725,13 +1932,95 @@ pub fn draw(
         painter.text(
             preview.left_bottom() + Vec2::new(8.0, -6.0),
             Align2::LEFT_BOTTOM,
-            "Click a surface to edit · drag any corner to warp",
+            "Click to edit · Shift-click to multi-select · drag a surface to move",
             FontId::proportional(10.0),
             Color32::from_rgb(120, 128, 142),
         );
     });
 
     actions
+}
+
+fn draw_surface_settings(
+    ui: &mut egui::Ui,
+    state: &mut EditorState,
+    surface: &Surface,
+    actions: &mut Vec<EditorAction>,
+) {
+    ui.label("Surface name");
+    if ui
+        .add(egui::TextEdit::singleline(&mut state.surface_name).desired_width(f32::INFINITY))
+        .changed()
+    {
+        actions.push(EditorAction::RenameSurface {
+            surface: state.selected_surface,
+            name: state.surface_name.clone(),
+        });
+    }
+
+    let mut visible = surface.visible;
+    if ui.checkbox(&mut visible, "Visible").changed() {
+        actions.push(EditorAction::SetSurfaceVisibility {
+            surface: state.selected_surface,
+            visible,
+        });
+    }
+    let mut opacity = surface.opacity;
+    if ui
+        .add(
+            egui::Slider::new(&mut opacity, 0.0..=1.0)
+                .text("Opacity")
+                .fixed_decimals(2),
+        )
+        .changed()
+    {
+        actions.push(EditorAction::SetSurfaceOpacity {
+            surface: state.selected_surface,
+            opacity,
+        });
+    }
+
+    ui.label("Drag corners in the preview for quick warp.");
+    egui::CollapsingHeader::new("Corners (numeric)")
+        .default_open(false)
+        .show(ui, |ui| {
+            egui::Grid::new("surface-corners")
+                .num_columns(3)
+                .spacing([8.0, 6.0])
+                .show(ui, |ui| {
+                    ui.label("Corner");
+                    ui.label("x");
+                    ui.label("y");
+                    ui.end_row();
+
+                    for (index, corner) in surface.corners.iter().enumerate() {
+                        ui.label(corner_name(index));
+                        let mut x = corner.x;
+                        let mut y = corner.y;
+                        let x_changed = ui
+                            .add(egui::DragValue::new(&mut x).speed(0.001).range(0.0..=1.0))
+                            .changed();
+                        let y_changed = ui
+                            .add(egui::DragValue::new(&mut y).speed(0.001).range(0.0..=1.0))
+                            .changed();
+                        if x_changed || y_changed {
+                            actions.push(EditorAction::SetCorner {
+                                surface: state.selected_surface,
+                                corner: index,
+                                value: Point2::new(x, y),
+                            });
+                        }
+                        ui.end_row();
+                    }
+                });
+
+            ui.add_space(8.0);
+            if ui.button("Reset to full stage").clicked() {
+                actions.push(EditorAction::ResetSurface {
+                    surface: state.selected_surface,
+                });
+            }
+        });
 }
 
 fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
@@ -1743,12 +2032,220 @@ fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
     }
 }
 
+fn layer_surface_indices(stage: &Stage, layer: &lpmt_core::model::Layer) -> Vec<usize> {
+    let mut indices = Vec::new();
+    for surface_id in &layer.surface_ids {
+        if let Some(index) = stage
+            .surfaces
+            .iter()
+            .position(|surface| &surface.id == surface_id)
+        {
+            if !indices.contains(&index) {
+                indices.push(index);
+            }
+        }
+    }
+    indices
+}
+
+fn layer_surface_label(stage: &Stage, layer: &lpmt_core::model::Layer) -> String {
+    let names: Vec<&str> = layer
+        .surface_ids
+        .iter()
+        .filter_map(|id| stage.surface(id))
+        .map(|surface| surface.name.as_str())
+        .collect();
+    match names.len() {
+        0 => "no surface".to_owned(),
+        1 => names[0].to_owned(),
+        2 => format!("{} + {}", names[0], names[1]),
+        count => format!("{count} surfaces"),
+    }
+}
+
 fn layer_media_index(layer: &lpmt_core::model::Layer, project: &Project) -> Option<usize> {
     let media_id = match &layer.source {
         SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id,
         SourceSpec::TestPattern { .. } => return None,
     };
     project.media.iter().position(|asset| &asset.id == media_id)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SurfaceAlign {
+    Left,
+    CenterX,
+    Right,
+    Top,
+    CenterY,
+    Bottom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DistributeAxis {
+    Horizontal,
+    Vertical,
+}
+
+fn surface_bounds(surface: &Surface) -> (f32, f32, f32, f32) {
+    surface.corners.iter().fold(
+        (
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ),
+        |(left, top, right, bottom), corner| {
+            (
+                left.min(corner.x),
+                top.min(corner.y),
+                right.max(corner.x),
+                bottom.max(corner.y),
+            )
+        },
+    )
+}
+
+fn selection_bounds(surfaces: &[Surface], indices: &[usize]) -> Option<(f32, f32, f32, f32)> {
+    let mut bounds: Option<(f32, f32, f32, f32)> = None;
+    for index in indices {
+        let Some(surface) = surfaces.get(*index) else {
+            continue;
+        };
+        let (left, top, right, bottom) = surface_bounds(surface);
+        bounds = Some(match bounds {
+            Some((current_left, current_top, current_right, current_bottom)) => (
+                current_left.min(left),
+                current_top.min(top),
+                current_right.max(right),
+                current_bottom.max(bottom),
+            ),
+            None => (left, top, right, bottom),
+        });
+    }
+    bounds
+}
+
+fn translated_corners(corners: [Point2; 4], dx: f32, dy: f32) -> [Point2; 4] {
+    corners.map(|corner| Point2::new(corner.x + dx, corner.y + dy))
+}
+
+/// Keep a whole-surface translation inside the normalized stage. Returning a
+/// clamped delta lets both dragging and one-shot layout edits share one path.
+fn clamp_translation(originals: &[(usize, [Point2; 4])], dx: f32, dy: f32) -> (f32, f32) {
+    let mut min_x = f32::INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
+    for (_, corners) in originals {
+        for corner in corners {
+            min_x = min_x.min(corner.x);
+            min_y = min_y.min(corner.y);
+            max_x = max_x.max(corner.x);
+            max_y = max_y.max(corner.y);
+        }
+    }
+    if !min_x.is_finite() || !min_y.is_finite() {
+        return (0.0, 0.0);
+    }
+
+    let min_dx = -min_x;
+    let max_dx = 1.0 - max_x;
+    let min_dy = -min_y;
+    let max_dy = 1.0 - max_y;
+    (
+        if min_dx <= max_dx {
+            dx.clamp(min_dx, max_dx)
+        } else {
+            0.0
+        },
+        if min_dy <= max_dy {
+            dy.clamp(min_dy, max_dy)
+        } else {
+            0.0
+        },
+    )
+}
+
+fn align_surfaces(
+    surfaces: &[Surface],
+    indices: &[usize],
+    align: SurfaceAlign,
+) -> Vec<(usize, [Point2; 4])> {
+    let Some((left, top, right, bottom)) = selection_bounds(surfaces, indices) else {
+        return Vec::new();
+    };
+    let mut result = Vec::new();
+    for index in indices {
+        let Some(surface) = surfaces.get(*index) else {
+            continue;
+        };
+        let (surface_left, surface_top, surface_right, surface_bottom) = surface_bounds(surface);
+        let (dx, dy) = match align {
+            SurfaceAlign::Left => (left - surface_left, 0.0),
+            SurfaceAlign::CenterX => (
+                (left + right) * 0.5 - (surface_left + surface_right) * 0.5,
+                0.0,
+            ),
+            SurfaceAlign::Right => (right - surface_right, 0.0),
+            SurfaceAlign::Top => (0.0, top - surface_top),
+            SurfaceAlign::CenterY => (
+                0.0,
+                (top + bottom) * 0.5 - (surface_top + surface_bottom) * 0.5,
+            ),
+            SurfaceAlign::Bottom => (0.0, bottom - surface_bottom),
+        };
+        let (dx, dy) = clamp_translation(&[(*index, surface.corners)], dx, dy);
+        if dx.abs() > f32::EPSILON || dy.abs() > f32::EPSILON {
+            result.push((*index, translated_corners(surface.corners, dx, dy)));
+        }
+    }
+    result
+}
+
+fn distribute_surfaces(
+    surfaces: &[Surface],
+    indices: &[usize],
+    axis: DistributeAxis,
+) -> Vec<(usize, [Point2; 4])> {
+    let mut ordered: Vec<(usize, f32)> = indices
+        .iter()
+        .filter_map(|index| {
+            surfaces.get(*index).map(|surface| {
+                let (left, top, right, bottom) = surface_bounds(surface);
+                let center = match axis {
+                    DistributeAxis::Horizontal => (left + right) * 0.5,
+                    DistributeAxis::Vertical => (top + bottom) * 0.5,
+                };
+                (*index, center)
+            })
+        })
+        .collect();
+    ordered.sort_by(|left, right| left.1.total_cmp(&right.1));
+    if ordered.len() < 3 {
+        return Vec::new();
+    }
+
+    let first = ordered[0].1;
+    let last = ordered[ordered.len() - 1].1;
+    let step = (last - first) / (ordered.len() - 1) as f32;
+    let mut result = Vec::new();
+    for (rank, (index, _)) in ordered.iter().enumerate().skip(1).take(ordered.len() - 2) {
+        let Some(surface) = surfaces.get(*index) else {
+            continue;
+        };
+        let (left, top, right, bottom) = surface_bounds(surface);
+        let target = first + step * rank as f32;
+        let (dx, dy) = match axis {
+            DistributeAxis::Horizontal => (target - (left + right) * 0.5, 0.0),
+            DistributeAxis::Vertical => (0.0, target - (top + bottom) * 0.5),
+        };
+        let (dx, dy) = clamp_translation(&[(*index, surface.corners)], dx, dy);
+        if dx.abs() > f32::EPSILON || dy.abs() > f32::EPSILON {
+            result.push((*index, translated_corners(surface.corners, dx, dy)));
+        }
+    }
+    result
 }
 
 fn media_kind_label(kind: MediaKind) -> &'static str {
@@ -1772,10 +2269,11 @@ fn media_usage(project: &Project, asset: &MediaAsset) -> String {
                     if media_id == &asset.id
             );
             if uses_asset {
-                let surface = stage
-                    .surface(&layer.surface_id)
-                    .map_or("missing surface", |surface| surface.name.as_str());
-                roles.push(format!("layer {} on {surface}", layer.name));
+                roles.push(format!(
+                    "layer {} on {}",
+                    layer.name,
+                    layer_surface_label(stage, layer)
+                ));
             }
         }
     }
@@ -1977,6 +2475,129 @@ mod tests {
         );
     }
 
+    fn quad(id: &str, left: f32, top: f32, right: f32, bottom: f32) -> Surface {
+        Surface::new(
+            id,
+            id,
+            [
+                Point2::new(left, top),
+                Point2::new(right, top),
+                Point2::new(right, bottom),
+                Point2::new(left, bottom),
+            ],
+        )
+    }
+
+    #[test]
+    fn surface_selection_always_keeps_an_active_surface() {
+        let mut state = EditorState::default();
+        state.normalize_surface_selection(3);
+        assert!(state.is_surface_selected(0));
+        assert_eq!(state.selected_surfaces.len(), 1);
+
+        state.toggle_surface_selection(2);
+        assert!(state.is_surface_selected(0));
+        assert!(state.is_surface_selected(2));
+        assert_eq!(state.selected_surface, 2);
+
+        state.toggle_surface_selection(2);
+        assert_eq!(state.selected_surface, 0);
+        assert!(state.is_surface_selected(0));
+
+        state.toggle_surface_selection(0);
+        assert!(
+            state.is_surface_selected(0),
+            "the last surface stays selected"
+        );
+        assert_eq!(state.selected_surfaces.len(), 1);
+    }
+
+    #[test]
+    fn removing_a_surface_keeps_selection_indices_valid() {
+        let mut state = EditorState::default();
+        state.normalize_surface_selection(3);
+        state.toggle_surface_selection(1);
+        state.toggle_surface_selection(2);
+        assert_eq!(state.selected_surfaces.len(), 3);
+
+        state.remove_surface_selection(1, 2);
+        assert_eq!(
+            state.selected_surfaces.iter().copied().collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert!(state.selected_surface < 2);
+    }
+
+    #[test]
+    fn alignment_uses_the_selection_bounds() {
+        let surfaces = vec![
+            quad("a", 0.1, 0.1, 0.3, 0.3),
+            quad("b", 0.5, 0.4, 0.7, 0.6),
+            quad("c", 0.8, 0.7, 1.0, 0.9),
+        ];
+        let indices = [0, 1, 2];
+
+        let left = align_surfaces(&surfaces, &indices, SurfaceAlign::Left);
+        assert!(!left.is_empty());
+        for (_, corners) in left {
+            let left_edge = corners
+                .iter()
+                .map(|corner| corner.x)
+                .fold(f32::INFINITY, f32::min);
+            assert!((left_edge - 0.1).abs() < 1e-5);
+        }
+
+        let centered = align_surfaces(&surfaces, &indices, SurfaceAlign::CenterX);
+        for (_, corners) in centered {
+            let left_edge = corners
+                .iter()
+                .map(|corner| corner.x)
+                .fold(f32::INFINITY, f32::min);
+            let right_edge = corners
+                .iter()
+                .map(|corner| corner.x)
+                .fold(f32::NEG_INFINITY, f32::max);
+            assert!(((left_edge + right_edge) * 0.5 - 0.55).abs() < 1e-5);
+        }
+
+        let top = align_surfaces(&surfaces, &indices, SurfaceAlign::Top);
+        for (_, corners) in top {
+            let top_edge = corners
+                .iter()
+                .map(|corner| corner.y)
+                .fold(f32::INFINITY, f32::min);
+            assert!((top_edge - 0.1).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn distribution_spaces_surface_centres_evenly() {
+        let surfaces = vec![
+            quad("a", 0.0, 0.0, 0.2, 0.2),
+            quad("b", 0.35, 0.3, 0.55, 0.5),
+            quad("c", 0.8, 0.8, 1.0, 1.0),
+        ];
+        let moved = distribute_surfaces(&surfaces, &[0, 1, 2], DistributeAxis::Horizontal);
+        assert_eq!(moved.len(), 1);
+        let (index, corners) = moved[0];
+        assert_eq!(index, 1);
+        let center = (corners[0].x + corners[2].x) * 0.5;
+        assert!((center - 0.5).abs() < 1e-5);
+
+        let vertical = distribute_surfaces(&surfaces, &[0, 1, 2], DistributeAxis::Vertical);
+        let (index, corners) = vertical[0];
+        assert_eq!(index, 1);
+        let center = (corners[0].y + corners[2].y) * 0.5;
+        assert!((center - 0.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn whole_surface_translation_stays_on_stage() {
+        let originals = [(0, quad("a", 0.0, 0.0, 0.2, 0.2).corners)];
+        assert_eq!(clamp_translation(&originals, -0.5, -0.5), (0.0, 0.0));
+        assert_eq!(clamp_translation(&originals, 0.9, 0.9), (0.8, 0.8));
+    }
+
     #[test]
     fn output_pacing_tracks_missed_frames_and_smooths_intervals() {
         let mut pacing = OutputPacing::default();
@@ -2008,6 +2629,23 @@ mod tests {
         project.audio.media_id = Some(audio_id);
         let asset = project.media.last().unwrap();
         assert_eq!(media_usage(&project, asset), "show audio");
+    }
+
+    #[test]
+    fn layer_surface_labels_explain_single_and_multi_surface_assignments() {
+        let mut project = Project::demo();
+        let stage = &project.stages[0];
+        assert_eq!(layer_surface_label(stage, &stage.layers[0]), "Surface 1");
+        assert_eq!(layer_surface_indices(stage, &stage.layers[0]), [0]);
+
+        let second = stage.surfaces[1].id.clone();
+        project.stages[0].layers[0].surface_ids.push(second);
+        let stage = &project.stages[0];
+        assert_eq!(
+            layer_surface_label(stage, &stage.layers[0]),
+            "Surface 1 + Surface 2"
+        );
+        assert_eq!(layer_surface_indices(stage, &stage.layers[0]), [0, 1]);
     }
 
     #[test]

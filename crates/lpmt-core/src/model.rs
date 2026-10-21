@@ -3,7 +3,7 @@
 //! The domain deliberately starts small. It is better to grow a clear model
 //! from real milestones than to port every field from LPMT 1 at once.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::homography::{Homography, HomographyError};
 use crate::lut::CalibrationLut;
@@ -255,17 +255,41 @@ pub enum SourceSpec {
     Video { media_id: MediaId },
 }
 
-/// Content drawn through a surface. A surface is geometry; a layer is the
-/// image, video or generator that goes through it.
+/// Content drawn through one or more surfaces. A surface is geometry; a layer
+/// is the image, video or generator that goes through it. Assigning the same
+/// layer to several surfaces lets one content stack cover overlapping or
+/// duplicated geometry without copying the source.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Layer {
     pub id: LayerId,
     pub name: String,
-    pub surface_id: SurfaceId,
+    /// Every surface this layer is drawn through. All entries share the same
+    /// source, opacity and blend settings.
+    #[serde(alias = "surface_id", deserialize_with = "deserialize_surface_ids")]
+    pub surface_ids: Vec<SurfaceId>,
     pub source: SourceSpec,
     pub opacity: f32,
     pub blend: BlendMode,
     pub visible: bool,
+}
+
+/// Accept both the current `surface_ids` array and legacy single-`surface_id`
+/// projects.
+fn deserialize_surface_ids<'de, D>(deserializer: D) -> Result<Vec<SurfaceId>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany {
+        One(SurfaceId),
+        Many(Vec<SurfaceId>),
+    }
+
+    Ok(match OneOrMany::deserialize(deserializer)? {
+        OneOrMany::One(id) => vec![id],
+        OneOrMany::Many(ids) => ids,
+    })
 }
 
 impl Layer {
@@ -277,7 +301,7 @@ impl Layer {
         Self {
             id: LayerId::new(id),
             name: name.into(),
-            surface_id: surface_id.clone(),
+            surface_ids: vec![surface_id.clone()],
             source: SourceSpec::TestPattern {
                 pattern: TestPattern::Checker,
             },
@@ -296,7 +320,7 @@ impl Layer {
         Self {
             id: LayerId::new(id),
             name: name.into(),
-            surface_id: surface_id.clone(),
+            surface_ids: vec![surface_id.clone()],
             source: SourceSpec::Image {
                 media_id: media_id.clone(),
             },
@@ -315,7 +339,7 @@ impl Layer {
         Self {
             id: LayerId::new(id),
             name: name.into(),
-            surface_id: surface_id.clone(),
+            surface_ids: vec![surface_id.clone()],
             source: SourceSpec::Video {
                 media_id: media_id.clone(),
             },
@@ -323,6 +347,10 @@ impl Layer {
             blend: BlendMode::Normal,
             visible: true,
         }
+    }
+
+    pub fn uses_surface(&self, surface_id: &SurfaceId) -> bool {
+        self.surface_ids.contains(surface_id)
     }
 }
 
@@ -863,6 +891,36 @@ mod tests {
         let round_trip: Project = serde_json::from_str(&json).unwrap();
         assert_eq!(project, round_trip);
         assert!(round_trip.is_media_used(&video_id));
+    }
+
+    #[test]
+    fn legacy_single_surface_layers_migrate_to_the_array_form() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        let layer = value["stages"][0]["layers"][0].as_object_mut().unwrap();
+        let surface_id = layer["surface_ids"][0].clone();
+        layer.remove("surface_ids");
+        layer.insert("surface_id".to_owned(), surface_id);
+
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert_eq!(project.stages[0].layers[0].surface_ids.len(), 1);
+        assert_eq!(
+            project.stages[0].layers[0].surface_ids[0],
+            project.stages[0].surfaces[0].id
+        );
+    }
+
+    #[test]
+    fn a_layer_can_be_assigned_to_several_surfaces() {
+        let mut project = Project::demo();
+        let second_surface = project.stages[0].surfaces[1].id.clone();
+        project.stages[0].layers[0]
+            .surface_ids
+            .push(second_surface.clone());
+
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip, project);
+        assert!(round_trip.stages[0].layers[0].uses_surface(&second_surface));
     }
 
     #[test]

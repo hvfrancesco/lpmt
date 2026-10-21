@@ -604,41 +604,45 @@ impl StageRenderer {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
-            let Some(surface) = stage.surface(&layer.surface_id) else {
-                continue;
-            };
-            if !surface.visible {
-                continue;
-            }
-
-            let opacity = (layer.opacity * surface.opacity).clamp(0.0, 1.0);
-            if opacity <= 0.0 {
-                continue;
-            }
-
-            let Ok(surface_to_stage) = surface.homography() else {
-                continue;
-            };
-            let Ok(stage_to_surface) = surface_to_stage.inverse() else {
-                continue;
-            };
-
             let bind_group = media.bind_group(&layer.source);
+            for surface_id in &layer.surface_ids {
+                if draws.len() >= MAX_LAYER_SLOTS {
+                    break;
+                }
+                let Some(surface) = stage.surface(surface_id) else {
+                    continue;
+                };
+                if !surface.visible {
+                    continue;
+                }
 
-            let offset = (draws.len() as u64 * self.uniform_stride) as u32;
-            draws.push(DrawItem {
-                offset,
-                uniforms: Uniforms {
-                    inv_surface: stage_to_surface.to_column_major_4x4(),
-                    resolution: [width as f32, height as f32],
-                    _padding: [0.0; 2],
-                    view: [view.x, view.y, view.width, view.height],
-                    opacity,
-                    _padding2: [0.0; 3],
-                },
-                blend_index: pipeline_index(layer.blend),
-                bind_group: bind_group.clone(),
-            });
+                let opacity = (layer.opacity * surface.opacity).clamp(0.0, 1.0);
+                if opacity <= 0.0 {
+                    continue;
+                }
+
+                let Ok(surface_to_stage) = surface.homography() else {
+                    continue;
+                };
+                let Ok(stage_to_surface) = surface_to_stage.inverse() else {
+                    continue;
+                };
+
+                let offset = (draws.len() as u64 * self.uniform_stride) as u32;
+                draws.push(DrawItem {
+                    offset,
+                    uniforms: Uniforms {
+                        inv_surface: stage_to_surface.to_column_major_4x4(),
+                        resolution: [width as f32, height as f32],
+                        _padding: [0.0; 2],
+                        view: [view.x, view.y, view.width, view.height],
+                        opacity,
+                        _padding2: [0.0; 3],
+                    },
+                    blend_index: pipeline_index(layer.blend),
+                    bind_group: bind_group.clone(),
+                });
+            }
         }
 
         for draw in &draws {

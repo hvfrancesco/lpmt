@@ -12,9 +12,10 @@ The original LPMT 1 source and data are preserved in
 layer compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
-diagnostics, 1D calibration LUTs, projection test patterns and temporary output
-guides. The inspector is split into Show, Mapping, Media, Outputs and Project
-tabs, with a media pool that shows how each asset is used.
+diagnostics, 1D calibration LUTs, projection test patterns, temporary output
+guides and multi-surface mapping. The inspector is split into Show, Mapping,
+Media, Outputs and Project tabs, with a media pool that shows how each asset is
+used.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -22,13 +23,20 @@ tabs, with a media pool that shows how each asset is used.
   the stage aspect and independent of every output window. The preview shows the
   actual image/video layers under the surface and output outlines. Every surface
   is outlined; single-click any surface to edit it and drag any corner to warp
-  it. Surfaces and layers can be renamed; surfaces can be added or deleted when
-  no layer uses them; surface visibility/opacity and layer
-  visibility/opacity/blend/surface are editable.
+  it. Surfaces and layers can be renamed; a surface can be deleted when no
+  layer relies on it as its only surface, and deleting it unassigns it from
+  multi-surface layers. Surface visibility/opacity and layer
+  visibility/opacity/blend/surface assignments are editable.
 - Optional **corner snapping**: when enabled, dragging a surface corner snaps it
   to the nearest corner of another surface within a small screen-space
   threshold, with a visible snap target. The toggle lives in the Surfaces
   section.
+- **Multi-surface mapping:** Shift-click surfaces in the preview or list to add
+  or remove them from the selection. Dragging any selected surface moves the
+  whole selection; the Mapping tab can align left/centre/right or
+  top/middle/bottom to the selection bounds and distribute three or more
+  surface centres horizontally or vertically. Multi-surface moves are one
+  coalesced undo step.
 - Each output is mapped to a stable `OutputId` and renders its own
   `OutputSpec.view` rectangle of the stage. The editor can add, delete, open,
   close and fullscreen outputs, edit their normalized view rectangles and pick
@@ -57,13 +65,18 @@ tabs, with a media pool that shows how each asset is used.
   crosshair, safe-area frames or rule-of-thirds lines. Guides are session-only
   and never saved into the project; press `G` to cycle the selected output.
 - **Tabbed workspace and media pool:** the inspector separates Show, Mapping,
-  Media, Outputs and Project. The Media tab lists every asset with its current
-  role, can assign an image/video to the selected layer, add it as a new layer,
-  or make an audio file the show track. Mapping shows each layer's surface and
-  can jump to the asset in the Media pool.
+  Media, Outputs and Project. The Media tab has an explicit target-layer
+  selector, lists every asset with its current role, can assign an image/video
+  to that layer, add it as a new layer on all selected surfaces, or make an
+  audio file the show track. Mapping shows each layer's assigned surfaces and
+  can jump to the asset in the Media pool. Importing or reloading media keeps
+  the current target layer selected.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
-  opacity, surface assignment and `Normal`, `Add`, `Screen` or `Multiply`
-  blending. The demo has two warped surfaces and two layers.
+  opacity, one-or-more surface assignment and `Normal`, `Add`, `Screen` or
+  `Multiply` blending. A single layer can drive several surfaces without
+  duplicating its media or settings. Legacy single-surface project files still
+  load.
+- The demo has two warped surfaces and two layers.
 - Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
   `OutputSpec`, `OutputGroup`) with stable IDs and JSON serialization.
 - Image decoding in `lpmt-media`; `lpmt-render` owns one shared GPU texture cache
@@ -97,12 +110,13 @@ tabs, with a media pool that shows how each asset is used.
 
 ### Next session
 
-The preview viewport, corner snapping, pacing diagnostics, calibration LUTs,
-test patterns, temporary output guides and the tabbed/media-pool workspace are
-now in place. The next implementation slice is **mapping polish**:
+The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
+patterns, output guides, multi-surface mapping and the tabbed/media-pool
+workspace are now in place. The next implementation slice is **media workflow
+polish**:
 
-- multi-select, align and distribute for surfaces;
-- media thumbnails in the pool and drag-and-drop assignment;
+- thumbnails in the media pool and drag-and-drop assignment;
+- quick replace/add-layer actions directly from the pool;
 - 3D LUT support and richer per-output calibration diagnostics later.
 
 Audio is on the shared clock; a per-layer mix bus and timeline remain later
@@ -131,7 +145,9 @@ The demo show loads [`assets/images/ofTheo.jpg`](assets/images/ofTheo.jpg) on th
 background layer and [`assets/images/car.jpg`](assets/images/car.jpg) on a smaller
 `Screen`-blended layer. Missing assets fall back to the procedural checker card.
 Use the **Layers** section to select a layer, toggle it, change opacity or blend
-mode, move it between surfaces, reorder it, or add/delete test-pattern layers.
+mode, assign it to one or more surfaces, reorder it, or add/delete test-pattern
+layers. If several surfaces are selected in the Mapping view, **Add test
+pattern** creates one layer on all of them.
 When a test-pattern layer is selected, its **Test pattern** selector switches
 between the checker, alignment grid, colour bars, grayscale ramp and RGB
 convergence card.
@@ -274,11 +290,13 @@ per show, many Outputs as views of that Stage**.
 In the editor, all surfaces are outlined in the live preview viewport. Click one
 to make it active, then drag its corners or edit them numerically; the sidebar
 list selects the same active surface. With **Snap corners to other surfaces**
-enabled, a dragged corner locks onto another surface's nearest corner. The
-The **Mapping** tab shows surfaces and layers together; selecting a layer also
-highlights its surface, and its source can jump directly to the asset in the
-**Media** tab. The media pool reports whether each asset is unused, used by a
-layer, or assigned as show audio, and can add a visual asset as a new layer.
+enabled, a dragged corner locks onto another surface's nearest corner.
+Shift-click surfaces, or drag a selected surface, to edit several at once; the
+Mapping tab exposes align and distribute actions. Selecting a layer highlights
+its assigned surface (or keeps the current surface when it is one of several),
+and its source can jump directly to the asset in the **Media** tab. The media
+pool reports whether each asset is unused, used by a layer, or assigned as show
+audio, and can add a visual asset as a new layer on every selected surface.
 The **Outputs** tab shows pacing, calibration LUT controls and temporary
 calibration guides. Audio and transport live in the **Show** tab. Use the
 **Project** tab to save or load the JSON show file; **Undo**/**Redo** in the top

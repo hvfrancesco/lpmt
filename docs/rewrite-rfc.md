@@ -49,17 +49,19 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   `ShowAudio`, `OutputSpec`, `OutputGroup`, `TestPattern` and `CalibrationLut` with stable IDs,
   JSON serialization and homography/LUT tests.
 - **Ordered layer stack:** the renderer composites visible layers bottom-to-top with per-layer
-  visibility, opacity, surface assignment and Normal/Add/Screen/Multiply blend modes. Each layer
-  uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
-  layer. The editor can select, show/hide, reorder, delete and create test-pattern layers, and the
-  demo uses two surfaces/layers to exercise compositing.
+  visibility, opacity, one-or-more surface assignment and Normal/Add/Screen/Multiply blend modes.
+  Each layer uses a dynamic uniform slice per assigned surface, so there is one pipeline per blend
+  mode rather than one pipeline per layer. The editor can select, show/hide, reorder, delete,
+  create test-pattern layers and toggle a layer's surfaces. The demo uses two surfaces/layers to
+  exercise compositing.
 - **Project persistence:** JSON save/load in the editor plus `--project <path>` startup loading,
   with native Open/Save-as dialogs and media import/replace/remove. Saves are atomic: the JSON is
   written and flushed to a temporary file in the destination directory, then renamed over the
   previous project. The media picker accepts images, videos and audio, infers `MediaKind` from the
   extension and rewrites layers that reference a changed asset. Picked media inside the show
   directory is stored project-relative; external files stay absolute. A missing asset falls back to
-  the test card.
+  the test card. Legacy layers with a single `surface_id` deserialize into a one-element
+  `surface_ids` array.
 - **Editor history and safety:** project edits are undoable/redoable (Ctrl+Z,
   Ctrl+Shift+Z/Ctrl+Y). Continuous edits such as corner drags, opacity/volume sliders and name
   typing are coalesced into one history step, the history is cleared when another project is
@@ -107,12 +109,16 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   calibration so their colour is predictable. `G` cycles the selected output's guide.
 - **Workspace structure:** the inspector is split into Show, Mapping, Media, Outputs and Project
   tabs. Mapping shows surfaces and layers together and keeps the layer-to-surface relationship
-  visible; the Media pool reports each asset's role and can assign visual media to the selected
-  layer or create a new layer directly.
+  visible; the Media pool has an explicit target-layer selector, reports each asset's role and can
+  assign visual media to that layer or create a new layer on the selected surfaces.
+- **Multi-surface mapping:** Shift-click adds or removes surfaces from the selection. Dragging a
+  selected surface moves the whole selection within the normalized stage; align left/centre/right,
+  top/middle/bottom and distribute centres horizontally/vertically operate on the selection bounds.
+  Multi-surface drags coalesce into one undo step.
 - **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
   and the legacy importer.
-- **Next implementation slice:** multi-select, align/distribute for surfaces, media thumbnails and
-  drag-and-drop assignment. The legacy XML importer stays planned.
+- **Next implementation slice:** media thumbnails and drag-and-drop assignment from the pool. The
+  legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -412,7 +418,7 @@ Do not mix pixels and normalized values in the model. Convert at the renderer/UI
         {
           "id": "lyr_left_video",
           "name": "Left content",
-          "surface": "srf_left",
+          "surfaces": ["srf_left"],
           "source": { "kind": "video", "asset": "ast_intro", "loop": true, "volume": 0.0 },
           "transform": { "fit": "cover", "offset": [0.0, 0.0], "scale": [1.0, 1.0], "flip_h": false, "flip_v": false },
           "opacity": 1.0,
@@ -692,7 +698,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 - [x] Surface/layer inspector, drag handles, selection, rename, add/delete surfaces and surface
       visibility/opacity.
-- [x] Ordered layer stack with visibility, opacity, surface assignment and basic blend modes.
+- [x] Ordered layer stack with visibility, opacity, one-or-more surface assignment and basic blend
+      modes.
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
 - [x] Atomic project saves and dirty-state tracking.
 - [x] Undo/redo for project edits with coalesced drags, sliders and typing.
@@ -723,6 +730,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - Colourisation, chroma key and advanced blend modes.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
+- [x] Multi-select, whole-surface drag, align and distribute.
 - [ ] 3D LUTs and broader calibration diagnostics.
 - Acceptance: feature parity with LPMT 1’s core mapping and masking.
 

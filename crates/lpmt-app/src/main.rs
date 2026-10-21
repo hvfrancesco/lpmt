@@ -24,12 +24,14 @@ use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
     BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
-    OutputTarget, Point2, Project, SourceSpec, Surface, TestPattern,
+    OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, TestPattern,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
 use lpmt_render::output::{OutputRenderer, PreviewRenderer};
-use lpmt_ui::editor::{self, EditorAction, EditorState, EditorStatus, OutputPacing};
+use lpmt_ui::editor::{
+    self, EditorAction, EditorState, EditorStatus, OutputPacing, SurfaceGeometryEdit,
+};
 use video_runtime::VideoRuntime;
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
@@ -617,6 +619,15 @@ impl App {
                         surface.corners[corner] = value;
                     }
                 }
+                EditorAction::SetSurfaceCorners { surfaces, .. } => {
+                    if let Some(stage) = self.project.primary_stage_mut() {
+                        for (index, corners) in surfaces {
+                            if let Some(surface) = stage.surfaces.get_mut(index) {
+                                surface.corners = corners.map(Point2::clamp_unit);
+                            }
+                        }
+                    }
+                }
                 EditorAction::ResetSurface { surface } => {
                     if let Some(surface) = self
                         .project
@@ -654,7 +665,7 @@ impl App {
                         ],
                     );
                     stage.surfaces.push(surface);
-                    self.ui_state.selected_surface = stage.surfaces.len() - 1;
+                    self.ui_state.select_only_surface(stage.surfaces.len() - 1);
                 }
                 EditorAction::DeleteSurface { surface } => {
                     let remaining = {
@@ -665,24 +676,20 @@ impl App {
                             continue;
                         }
                         let surface_id = stage.surfaces[surface].id.clone();
-                        if stage
-                            .layers
-                            .iter()
-                            .any(|layer| layer.surface_id == surface_id)
-                        {
+                        if stage.layers.iter().any(|layer| {
+                            layer.surface_ids.len() <= 1 && layer.uses_surface(&surface_id)
+                        }) {
                             self.status_message =
-                                "Delete or reassign the layers on this surface first".to_owned();
+                                "Reassign layers that only use this surface first".to_owned();
                             continue;
+                        }
+                        for layer in &mut stage.layers {
+                            layer.surface_ids.retain(|id| id != &surface_id);
                         }
                         stage.surfaces.remove(surface);
                         stage.surfaces.len()
                     };
-                    let selected = self.ui_state.selected_surface;
-                    self.ui_state.selected_surface = if selected > surface {
-                        selected - 1
-                    } else {
-                        selected.min(remaining.saturating_sub(1))
-                    };
+                    self.ui_state.remove_surface_selection(surface, remaining);
                 }
                 EditorAction::RenameSurface { surface, name } => {
                     if let Some(surface) = self
@@ -805,33 +812,32 @@ impl App {
                         }
                     }
                 }
-                EditorAction::SetLayerSurface { layer, surface } => {
-                    let Some(surface_id) = self
-                        .project
-                        .primary_stage()
-                        .and_then(|stage| stage.surfaces.get(surface))
-                        .map(|surface| surface.id.clone())
-                    else {
+                EditorAction::SetLayerSurfaces { layer, surfaces } => {
+                    let Some(stage) = self.project.primary_stage() else {
                         continue;
                     };
+                    let surface_ids: Vec<_> = surfaces
+                        .iter()
+                        .filter_map(|index| stage.surfaces.get(*index))
+                        .map(|surface| surface.id.clone())
+                        .collect();
+                    if surface_ids.is_empty() {
+                        continue;
+                    }
                     if let Some(layer) = self
                         .project
                         .primary_stage_mut()
                         .and_then(|stage| stage.layers.get_mut(layer))
                     {
-                        layer.surface_id = surface_id;
+                        layer.surface_ids = surface_ids;
                     }
                 }
-                EditorAction::AddLayer { surface } => {
+                EditorAction::AddLayer { surfaces } => {
                     let Some(stage) = self.project.primary_stage_mut() else {
                         continue;
                     };
-                    let Some(surface_id) = stage
-                        .surfaces
-                        .get(surface)
-                        .or_else(|| stage.surfaces.first())
-                        .map(|surface| surface.id.clone())
-                    else {
+                    let surface_ids = selected_surface_ids(stage, &surfaces);
+                    let Some(primary) = surface_ids.first() else {
                         continue;
                     };
                     let mut index = stage.layers.len() + 1;
@@ -847,13 +853,14 @@ impl App {
                         index += 1;
                     };
                     let mut layer =
-                        Layer::test_pattern(id, format!("Test pattern {index}"), &surface_id);
+                        Layer::test_pattern(id, format!("Test pattern {index}"), primary);
+                    layer.surface_ids = surface_ids;
                     layer.opacity = 0.45;
                     layer.blend = BlendMode::Screen;
                     stage.layers.push(layer);
                     self.ui_state.selected_layer = stage.layers.len() - 1;
                 }
-                EditorAction::AddLayerFromMedia { surface, media } => {
+                EditorAction::AddLayerFromMedia { surfaces, media } => {
                     let Some(asset) = self.project.media.get(media) else {
                         continue;
                     };
@@ -868,12 +875,8 @@ impl App {
                     let Some(stage) = self.project.primary_stage_mut() else {
                         continue;
                     };
-                    let Some(surface_id) = stage
-                        .surfaces
-                        .get(surface)
-                        .or_else(|| stage.surfaces.first())
-                        .map(|surface| surface.id.clone())
-                    else {
+                    let surface_ids = selected_surface_ids(stage, &surfaces);
+                    let Some(primary) = surface_ids.first() else {
                         continue;
                     };
                     let mut index = stage.layers.len() + 1;
@@ -888,11 +891,12 @@ impl App {
                         }
                         index += 1;
                     };
-                    let layer = match kind {
-                        MediaKind::Image => Layer::image(id, name, &surface_id, &media_id),
-                        MediaKind::Video => Layer::video(id, name, &surface_id, &media_id),
+                    let mut layer = match kind {
+                        MediaKind::Image => Layer::image(id, name, primary, &media_id),
+                        MediaKind::Video => Layer::video(id, name, primary, &media_id),
                         MediaKind::Audio => unreachable!("audio is rejected above"),
                     };
+                    layer.surface_ids = surface_ids;
                     stage.layers.push(layer);
                     self.ui_state.selected_layer = stage.layers.len() - 1;
                     self.reload_media();
@@ -956,6 +960,7 @@ impl App {
                     log::info!("transport seek to {:.3}s", self.clock.position_seconds());
                 }
                 EditorAction::SetShowAudio { media } => {
+                    let selected_layer = self.ui_state.selected_layer;
                     if let Some(media) = media {
                         let Some(asset) = self.project.media.get(media) else {
                             continue;
@@ -970,6 +975,7 @@ impl App {
                         self.project.audio.media_id = None;
                     }
                     self.reload_media();
+                    self.keep_selected_layer(selected_layer);
                 }
                 EditorAction::SetShowAudioVolume { volume } => {
                     let volume = volume.clamp(0.0, 1.0);
@@ -1239,6 +1245,7 @@ impl App {
                     }
                 }
                 EditorAction::AddMedia => {
+                    let selected_layer = self.ui_state.selected_layer;
                     let dialog = media_file_dialog(&self.media_base);
                     if let Some(path) = dialog.pick_file() {
                         self.record_history("add media");
@@ -1271,6 +1278,7 @@ impl App {
                         self.ui_state.selected_media = self.project.media.len() - 1;
                         self.ui_state.image_path = stored;
                         self.reload_media();
+                        self.keep_selected_layer(selected_layer);
                     }
                 }
                 EditorAction::RemoveMedia { media } => {
@@ -1299,6 +1307,7 @@ impl App {
                     let Some(asset) = self.project.media.get(media) else {
                         continue;
                     };
+                    let selected_layer = self.ui_state.selected_layer;
                     let fallback = asset.kind;
                     let dialog = media_file_dialog(&self.media_base);
                     if let Some(path) = dialog.pick_file() {
@@ -1311,6 +1320,7 @@ impl App {
                         self.apply_media_kind(media, kind);
                         self.ui_state.image_path = stored;
                         self.reload_media();
+                        self.keep_selected_layer(selected_layer);
                         if before != self.project {
                             self.history
                                 .record(before, HistoryKey::Discrete, "replace media");
@@ -1329,6 +1339,15 @@ impl App {
         if before != self.project {
             self.history.record(before, key, label);
         }
+    }
+
+    /// Media loading must not change which layer the inspector is editing.
+    fn keep_selected_layer(&mut self, layer: usize) {
+        let count = self
+            .project
+            .primary_stage()
+            .map_or(0, |stage| stage.layers.len());
+        self.ui_state.selected_layer = layer.min(count.saturating_sub(1));
     }
 
     /// Record a snapshot for an edit whose actual mutation happens after a
@@ -1361,11 +1380,11 @@ impl App {
             || used_media_ids(&project) != used_media_ids(&self.project);
         self.project = project;
         self.ui_state.reset_text_buffers();
-        self.ui_state.selected_surface = self.ui_state.selected_surface.min(
-            self.project
-                .primary_stage()
-                .map_or(0, |stage| stage.surfaces.len().saturating_sub(1)),
-        );
+        let surface_count = self
+            .project
+            .primary_stage()
+            .map_or(0, |stage| stage.surfaces.len());
+        self.ui_state.normalize_surface_selection(surface_count);
         self.ui_state.selected_layer = self.ui_state.selected_layer.min(
             self.project
                 .primary_stage()
@@ -1583,6 +1602,11 @@ impl App {
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
         self.ui_state.selected_surface = 0;
+        self.ui_state.normalize_surface_selection(
+            self.project
+                .primary_stage()
+                .map_or(0, |stage| stage.surfaces.len()),
+        );
         self.ui_state.selected_layer = 0;
         self.ui_state.selected_media = 0;
         self.ui_state.selected_output = 0;
@@ -1967,6 +1991,11 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             HistoryKey::SurfaceCorner(*surface, *corner),
             "move surface corner",
         ),
+        SetSurfaceCorners { edit, .. } => match edit {
+            SurfaceGeometryEdit::Move => (HistoryKey::SurfaceGeometry, "move surfaces"),
+            SurfaceGeometryEdit::Align => (HistoryKey::Discrete, "align surfaces"),
+            SurfaceGeometryEdit::Distribute => (HistoryKey::Discrete, "distribute surfaces"),
+        },
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
@@ -1983,7 +2012,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerOpacity { layer, .. } => (HistoryKey::LayerOpacity(*layer), "change layer opacity"),
         SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
         SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
-        SetLayerSurface { .. } => (HistoryKey::Discrete, "move layer to surface"),
+        SetLayerSurfaces { .. } => (HistoryKey::Discrete, "change layer surfaces"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
         AddLayerFromMedia { .. } => (HistoryKey::Discrete, "add media layer"),
         DeleteLayer { .. } => (HistoryKey::Discrete, "delete layer"),
@@ -2025,6 +2054,23 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | Redo => return None,
     };
     Some(key)
+}
+
+fn selected_surface_ids(stage: &Stage, indices: &[usize]) -> Vec<SurfaceId> {
+    let mut ids = Vec::new();
+    for index in indices {
+        if let Some(surface) = stage.surfaces.get(*index) {
+            if !ids.contains(&surface.id) {
+                ids.push(surface.id.clone());
+            }
+        }
+    }
+    if ids.is_empty() {
+        if let Some(surface) = stage.surfaces.first() {
+            ids.push(surface.id.clone());
+        }
+    }
+    ids
 }
 
 fn used_media_ids(project: &Project) -> Vec<MediaId> {
@@ -2115,6 +2161,21 @@ fn configure_egui_surface(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selected_surface_ids_deduplicates_indices() {
+        let project = Project::demo();
+        let stage = project.primary_stage().unwrap();
+        let ids = selected_surface_ids(stage, &[1, 1, 0]);
+        assert_eq!(
+            ids,
+            [stage.surfaces[1].id.clone(), stage.surfaces[0].id.clone()]
+        );
+        assert_eq!(
+            selected_surface_ids(stage, &[]),
+            [stage.surfaces[0].id.clone()]
+        );
+    }
 
     #[test]
     fn media_kind_is_inferred_from_extension() {
