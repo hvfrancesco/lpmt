@@ -11,15 +11,20 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use lpmt_core::model::{BlendMode, Layer, MediaKind, Project, SourceSpec};
+use lpmt_core::model::{
+    BlendMode, Layer, MediaAsset, MediaKind, OutputGroup, OutputId, OutputSpec, OutputTarget,
+    Point2, Project, SourceSpec, Surface,
+};
 use lpmt_render::gpu::Gpu;
+use lpmt_render::media::MediaCache;
 use lpmt_render::output::OutputRenderer;
 use lpmt_ui::editor::{self, EditorAction, EditorState, EditorStatus};
 use video_runtime::VideoRuntime;
 use winit::application::ApplicationHandler;
-use winit::dpi::{LogicalSize, PhysicalSize};
+use winit::dpi::{LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::monitor::MonitorHandle;
 use winit::window::{Fullscreen, Window, WindowId};
 
 fn main() -> Result<()> {
@@ -33,7 +38,7 @@ fn main() -> Result<()> {
     ));
     let gpu = Gpu::new(instance)?;
 
-    let mut app = App::new(gpu);
+    let mut app = App::new(gpu)?;
     app.startup_project = parse_startup_project();
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
@@ -41,13 +46,16 @@ fn main() -> Result<()> {
 
 struct App {
     gpu: Gpu,
+    media: MediaCache,
     project: Project,
     ui_state: EditorState,
     editor: Option<EditorWindow>,
-    output: Option<OutputWindow>,
+    outputs: Vec<OutputWindow>,
+    monitors: Vec<String>,
     videos: VideoRuntime,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
+    pending_output_sync: bool,
     status_message: String,
     last_frame: Instant,
     fps: f32,
@@ -64,21 +72,26 @@ struct EditorWindow {
 }
 
 struct OutputWindow {
+    id: OutputId,
     window: Arc<Window>,
     renderer: OutputRenderer,
 }
 
 impl App {
-    fn new(gpu: Gpu) -> Self {
+    fn new(gpu: Gpu) -> Result<Self> {
+        let media = MediaCache::new(&gpu)?;
         let mut app = Self {
             gpu,
+            media,
             project: Project::demo(),
             ui_state: EditorState::default(),
             editor: None,
-            output: None,
+            outputs: Vec::new(),
+            monitors: Vec::new(),
             videos: VideoRuntime::new(),
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
+            pending_output_sync: false,
             status_message: String::new(),
             last_frame: Instant::now(),
             fps: 0.0,
@@ -89,7 +102,7 @@ impl App {
             .media
             .first()
             .map_or_else(String::new, |asset| asset.path.clone());
-        app
+        Ok(app)
     }
 
     fn create_windows(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
@@ -141,49 +154,12 @@ impl App {
             egui_renderer,
         });
 
-        let mut output_attributes = Window::default_attributes()
-            .with_title("LPMT — Output 1")
-            .with_inner_size(PhysicalSize::new(1280, 720))
-            .with_active(false);
-
-        let primary_monitor = event_loop.primary_monitor();
-        let secondary = event_loop
+        self.monitors = event_loop
             .available_monitors()
-            .find(|monitor| Some(monitor) != primary_monitor.as_ref());
-        if let Some(secondary) = secondary {
-            log::info!(
-                "placing output on secondary monitor: {:?}",
-                secondary.name()
-            );
-            output_attributes =
-                output_attributes.with_fullscreen(Some(Fullscreen::Borderless(Some(secondary))));
-        } else {
-            log::info!("no secondary monitor found; output opens in a 1280x720 window");
-        }
+            .filter_map(|monitor| monitor.name())
+            .collect();
+        log::info!("available displays: {:?}", self.monitors);
 
-        let output_window = Arc::new(
-            event_loop
-                .create_window(output_attributes)
-                .context("failed to create output window")?,
-        );
-        let output_surface = self
-            .gpu
-            .instance()
-            .create_surface(output_window.clone())
-            .context("failed to create output surface")?;
-        let output_size = output_window.inner_size();
-        let output_renderer = OutputRenderer::new(
-            &self.gpu,
-            output_surface,
-            output_window.clone(),
-            output_size.width,
-            output_size.height,
-        )?;
-
-        self.output = Some(OutputWindow {
-            window: output_window,
-            renderer: output_renderer,
-        });
         if let Some(path) = self.startup_project.take() {
             let path = path.to_string_lossy().into_owned();
             if let Err(error) = self.load_project(&path) {
@@ -195,7 +171,73 @@ impl App {
             self.reload_media();
         }
 
+        // Outputs are created from the project, not the other way around. A
+        // project can define any number of outputs, each with its own view.
+        self.sync_output_windows(event_loop);
+
         Ok(())
+    }
+
+    /// Create windows for enabled outputs and close the rest. Windows are only
+    /// opened or closed on project changes, never in the per-frame path.
+    fn sync_output_windows(&mut self, event_loop: &ActiveEventLoop) {
+        self.outputs.retain(|output| {
+            self.project
+                .outputs
+                .iter()
+                .any(|spec| spec.id == output.id && spec.enabled)
+        });
+
+        let missing: Vec<OutputId> = self
+            .project
+            .outputs
+            .iter()
+            .filter(|spec| spec.enabled && !self.outputs.iter().any(|output| output.id == spec.id))
+            .map(|spec| spec.id.clone())
+            .collect();
+
+        for id in missing {
+            let used_monitors = self.used_fullscreen_monitors();
+            let cascade = self.outputs.len() as i32;
+            let result = match self.project.output(&id) {
+                Some(spec) => create_output_window(
+                    &self.gpu,
+                    &self.media,
+                    event_loop,
+                    spec,
+                    &used_monitors,
+                    cascade,
+                ),
+                None => continue,
+            };
+
+            match result {
+                Ok(output) => {
+                    let name = self
+                        .project
+                        .output(&id)
+                        .map_or_else(String::new, |spec| spec.name.clone());
+                    log::info!("opened output '{name}' ({id})");
+                    self.outputs.push(output);
+                }
+                Err(error) => {
+                    log::error!("failed to open output {id}: {error:#}");
+                    self.status_message = format!("Output {id} failed: {error}");
+                    if let Some(spec) = self.project.output_mut(&id) {
+                        spec.enabled = false;
+                    }
+                }
+            }
+        }
+    }
+
+    fn used_fullscreen_monitors(&self) -> Vec<String> {
+        self.outputs
+            .iter()
+            .filter(|output| output.window.fullscreen().is_some())
+            .filter_map(|output| output.window.current_monitor())
+            .filter_map(|monitor| monitor.name())
+            .collect()
     }
 
     fn handle_editor_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
@@ -235,35 +277,47 @@ impl App {
         }
     }
 
-    fn handle_output_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+    fn handle_output_event(&mut self, index: usize, event: WindowEvent) {
         let mut close = false;
-        let mut redraw = false;
         let mut resize = None;
 
-        if let Some(_output) = self.output.as_mut() {
+        if let Some(_output) = self.outputs.get(index) {
             match event {
                 WindowEvent::CloseRequested => close = true,
                 WindowEvent::Resized(size) => resize = Some(size),
-                WindowEvent::RedrawRequested => redraw = true,
+                // Outputs are rendered once per application tick in
+                // `about_to_wait`, so grouped outputs can share a frame.
+                WindowEvent::RedrawRequested => {}
                 _ => {}
             }
         }
 
         if close {
-            event_loop.exit();
+            // Closing an output window is not the same as quitting the show:
+            // mark the output closed so it can be reopened from the inspector.
+            let id = self.outputs[index].id.clone();
+            let name = self
+                .project
+                .output(&id)
+                .map_or_else(|| id.to_string(), |spec| spec.name.clone());
+            self.outputs.remove(index);
+            if let Some(spec) = self.project.output_mut(&id) {
+                spec.enabled = false;
+            }
+            self.status_message = format!("Closed output '{name}'");
+            log::info!("output '{name}' closed by the user");
+            if let Some(editor) = self.editor.as_ref() {
+                editor.window.request_redraw();
+            }
             return;
         }
 
         if let Some(size) = resize {
-            if let Some(output) = self.output.as_mut() {
+            if let Some(output) = self.outputs.get_mut(index) {
                 if let Err(error) = output.renderer.resize(&self.gpu, size.width, size.height) {
                     log::error!("failed to resize output: {error:#}");
                 }
             }
-        }
-
-        if redraw {
-            self.render_output();
         }
     }
 
@@ -383,30 +437,93 @@ impl App {
         self.apply_actions(actions);
     }
 
-    fn render_output(&mut self) {
+    /// Render every open output once per tick. Outputs in the same group are
+    /// prepared first, submitted in one queue call and then presented together.
+    fn render_outputs(&mut self) {
+        let groups: Vec<Vec<OutputId>> = self
+            .project
+            .output_groups
+            .iter()
+            .map(|group| group.outputs.clone())
+            .collect();
+        let mut rendered = vec![false; self.outputs.len()];
+
+        for output_ids in groups {
+            let indices: Vec<usize> = output_ids
+                .iter()
+                .filter_map(|id| self.outputs.iter().position(|output| &output.id == id))
+                .filter(|index| !rendered[*index])
+                .collect();
+            if indices.is_empty() {
+                continue;
+            }
+            for index in &indices {
+                rendered[*index] = true;
+            }
+            self.present_outputs(&indices);
+        }
+
+        let ungrouped: Vec<usize> = (0..self.outputs.len())
+            .filter(|index| !rendered[*index])
+            .collect();
+        for index in ungrouped {
+            self.present_outputs(&[index]);
+        }
+    }
+
+    fn present_outputs(&mut self, indices: &[usize]) {
         let App {
             gpu,
+            media,
             project,
-            output,
-            videos,
+            outputs,
             ..
         } = self;
-        let Some(output) = output.as_mut() else {
+        let mut prepared = Vec::new();
+
+        for index in indices {
+            let Some(output) = outputs.get_mut(*index) else {
+                continue;
+            };
+            let Some(output_spec) = project.output(&output.id) else {
+                continue;
+            };
+            let Some(stage) = project
+                .stage(&output_spec.stage_id)
+                .or_else(|| project.primary_stage())
+            else {
+                continue;
+            };
+            match output.renderer.prepare(gpu, media, stage, output_spec) {
+                Ok(Some(frame)) => prepared.push(frame),
+                Ok(None) => {}
+                Err(error) => {
+                    log::error!("output '{}' render failed: {error:#}", output_spec.name);
+                }
+            }
+        }
+
+        if prepared.is_empty() {
             return;
-        };
-        videos.poll(gpu, &mut output.renderer);
-        let Some(output_spec) = project.outputs.first() else {
-            return;
-        };
-        let Some(stage) = project
-            .stage(&output_spec.stage_id)
-            .or_else(|| project.primary_stage())
-        else {
-            return;
-        };
-        let view = output_spec.view;
-        if let Err(error) = output.renderer.render(gpu, stage, view) {
-            log::error!("output render failed: {error:#}");
+        }
+
+        let count = prepared.len();
+        let mut frames = Vec::with_capacity(count);
+        let mut command_buffers = Vec::with_capacity(count);
+        for prepared in prepared {
+            let (frame, command_buffer) = prepared.finish();
+            frames.push(frame);
+            command_buffers.push(command_buffer);
+        }
+
+        // One submit for the whole group is the frame barrier: no output is
+        // presented until every prepared frame in the batch is enqueued.
+        gpu.queue().submit(command_buffers);
+        for frame in frames {
+            gpu.queue().present(frame);
+        }
+        if indices.len() > 1 {
+            log::trace!("presented {count} grouped outputs in one batch");
         }
     }
 
@@ -435,12 +552,117 @@ impl App {
                         surface.reset_to_full_stage();
                     }
                 }
+                EditorAction::AddSurface => {
+                    let Some(stage) = self.project.primary_stage_mut() else {
+                        continue;
+                    };
+                    let mut index = stage.surfaces.len() + 1;
+                    let id = loop {
+                        let candidate = format!("surface-{index}");
+                        if !stage
+                            .surfaces
+                            .iter()
+                            .any(|surface| surface.id.as_str() == candidate)
+                        {
+                            break candidate;
+                        }
+                        index += 1;
+                    };
+                    let inset = 0.08 * (index % 4) as f32;
+                    let surface = Surface::new(
+                        id,
+                        format!("Surface {index}"),
+                        [
+                            Point2::new(0.2 + inset, 0.2 + inset),
+                            Point2::new(0.8 - inset, 0.2 + inset),
+                            Point2::new(0.8 - inset, 0.8 - inset),
+                            Point2::new(0.2 + inset, 0.8 - inset),
+                        ],
+                    );
+                    stage.surfaces.push(surface);
+                    self.ui_state.selected_surface = stage.surfaces.len() - 1;
+                }
+                EditorAction::DeleteSurface { surface } => {
+                    let remaining = {
+                        let Some(stage) = self.project.primary_stage_mut() else {
+                            continue;
+                        };
+                        if stage.surfaces.len() <= 1 || surface >= stage.surfaces.len() {
+                            continue;
+                        }
+                        let surface_id = stage.surfaces[surface].id.clone();
+                        if stage
+                            .layers
+                            .iter()
+                            .any(|layer| layer.surface_id == surface_id)
+                        {
+                            self.status_message =
+                                "Delete or reassign the layers on this surface first".to_owned();
+                            continue;
+                        }
+                        stage.surfaces.remove(surface);
+                        stage.surfaces.len()
+                    };
+                    let selected = self.ui_state.selected_surface;
+                    self.ui_state.selected_surface = if selected > surface {
+                        selected - 1
+                    } else {
+                        selected.min(remaining.saturating_sub(1))
+                    };
+                }
+                EditorAction::RenameSurface { surface, name } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        if !name.trim().is_empty() {
+                            surface.name = name;
+                        }
+                    }
+                }
+                EditorAction::SetSurfaceVisibility { surface, visible } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.visible = visible;
+                    }
+                }
+                EditorAction::SetSurfaceOpacity { surface, opacity } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.opacity = opacity.clamp(0.0, 1.0);
+                    }
+                }
                 EditorAction::SetMediaPath { media, path } => {
+                    let fallback = self
+                        .project
+                        .media
+                        .get(media)
+                        .map_or(MediaKind::Image, |asset| asset.kind);
+                    let kind = media_kind_from_path(Path::new(&path), fallback);
                     if let Some(asset) = self.project.media.get_mut(media) {
                         asset.path.clone_from(&path);
                     }
+                    self.apply_media_kind(media, kind);
                     self.ui_state.image_path = path;
                     self.reload_media();
+                }
+                EditorAction::RenameLayer { layer, name } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        if !name.trim().is_empty() {
+                            layer.name = name;
+                        }
+                    }
                 }
                 EditorAction::SetLayerMedia { layer, media } => {
                     let Some(asset) = self.project.media.get(media) else {
@@ -606,11 +828,181 @@ impl App {
                         self.videos.seek(&media_id, position);
                     }
                 }
+                EditorAction::AddOutput => {
+                    let Some(stage_id) = self.project.primary_stage().map(|stage| stage.id.clone())
+                    else {
+                        continue;
+                    };
+                    let mut index = self.project.outputs.len() + 1;
+                    let id = loop {
+                        let candidate = format!("output-{index}");
+                        if !self
+                            .project
+                            .outputs
+                            .iter()
+                            .any(|output| output.id.as_str() == candidate)
+                        {
+                            break candidate;
+                        }
+                        index += 1;
+                    };
+                    let mut spec = OutputSpec::full_stage(id, format!("Output {index}"), &stage_id);
+                    spec.target = OutputTarget::Windowed {
+                        width: 960,
+                        height: 540,
+                    };
+                    self.project.outputs.push(spec);
+                    self.ui_state.selected_output = self.project.outputs.len() - 1;
+                    self.pending_output_sync = true;
+                }
+                EditorAction::DeleteOutput { output } => {
+                    if output >= self.project.outputs.len() || self.project.outputs.len() <= 1 {
+                        continue;
+                    }
+                    let removed = self.project.outputs.remove(output);
+                    self.project.remove_output_from_groups(&removed.id);
+                    self.outputs.retain(|window| window.id != removed.id);
+                    self.ui_state.selected_output = self
+                        .ui_state
+                        .selected_output
+                        .min(self.project.outputs.len() - 1);
+                    self.pending_output_sync = true;
+                }
+                EditorAction::SetOutputView { output, view } => {
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.view = view;
+                    }
+                }
+                EditorAction::SetOutputEnabled { output, enabled } => {
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.enabled = enabled;
+                    }
+                    self.pending_output_sync = true;
+                }
+                EditorAction::SetOutputEdgeBlend { output, edge_blend } => {
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.edge_blend = edge_blend.clamped();
+                    }
+                }
+                EditorAction::SetOutputColor { output, color } => {
+                    if let Some(spec) = self.project.outputs.get_mut(output) {
+                        spec.color = color.clamped();
+                    }
+                }
+                EditorAction::SetOutputMonitor { output, monitor } => {
+                    let Some(spec) = self.project.outputs.get_mut(output) else {
+                        continue;
+                    };
+                    spec.target = OutputTarget::Fullscreen { monitor };
+                    let id = spec.id.clone();
+                    self.outputs.retain(|window| window.id != id);
+                    self.pending_output_sync = true;
+                }
+                EditorAction::SetOutputFullscreen { output, fullscreen } => {
+                    let Some(spec) = self.project.outputs.get_mut(output) else {
+                        continue;
+                    };
+                    spec.target = if fullscreen {
+                        OutputTarget::Fullscreen { monitor: None }
+                    } else {
+                        OutputTarget::Windowed {
+                            width: 960,
+                            height: 540,
+                        }
+                    };
+                    // Fullscreen and windowed attributes differ, so the
+                    // window has to be recreated with the new target.
+                    let id = spec.id.clone();
+                    self.outputs.retain(|window| window.id != id);
+                    self.pending_output_sync = true;
+                }
+                EditorAction::AddOutputGroup => {
+                    let mut index = self.project.output_groups.len() + 1;
+                    let id = loop {
+                        let candidate = format!("group-{index}");
+                        if !self
+                            .project
+                            .output_groups
+                            .iter()
+                            .any(|group| group.id.as_str() == candidate)
+                        {
+                            break candidate;
+                        }
+                        index += 1;
+                    };
+                    self.project.output_groups.push(OutputGroup::new(
+                        id,
+                        format!("Group {index}"),
+                        [],
+                    ));
+                    self.ui_state.selected_group = self.project.output_groups.len() - 1;
+                }
+                EditorAction::DeleteOutputGroup { group } => {
+                    if group >= self.project.output_groups.len() {
+                        continue;
+                    }
+                    self.project.output_groups.remove(group);
+                    self.ui_state.selected_group = self
+                        .ui_state
+                        .selected_group
+                        .min(self.project.output_groups.len().saturating_sub(1));
+                }
+                EditorAction::SetOutputGroupMember {
+                    group,
+                    output,
+                    member,
+                } => {
+                    let Some(output_id) =
+                        self.project.outputs.get(output).map(|spec| spec.id.clone())
+                    else {
+                        continue;
+                    };
+                    if member {
+                        self.project.remove_output_from_groups(&output_id);
+                        if let Some(group) = self.project.output_groups.get_mut(group) {
+                            group.outputs.push(output_id);
+                        }
+                    } else if let Some(group) = self.project.output_groups.get_mut(group) {
+                        group.outputs.retain(|id| id != &output_id);
+                    }
+                }
                 EditorAction::ReloadMedia => self.reload_media(),
                 EditorAction::SaveProject { path } => {
                     if let Err(error) = self.save_project(&path) {
                         log::error!("failed to save project: {error:#}");
                         self.status_message = format!("Save failed: {error}");
+                    }
+                }
+                EditorAction::SaveProjectDialog => {
+                    let current = PathBuf::from(&self.ui_state.project_path);
+                    let file_name = current
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("project.lpmt.json")
+                        .to_owned();
+                    let mut dialog = rfd::FileDialog::new()
+                        .add_filter("LPMT project", &["json"])
+                        .set_file_name(&file_name);
+                    dialog = if let Some(parent) = current
+                        .parent()
+                        .filter(|parent| !parent.as_os_str().is_empty())
+                    {
+                        dialog.set_directory(parent)
+                    } else {
+                        dialog.set_directory(&self.media_base)
+                    };
+                    if let Some(mut path) = dialog.save_file() {
+                        if !path
+                            .extension()
+                            .is_some_and(|extension| extension.eq_ignore_ascii_case("json"))
+                        {
+                            path.set_extension("json");
+                        }
+                        let path = path.display().to_string();
+                        if let Err(error) = self.save_project(&path) {
+                            log::error!("failed to save project: {error:#}");
+                            self.status_message = format!("Save failed: {error}");
+                        }
                     }
                 }
                 EditorAction::LoadProject { path } => {
@@ -619,6 +1011,128 @@ impl App {
                         self.status_message = format!("Load failed: {error}");
                     }
                 }
+                EditorAction::OpenProjectDialog => {
+                    let current = PathBuf::from(&self.ui_state.project_path);
+                    let mut dialog = rfd::FileDialog::new().add_filter("LPMT project", &["json"]);
+                    dialog = if let Some(parent) = current
+                        .parent()
+                        .filter(|parent| !parent.as_os_str().is_empty())
+                    {
+                        dialog.set_directory(parent)
+                    } else {
+                        dialog.set_directory(&self.media_base)
+                    };
+                    if let Some(path) = dialog.pick_file() {
+                        let path = path.display().to_string();
+                        if let Err(error) = self.load_project(&path) {
+                            log::error!("failed to load project: {error:#}");
+                            self.status_message = format!("Load failed: {error}");
+                        }
+                    }
+                }
+                EditorAction::AddMedia => {
+                    let dialog = media_file_dialog(&self.media_base);
+                    if let Some(path) = dialog.pick_file() {
+                        let stored = self.stored_media_path(&path);
+                        let kind = media_kind_from_path(&path, MediaKind::Image);
+                        let name = path
+                            .file_stem()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("Media")
+                            .to_owned();
+                        let mut index = self.project.media.len() + 1;
+                        let id = loop {
+                            let candidate = format!("media-{index}");
+                            if !self
+                                .project
+                                .media
+                                .iter()
+                                .any(|asset| asset.id.as_str() == candidate)
+                            {
+                                break candidate;
+                            }
+                            index += 1;
+                        };
+                        let asset = match kind {
+                            MediaKind::Image => MediaAsset::image(id, name, stored.clone()),
+                            MediaKind::Video => MediaAsset::video(id, name, stored.clone()),
+                        };
+                        self.project.media.push(asset);
+                        self.ui_state.selected_media = self.project.media.len() - 1;
+                        self.ui_state.image_path = stored;
+                        self.reload_media();
+                    }
+                }
+                EditorAction::RemoveMedia { media } => {
+                    let Some(asset) = self.project.media.get(media) else {
+                        continue;
+                    };
+                    if self.project.is_media_used(&asset.id) {
+                        self.status_message =
+                            "That media asset is used by a layer; reassign the layer first"
+                                .to_owned();
+                        continue;
+                    }
+                    self.project.media.remove(media);
+                    self.ui_state.selected_media = self
+                        .ui_state
+                        .selected_media
+                        .min(self.project.media.len().saturating_sub(1));
+                    self.ui_state.image_path = self
+                        .project
+                        .media
+                        .get(self.ui_state.selected_media)
+                        .map_or_else(String::new, |asset| asset.path.clone());
+                    self.reload_media();
+                }
+                EditorAction::PickMediaFile { media } => {
+                    let Some(asset) = self.project.media.get(media) else {
+                        continue;
+                    };
+                    let fallback = asset.kind;
+                    let dialog = media_file_dialog(&self.media_base);
+                    if let Some(path) = dialog.pick_file() {
+                        let stored = self.stored_media_path(&path);
+                        let kind = media_kind_from_path(&path, fallback);
+                        if let Some(asset) = self.project.media.get_mut(media) {
+                            asset.path = stored.clone();
+                        }
+                        self.apply_media_kind(media, kind);
+                        self.ui_state.image_path = stored;
+                        self.reload_media();
+                    }
+                }
+            }
+        }
+    }
+
+    /// Keep layers pointing at a media asset valid when the file type changes
+    /// from image to video or back.
+    fn apply_media_kind(&mut self, media: usize, kind: MediaKind) {
+        let Some(media_id) = self.project.media.get(media).map(|asset| asset.id.clone()) else {
+            return;
+        };
+        if let Some(asset) = self.project.media.get_mut(media) {
+            asset.kind = kind;
+        }
+        let Some(stage) = self.project.primary_stage_mut() else {
+            return;
+        };
+        for layer in &mut stage.layers {
+            let uses_media = matches!(
+                &layer.source,
+                SourceSpec::Image { media_id: id } | SourceSpec::Video { media_id: id }
+                    if id == &media_id
+            );
+            if uses_media {
+                layer.source = match kind {
+                    MediaKind::Image => SourceSpec::Image {
+                        media_id: media_id.clone(),
+                    },
+                    MediaKind::Video => SourceSpec::Video {
+                        media_id: media_id.clone(),
+                    },
+                };
             }
         }
     }
@@ -626,20 +1140,23 @@ impl App {
     fn reload_media(&mut self) {
         let App {
             gpu,
+            media,
             project,
-            output,
             videos,
             media_base,
             ..
         } = self;
-        let Some(output) = output.as_mut() else {
-            return;
-        };
 
-        output.renderer.clear_media();
-        let (video_loaded, video_failed) = videos.load(project, media_base);
+        media.clear();
+        let (video_loaded, _) = videos.load(project, media_base);
         let mut loaded = video_loaded;
-        let mut failed = video_failed;
+        let mut failed_names: Vec<String> = project
+            .media
+            .iter()
+            .filter(|asset| asset.kind == MediaKind::Video && project.is_media_used(&asset.id))
+            .filter(|asset| videos.status(&asset.id).is_none())
+            .map(|asset| asset.name.clone())
+            .collect();
 
         for asset in &project.media {
             if asset.kind != MediaKind::Image || !project.is_media_used(&asset.id) {
@@ -653,7 +1170,7 @@ impl App {
             };
 
             match lpmt_media::load_image(&path) {
-                Ok(image) => match output.renderer.upload_image(gpu, asset.id.clone(), &image) {
+                Ok(image) => match media.upload_image(gpu, asset.id.clone(), &image) {
                     Ok(()) => {
                         loaded += 1;
                         log::info!(
@@ -665,7 +1182,7 @@ impl App {
                         );
                     }
                     Err(error) => {
-                        failed += 1;
+                        failed_names.push(asset.name.clone());
                         log::error!(
                             "failed to upload media '{}' ({}): {error:#}",
                             asset.name,
@@ -674,7 +1191,7 @@ impl App {
                     }
                 },
                 Err(error) => {
-                    failed += 1;
+                    failed_names.push(asset.name.clone());
                     log::warn!(
                         "media '{}' could not be loaded from {}: {error:#}",
                         asset.name,
@@ -684,11 +1201,37 @@ impl App {
             }
         }
 
-        self.status_message = if failed == 0 {
-            format!("Loaded {loaded} media asset(s)")
-        } else {
-            format!("Loaded {loaded}, failed {failed} media asset(s)")
-        };
+        self.status_message =
+            if failed_names.is_empty() {
+                format!("Loaded {loaded} media asset(s)")
+            } else {
+                let hint = if !cfg!(feature = "video")
+                    && project.media.iter().any(|asset| {
+                        asset.kind == MediaKind::Video && project.is_media_used(&asset.id)
+                    }) {
+                    " · rebuild with --features video"
+                } else {
+                    ""
+                };
+                format!(
+                    "Loaded {loaded}, failed {}: {}{hint}",
+                    failed_names.len(),
+                    failed_names.join(", ")
+                )
+            };
+    }
+
+    /// Store media paths relative to the project when possible, so a show
+    /// directory stays movable. Files outside the project directory stay
+    /// absolute.
+    fn stored_media_path(&self, path: &Path) -> String {
+        let base =
+            std::fs::canonicalize(&self.media_base).unwrap_or_else(|_| self.media_base.clone());
+        let absolute = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        absolute
+            .strip_prefix(&base)
+            .map(|relative| relative.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| absolute.display().to_string())
     }
 
     fn save_project(&mut self, path: &str) -> Result<()> {
@@ -731,6 +1274,10 @@ impl App {
         self.ui_state.selected_surface = 0;
         self.ui_state.selected_layer = 0;
         self.ui_state.selected_media = 0;
+        self.ui_state.selected_output = 0;
+        self.ui_state.selected_group = 0;
+        self.ui_state.reset_text_buffers();
+        self.pending_output_sync = true;
         self.ui_state.image_path = self
             .project
             .media
@@ -744,17 +1291,25 @@ impl App {
     }
 
     fn status(&self) -> EditorStatus {
-        let output = self.output.as_ref().map_or_else(
-            || "No output window".to_owned(),
-            |output| {
-                let (width, height) = output.renderer.size();
-                let layers = self
+        let output = if self.outputs.is_empty() {
+            "No output windows".to_owned()
+        } else {
+            let mut parts = Vec::with_capacity(self.outputs.len());
+            for window in &self.outputs {
+                let (width, height) = window.renderer.size();
+                let name = self
                     .project
-                    .primary_stage()
-                    .map_or(0, |stage| stage.layers.len());
-                format!("Output 1 · {width}×{height} · full stage · {layers} layers")
-            },
-        );
+                    .output(&window.id)
+                    .map_or_else(|| window.id.to_string(), |spec| spec.name.clone());
+                parts.push(format!("{name} {width}×{height}"));
+            }
+            format!(
+                "{} open / {} defined · {}",
+                self.outputs.len(),
+                self.project.outputs.len(),
+                parts.join(" · ")
+            )
+        };
         let video = self
             .project
             .media
@@ -775,6 +1330,8 @@ impl App {
             frame_ms: self.frame_ms,
             message: self.status_message.clone(),
             video,
+            video_supported: cfg!(feature = "video"),
+            monitors: self.monitors.clone(),
         }
     }
 
@@ -819,22 +1376,31 @@ impl ApplicationHandler for App {
             return;
         }
 
-        if self
-            .output
-            .as_ref()
-            .is_some_and(|output| output.window.id() == window_id)
+        if let Some(index) = self
+            .outputs
+            .iter()
+            .position(|output| output.window.id() == window_id)
         {
-            self.handle_output_event(event_loop, event);
+            self.handle_output_event(index, event);
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.tick();
+
+        if self.pending_output_sync {
+            self.pending_output_sync = false;
+            self.sync_output_windows(event_loop);
+        }
+
+        // Decode once per application tick and share the resulting textures
+        // with every output, instead of advancing the player per window.
+        self.videos.poll(&self.gpu, &mut self.media);
+
+        self.render_outputs();
+
         if let Some(editor) = self.editor.as_ref() {
             editor.window.request_redraw();
-        }
-        if let Some(output) = self.output.as_ref() {
-            output.window.request_redraw();
         }
     }
 }
@@ -852,6 +1418,140 @@ impl EditorWindow {
         self.config =
             configure_egui_surface(gpu, &self.surface, self.config.width, self.config.height)?;
         Ok(())
+    }
+}
+
+fn create_output_window(
+    gpu: &Gpu,
+    media: &MediaCache,
+    event_loop: &ActiveEventLoop,
+    spec: &OutputSpec,
+    used_monitors: &[String],
+    cascade: i32,
+) -> Result<OutputWindow> {
+    let mut attributes = Window::default_attributes()
+        .with_title(format!("LPMT — {}", spec.name))
+        .with_active(false);
+
+    match &spec.target {
+        OutputTarget::Windowed { width, height } => {
+            attributes = attributes
+                .with_inner_size(PhysicalSize::new((*width).max(1), (*height).max(1)))
+                .with_position(PhysicalPosition::new(80 + cascade * 40, 80 + cascade * 40));
+        }
+        OutputTarget::Fullscreen { monitor } => {
+            let monitor = choose_monitor(event_loop, monitor.as_deref(), used_monitors);
+            if let Some(monitor) = monitor {
+                log::info!(
+                    "placing output '{}' fullscreen on monitor {:?}",
+                    spec.name,
+                    monitor.name()
+                );
+                attributes =
+                    attributes.with_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+            } else {
+                log::warn!(
+                    "no monitor available for output '{}'; opening it windowed",
+                    spec.name
+                );
+                attributes = attributes
+                    .with_inner_size(PhysicalSize::new(1280, 720))
+                    .with_position(PhysicalPosition::new(80 + cascade * 40, 80 + cascade * 40));
+            }
+        }
+    }
+
+    let window = Arc::new(
+        event_loop
+            .create_window(attributes)
+            .with_context(|| format!("failed to create window for output '{}'", spec.name))?,
+    );
+    let surface = gpu
+        .instance()
+        .create_surface(window.clone())
+        .with_context(|| format!("failed to create surface for output '{}'", spec.name))?;
+    let size = window.inner_size();
+    let renderer =
+        OutputRenderer::new(gpu, media, surface, window.clone(), size.width, size.height)?;
+
+    Ok(OutputWindow {
+        id: spec.id.clone(),
+        window,
+        renderer,
+    })
+}
+
+/// Pick a display for a fullscreen output: an explicit monitor name wins,
+/// otherwise prefer an unused secondary monitor so several projectors do not
+/// land on the same screen.
+fn choose_monitor(
+    event_loop: &ActiveEventLoop,
+    preferred: Option<&str>,
+    used: &[String],
+) -> Option<MonitorHandle> {
+    let monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
+    if let Some(preferred) = preferred {
+        if let Some(monitor) = monitors
+            .iter()
+            .find(|monitor| monitor.name().as_deref() == Some(preferred))
+        {
+            return Some(monitor.clone());
+        }
+    }
+
+    let primary = event_loop.primary_monitor();
+    monitors
+        .iter()
+        .find(|monitor| {
+            primary.as_ref() != Some(*monitor)
+                && !used
+                    .iter()
+                    .any(|name| monitor.name().as_deref() == Some(name.as_str()))
+        })
+        .or_else(|| {
+            monitors.iter().find(|monitor| {
+                !used
+                    .iter()
+                    .any(|name| monitor.name().as_deref() == Some(name.as_str()))
+            })
+        })
+        // With every display already covered, a further fullscreen output
+        // would hide the editor. Open it windowed instead.
+        .or_else(|| {
+            if used.is_empty() {
+                monitors.first()
+            } else {
+                None
+            }
+        })
+        .cloned()
+}
+
+fn media_file_dialog(directory: &Path) -> rfd::FileDialog {
+    rfd::FileDialog::new()
+        .set_directory(directory)
+        .add_filter(
+            "Images and videos",
+            &[
+                "png", "jpg", "jpeg", "mp4", "mov", "mkv", "webm", "avi", "m4v",
+            ],
+        )
+        .add_filter("Images", &["png", "jpg", "jpeg"])
+        .add_filter(
+            "Videos",
+            &["mp4", "mov", "mkv", "webm", "avi", "m4v", "mpg", "mpeg"],
+        )
+}
+
+fn media_kind_from_path(path: &Path, fallback: MediaKind) -> MediaKind {
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| extension.to_ascii_lowercase());
+    match extension.as_deref() {
+        Some("mp4" | "mov" | "mkv" | "webm" | "avi" | "m4v" | "mpg" | "mpeg") => MediaKind::Video,
+        Some("png" | "jpg" | "jpeg") => MediaKind::Image,
+        _ => fallback,
     }
 }
 
@@ -898,4 +1598,25 @@ fn configure_egui_surface(
 
     surface.configure(gpu.device(), &config);
     Ok(config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn media_kind_is_inferred_from_extension() {
+        assert_eq!(
+            media_kind_from_path(Path::new("clip.MOV"), MediaKind::Image),
+            MediaKind::Video
+        );
+        assert_eq!(
+            media_kind_from_path(Path::new("still.jpg"), MediaKind::Video),
+            MediaKind::Image
+        );
+        assert_eq!(
+            media_kind_from_path(Path::new("asset.unknown"), MediaKind::Video),
+            MediaKind::Video
+        );
+    }
 }

@@ -36,6 +36,7 @@ id_type!(StageId);
 id_type!(SurfaceId);
 id_type!(LayerId);
 id_type!(OutputId);
+id_type!(OutputGroupId);
 id_type!(MediaId);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
@@ -317,6 +318,77 @@ pub enum OutputTarget {
     Fullscreen { monitor: Option<String> },
 }
 
+/// Softness at each physical edge of an output, normalized to the output's
+/// width/height. Overlapping projectors feather their shared seam by ramping
+/// both neighbours to black.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+pub struct EdgeBlend {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl EdgeBlend {
+    pub const NONE: Self = Self {
+        left: 0.0,
+        right: 0.0,
+        top: 0.0,
+        bottom: 0.0,
+    };
+
+    pub fn is_none(self) -> bool {
+        self == Self::NONE
+    }
+
+    pub fn clamped(self) -> Self {
+        Self {
+            left: self.left.clamp(0.0, 0.5),
+            right: self.right.clamp(0.0, 0.5),
+            top: self.top.clamp(0.0, 0.5),
+            bottom: self.bottom.clamp(0.0, 0.5),
+        }
+    }
+}
+
+/// Per-output colour stage applied after compositing, so overlapping outputs
+/// can be matched to each other independently of the show content.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ColorCorrection {
+    /// Linear multiplier, `1.0` is neutral.
+    pub brightness: f32,
+    /// Contrast around mid-grey, `1.0` is neutral.
+    pub contrast: f32,
+    /// Display gamma, `1.0` is neutral; values above 1 lift mid-tones.
+    pub gamma: f32,
+}
+
+impl Default for ColorCorrection {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+impl ColorCorrection {
+    pub const IDENTITY: Self = Self {
+        brightness: 1.0,
+        contrast: 1.0,
+        gamma: 1.0,
+    };
+
+    pub fn is_identity(self) -> bool {
+        self == Self::IDENTITY
+    }
+
+    pub fn clamped(self) -> Self {
+        Self {
+            brightness: self.brightness.clamp(0.0, 4.0),
+            contrast: self.contrast.clamp(0.0, 4.0),
+            gamma: self.gamma.clamp(0.1, 4.0),
+        }
+    }
+}
+
 /// An output is a view of a stage presented on a physical display or virtual
 /// sink. Multiple outputs can show different regions of the same stage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -327,6 +399,10 @@ pub struct OutputSpec {
     pub view: Rect,
     pub target: OutputTarget,
     pub enabled: bool,
+    #[serde(default)]
+    pub edge_blend: EdgeBlend,
+    #[serde(default)]
+    pub color: ColorCorrection,
 }
 
 impl OutputSpec {
@@ -338,6 +414,32 @@ impl OutputSpec {
             view: Rect::FULL,
             target: OutputTarget::Fullscreen { monitor: None },
             enabled: true,
+            edge_blend: EdgeBlend::NONE,
+            color: ColorCorrection::IDENTITY,
+        }
+    }
+}
+
+/// A set of outputs that should render the same show frame and be presented
+/// together. Outputs outside every group still render independently.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutputGroup {
+    pub id: OutputGroupId,
+    pub name: String,
+    #[serde(default)]
+    pub outputs: Vec<OutputId>,
+}
+
+impl OutputGroup {
+    pub fn new(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        outputs: impl IntoIterator<Item = OutputId>,
+    ) -> Self {
+        Self {
+            id: OutputGroupId::new(id),
+            name: name.into(),
+            outputs: outputs.into_iter().collect(),
         }
     }
 }
@@ -349,6 +451,10 @@ pub struct Project {
     pub name: String,
     pub stages: Vec<Stage>,
     pub outputs: Vec<OutputSpec>,
+    /// Outputs in the same group are rendered from one frame state and
+    /// submitted/presented as a batch.
+    #[serde(default)]
+    pub output_groups: Vec<OutputGroup>,
     #[serde(default)]
     pub media: Vec<MediaAsset>,
 }
@@ -366,6 +472,34 @@ impl Project {
         self.stages.first_mut()
     }
 
+    pub fn output(&self, id: &OutputId) -> Option<&OutputSpec> {
+        self.outputs.iter().find(|output| &output.id == id)
+    }
+
+    pub fn output_mut(&mut self, id: &OutputId) -> Option<&mut OutputSpec> {
+        self.outputs.iter_mut().find(|output| &output.id == id)
+    }
+
+    pub fn output_group(&self, id: &OutputGroupId) -> Option<&OutputGroup> {
+        self.output_groups.iter().find(|group| &group.id == id)
+    }
+
+    pub fn output_group_mut(&mut self, id: &OutputGroupId) -> Option<&mut OutputGroup> {
+        self.output_groups.iter_mut().find(|group| &group.id == id)
+    }
+
+    pub fn group_for_output(&self, id: &OutputId) -> Option<&OutputGroup> {
+        self.output_groups
+            .iter()
+            .find(|group| group.outputs.contains(id))
+    }
+
+    pub fn remove_output_from_groups(&mut self, id: &OutputId) {
+        for group in &mut self.output_groups {
+            group.outputs.retain(|output| output != id);
+        }
+    }
+
     pub fn media_asset(&self, id: &MediaId) -> Option<&MediaAsset> {
         self.media.iter().find(|asset| &asset.id == id)
     }
@@ -381,8 +515,8 @@ impl Project {
     }
 
     /// A deliberately small show used by the first vertical slice. It has one
-    /// stage, two warped surfaces, an ordered two-layer stack and one full-stage
-    /// output.
+    /// stage, two warped surfaces, an ordered two-layer stack and two outputs:
+    /// a full-stage show output and a windowed view of the right half.
     pub fn demo() -> Self {
         let stage_id = StageId::new("stage-main");
         let surface = Surface::new(
@@ -413,6 +547,20 @@ impl Project {
         layer2.opacity = 0.8;
         layer2.blend = BlendMode::Screen;
 
+        let main_output = OutputSpec::full_stage("output-1", "Main output", &stage_id);
+        let mut right_half = OutputSpec::full_stage("output-2", "Right half", &stage_id);
+        right_half.view = Rect::new(0.5, 0.0, 0.5, 1.0);
+        right_half.target = OutputTarget::Windowed {
+            width: 960,
+            height: 540,
+        };
+
+        let group = OutputGroup::new(
+            "group-main",
+            "Main wall",
+            [main_output.id.clone(), right_half.id.clone()],
+        );
+
         Self {
             schema_version: 2,
             id: ProjectId::new("project-demo"),
@@ -425,7 +573,8 @@ impl Project {
                 surfaces: vec![surface, surface2],
                 layers: vec![layer, layer2],
             }],
-            outputs: vec![OutputSpec::full_stage("output-1", "Main output", &stage_id)],
+            outputs: vec![main_output, right_half],
+            output_groups: vec![group],
             media: vec![media, video, car],
         }
     }
@@ -452,6 +601,34 @@ mod tests {
     }
 
     #[test]
+    fn older_projects_load_without_output_groups() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        value.as_object_mut().unwrap().remove("output_groups");
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.output_groups.is_empty());
+    }
+
+    #[test]
+    fn demo_outputs_share_one_render_group() {
+        let mut project = Project::demo();
+        let group = project
+            .group_for_output(&project.outputs[0].id)
+            .expect("demo output belongs to a group");
+        assert_eq!(group.outputs.len(), 2);
+        assert_eq!(
+            project
+                .group_for_output(&project.outputs[1].id)
+                .map(|group| group.id.clone()),
+            Some(group.id.clone())
+        );
+
+        let removed = project.outputs[1].id.clone();
+        project.remove_output_from_groups(&removed);
+        assert!(project.output_groups[0].outputs.len() == 1);
+        assert!(project.group_for_output(&removed).is_none());
+    }
+
+    #[test]
     fn detects_used_media() {
         let project = Project::demo();
         let image = &project.media[0];
@@ -460,6 +637,79 @@ mod tests {
         assert!(project.is_media_used(&image.id));
         assert!(!project.is_media_used(&video.id));
         assert!(project.is_media_used(&overlay.id));
+    }
+
+    #[test]
+    fn demo_has_two_outputs_with_distinct_views() {
+        let project = Project::demo();
+        assert_eq!(project.outputs.len(), 2);
+        assert_eq!(project.outputs[0].view, Rect::FULL);
+        assert_eq!(project.outputs[1].view, Rect::new(0.5, 0.0, 0.5, 1.0));
+        assert_ne!(project.outputs[0].id, project.outputs[1].id);
+        assert!(project
+            .outputs
+            .iter()
+            .all(|output| output.stage_id == project.stages[0].id));
+    }
+
+    #[test]
+    fn outputs_are_found_by_stable_id() {
+        let mut project = Project::demo();
+        let id = project.outputs[1].id.clone();
+        assert_eq!(project.output(&id).unwrap().name, "Right half");
+        project.output_mut(&id).unwrap().enabled = false;
+        assert!(!project.output(&id).unwrap().enabled);
+        assert!(project.output(&OutputId::new("missing")).is_none());
+    }
+
+    #[test]
+    fn output_correction_defaults_are_neutral() {
+        let output = OutputSpec::full_stage("output", "Output", &StageId::new("stage"));
+        assert_eq!(output.edge_blend, EdgeBlend::NONE);
+        assert_eq!(output.color, ColorCorrection::IDENTITY);
+        assert!(output.edge_blend.is_none());
+        assert!(output.color.is_identity());
+    }
+
+    #[test]
+    fn older_outputs_load_without_correction_fields() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        for output in value["outputs"].as_array_mut().unwrap() {
+            let output = output.as_object_mut().unwrap();
+            output.remove("edge_blend");
+            output.remove("color");
+        }
+
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project
+            .outputs
+            .iter()
+            .all(|output| output.edge_blend.is_none() && output.color.is_identity()));
+    }
+
+    #[test]
+    fn edge_blend_and_colour_clamp_to_sane_ranges() {
+        let blend = EdgeBlend {
+            left: -1.0,
+            right: 2.0,
+            top: 0.1,
+            bottom: 0.6,
+        }
+        .clamped();
+        assert_eq!(blend.left, 0.0);
+        assert_eq!(blend.right, 0.5);
+        assert_eq!(blend.top, 0.1);
+        assert_eq!(blend.bottom, 0.5);
+
+        let color = ColorCorrection {
+            brightness: -1.0,
+            contrast: 9.0,
+            gamma: 0.0,
+        }
+        .clamped();
+        assert_eq!(color.brightness, 0.0);
+        assert_eq!(color.contrast, 4.0);
+        assert_eq!(color.gamma, 0.1);
     }
 
     #[test]

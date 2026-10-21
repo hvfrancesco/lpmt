@@ -8,7 +8,7 @@ use std::path::Path;
 
 use lpmt_core::model::{MediaId, MediaKind, Project};
 use lpmt_render::gpu::Gpu;
-use lpmt_render::output::OutputRenderer;
+use lpmt_render::media::MediaCache;
 
 #[cfg(feature = "video")]
 use std::collections::HashMap;
@@ -40,8 +40,8 @@ impl VideoRuntime {
     }
 
     /// Upload the newest decoded frame for each player, if one arrived.
-    pub fn poll(&mut self, gpu: &Gpu, renderer: &mut OutputRenderer) {
-        self.inner.poll(gpu, renderer);
+    pub fn poll(&mut self, gpu: &Gpu, media: &mut MediaCache) {
+        self.inner.poll(gpu, media);
     }
 
     pub fn status(&self, media_id: &MediaId) -> Option<PlaybackSnapshot> {
@@ -126,11 +126,11 @@ impl Inner {
         (loaded, failed)
     }
 
-    fn poll(&mut self, gpu: &Gpu, renderer: &mut OutputRenderer) {
+    fn poll(&mut self, gpu: &Gpu, media: &mut MediaCache) {
         let mut uploaded = false;
         for (media_id, player) in &self.players {
             if let Some(frame) = player.take_frame() {
-                if let Err(error) = renderer.update_image(gpu, media_id.clone(), &frame.image) {
+                if let Err(error) = media.update_image(gpu, media_id.clone(), &frame.image) {
                     log::error!("failed to upload video frame for {media_id}: {error:#}");
                 } else {
                     uploaded = true;
@@ -206,7 +206,7 @@ impl Inner {
         (0, requested)
     }
 
-    fn poll(&mut self, _gpu: &Gpu, _renderer: &mut OutputRenderer) {}
+    fn poll(&mut self, _gpu: &Gpu, _media: &mut MediaCache) {}
 
     fn status(&self, _media_id: &MediaId) -> Option<PlaybackSnapshot> {
         None

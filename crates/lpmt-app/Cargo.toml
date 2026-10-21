@@ -22,6 +22,7 @@ lpmt-media = { path = "../lpmt-media" }
 lpmt-render = { path = "../lpmt-render" }
 lpmt-ui = { path = "../lpmt-ui" }
 pollster.workspace = true
+rfd.workspace = true
 serde_json.workspace = true
 wgpu.workspace = true
 winit.workspace = true

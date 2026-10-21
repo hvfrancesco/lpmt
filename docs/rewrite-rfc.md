@@ -41,32 +41,49 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   setup are kept cross-platform so macOS and Windows can be added without a structural rewrite.
 - **M0 is substantially complete:** a Rust workspace builds, one `wgpu` device feeds an `egui`
   editor window and a separate output window, and the output renderer is independent of the editor.
-- **M1 vertical slice exists:** `Stage` → `Surface` (four corners) → homography → output window,
+- **M1 vertical slice exists:** `Stage` → `Surface` (four corners) → homography → output view,
   rendering a real image texture with a checker fallback. The editor can drag corners or edit
-  their normalized coordinates, change media paths, reload media, and changes appear on the
+  their normalized coordinates, change media paths, reload media, and changes appear on every
   output.
-- **Core schema v2 seed:** `Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`, `SourceSpec` and
-  `OutputSpec` with stable IDs, JSON serialization and homography tests.
+- **Core schema v2 seed:** `Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`, `SourceSpec`,
+  `OutputSpec` and `OutputGroup` with stable IDs, JSON serialization and homography tests.
 - **Ordered layer stack:** the renderer composites visible layers bottom-to-top with per-layer
   visibility, opacity, surface assignment and Normal/Add/Screen/Multiply blend modes. Each layer
   uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
   layer. The editor can select, show/hide, reorder, delete and create test-pattern layers, and the
   demo uses two surfaces/layers to exercise compositing.
 - **Project persistence skeleton:** JSON save/load in the editor plus `--project <path>` startup
-  loading. Media paths are project-relative; a missing asset falls back to the test card.
+  loading, with native Open/Save-as dialogs and media import/replace/remove. The media picker accepts
+  images and videos, infers `MediaKind` from the extension and rewrites layers that reference a
+  changed asset. Picked media inside the show directory is stored project-relative; external files
+  stay absolute. A missing asset falls back to the test card.
 - **Optional video slice:** the `video` Cargo feature uses `ffmpeg-next` on a worker thread,
   loops a media asset, keeps only the newest frame and updates the GPU texture in place. Players are
   shared by `MediaId`; play/pause, restart, looping and seek/scrub controls are wired through the
   editor. Seeking reopens the decoder at the target position. Image-only builds have no system FFmpeg
   dependency. Audio, per-output sync and clock ownership are still open.
-- **Not implemented yet:** audio, masks/deformation, output views beyond full-stage, edge
-  blending, OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
-- **Next implementation slice:** multiple output windows, each with a stable `OutputId` and its own
-  `OutputSpec.view` rectangle, followed by per-output geometry/colour correction and edge blending.
-  Audio plus a shared show clock remain the other open M2 gap; the legacy XML importer stays planned.
+- **Multiple output windows:** every enabled `OutputSpec` owns a window keyed by its stable
+  `OutputId` and renders its own normalized `view` rectangle of the stage. Opening, closing,
+  fullscreen toggling, display assignment and adding/deleting outputs recreate windows only on
+  project changes. `lpmt-render::MediaCache` holds one texture/bind-group per `MediaId`, shared by
+  all outputs; decoded video frames are uploaded once per application tick instead of once per
+  window.
+- **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
+  application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
+  outside a group keep rendering independently, so a confidence monitor does not stall the wall.
+- **Per-output composition:** each output renders its layers into an offscreen scene target, then a
+  composite pass applies left/right/top/bottom edge feathering and brightness/contrast/gamma
+  correction. Correction happens after compositing, so overlapping outputs can be matched without
+  changing the show content. The editor exposes all four edges and the three colour controls.
+- **Not implemented yet:** audio, masks/deformation, per-output frame pacing diagnostics, OSC/MIDI,
+  timeline, undo/redo, atomic saves and the legacy importer.
+- **Next implementation slice:** audio plus a shared show clock, then undo/redo and a preview
+  viewport independent from the outputs. The legacy XML importer stays planned.
 
-Run `cargo run -p lpmt-app` from the repository root. On a single-monitor machine the output is a
-1280×720 window; with a secondary monitor it opens borderless fullscreen there.
+Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
+goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
+shows `x=0.5..1.0` of the stage. On a single-monitor machine the first fullscreen output uses the
+primary display and later outputs open as windows.
 
 ---
 
@@ -200,6 +217,12 @@ expensive and mostly wasted. Render **each output independently** from the same 
    - apply output-level edge blending, colour correction and calibration;
    - present to the output sink.
 3. Present all outputs for frame N from the same state.
+
+The current renderer already separates the last two output steps: layers are composited into an
+offscreen scene texture, then a fullscreen composite pass applies edge blending and colour
+correction before presenting. That pass is the natural place for later calibration LUTs and masks.
+Group members are prepared together in one application tick, submitted in a single queue call and
+then presented as a batch; outputs outside the group remain independent.
 
 A full-stage render target remains available as an optional mode for effects that must cross output
 boundaries (large blur, stage-wide feedback, preview thumbnails). It is not the default path.
@@ -614,7 +637,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] CI workflow for Linux, macOS and Windows (not yet run on hosted runners).
 - [x] Video decode spike on target hardware: `ffmpeg-next` selected for the first backend;
       GStreamer deferred for hardware decode/capture.
-- [ ] Multi-output present behaviour and output-group frame pacing.
+- [x] Multi-output present behaviour.
+- [ ] Output-group frame pacing diagnostics.
 
 ### M1 — Minimal renderer
 
@@ -627,8 +651,10 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ### M2 — Editor and video
 
-- [x] Surface/layer inspector, drag handles and selection.
+- [x] Surface/layer inspector, drag handles, selection, rename, add/delete surfaces and surface
+      visibility/opacity.
 - [x] Ordered layer stack with visibility, opacity, surface assignment and basic blend modes.
+- [x] Native project open/save and media file pickers; picked media stored relative when possible.
 - [ ] Undo/redo.
 - [x] Video asset playback with background decoding and looped playback (optional feature).
 - [x] Shared player per `MediaId`, with play/pause, restart, loop and seek/scrub controls.
@@ -639,8 +665,11 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ### M3 — Multi-output and edge blending
 
-- Multiple outputs, stage regions, output groups.
-- Per-output edge blend, colour/gamma controls, display assignment.
+- [x] Multiple output windows and stage-region views.
+- [x] Per-output edge blend and colour/gamma controls.
+- [x] Output groups and a shared frame barrier.
+- [x] Explicit display assignment per output.
+- [ ] Per-output pacing diagnostics and missed-present reporting.
 - Acceptance: two overlapping 1080p outputs with a blended seam; confidence monitor unaffected.
 
 ### M4 — Mapping depth

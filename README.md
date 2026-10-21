@@ -9,39 +9,60 @@ The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
 **Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
-layer compositing and optional video playback.
+layer compositing, optional video playback, multiple output windows and grouped
+output presentation.
 
-- One event loop, one `wgpu` device and queue, two windows.
+- One event loop, one `wgpu` device and queue, one editor window and any number
+  of independent output windows.
 - `egui` editor with a stage preview, draggable surface corners and numeric corner
-  fields.
-- Independent output window rendering an image or looping video through a
-  four-corner projective warp, with a checker test card as fallback.
+  fields. Surfaces and layers can be renamed; surfaces can be added or deleted
+  when no layer uses them; surface visibility/opacity and layer
+  visibility/opacity/blend/surface are editable.
+- Each output is mapped to a stable `OutputId` and renders its own
+  `OutputSpec.view` rectangle of the stage. The editor can add, delete, open,
+  close and fullscreen outputs, edit their normalized view rectangles and pick
+  an explicit display for fullscreen outputs. Output views are drawn in the
+  stage preview so overlap is visible.
+- Outputs can be collected into **output groups**. Group members are rendered
+  from the same frame state, submitted in a single queue call and presented
+  together; a full-stage confidence monitor can stay outside the group and keep
+  running independently.
+- Outputs render images or looping video through a four-corner projective warp,
+  with a checker test card as fallback.
+- Each output renders through an offscreen scene pass followed by a composite
+  pass that applies per-edge blending (left/right/top/bottom feather) and
+  per-output brightness, contrast and gamma. This is the base for projector
+  seam matching.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, surface assignment and `Normal`, `Add`, `Screen` or `Multiply`
   blending. The demo has two warped surfaces and two layers.
 - Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
-  `OutputSpec`) with stable IDs and JSON serialization.
-- Image decoding in `lpmt-media` and GPU texture upload/caching in `lpmt-render`.
+  `OutputSpec`, `OutputGroup`) with stable IDs and JSON serialization.
+- Image decoding in `lpmt-media`; `lpmt-render` owns one shared GPU texture cache
+  (`MediaCache`) so every output samples the same decoded media without
+  duplicating textures.
 - Optional `ffmpeg-next` video decoding behind the `video` Cargo feature:
   background worker thread, looped playback, play/pause, restart, seek/scrub,
   newest-frame mailbox and in-place GPU texture updates.
-- Project save/load from the editor (path field plus Save/Load buttons). Media
-  paths are resolved relative to the project file.
+- Project save/load from the editor, with typed paths and native file pickers
+  (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
+  project file; picked files inside the show directory are stored relative.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
 - Homography, media decoding and JSON compatibility unit tests.
-- The output opens fullscreen on a secondary monitor when one is present; otherwise
-  it opens as a 1280×720 window.
+- Fullscreen outputs claim an unused secondary monitor when one is present; the
+  next outputs open as windows (960×540 or 1280×720) so the editor stays
+  reachable. With a single display the first fullscreen output uses it.
 
 ### Next session
 
-The next implementation slice is **multiple output views**:
+The next implementation slice is **show timing and editor history**:
 
-- open more than one output window and map each to a stable `OutputId`;
-- render each output through its own `OutputSpec.view` rectangle of the stage;
-- add per-output geometry/colour correction and edge blending after that.
+- audio playback plus a shared show clock;
+- undo/redo and atomic saves;
+- a preview viewport independent from the outputs;
+- output pacing diagnostics and calibration LUTs.
 
-Audio plus a shared show clock are the other open M2 items. The legacy XML importer
-remains planned; the full roadmap is in
+The legacy XML importer remains planned; the full roadmap is in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
 
 ## Build and run
@@ -59,11 +80,23 @@ cargo run -p lpmt-app
 cargo run -p lpmt-app -- --project show.json
 ```
 
+File pickers use the desktop portal on Linux; the typed path fields remain
+available as a fallback in minimal window managers without a portal.
+
 The demo show loads [`assets/images/ofTheo.jpg`](assets/images/ofTheo.jpg) on the
 background layer and [`assets/images/car.jpg`](assets/images/car.jpg) on a smaller
 `Screen`-blended layer. Missing assets fall back to the procedural checker card.
 Use the **Layers** section to select a layer, toggle it, change opacity or blend
 mode, move it between surfaces, reorder it, or add/delete test-pattern layers.
+
+The demo also defines two outputs: **Main output** (full stage, fullscreen on a
+secondary display when available) and **Right half** (windowed, view
+`x=0.5..1.0`). The **Outputs** section adds or deletes outputs, toggles their
+window, chooses fullscreen and an explicit display, edits the normalized view
+rectangle, applies `Full stage` / `Left half` / `Right half` presets, and sets
+edge blending plus brightness/contrast/gamma. The **Output groups** section
+assigns outputs to synchronized groups; the demo puts both outputs in
+**Main wall**. The stage preview outlines every open output view.
 
 ### Video playback
 
@@ -90,8 +123,28 @@ Windows support for the video feature is not validated yet.
 In the editor's **Media** section, select `fingers · Video` and click **Use for
 layer**. Playback loops automatically and a **Playback** panel appears with
 play/pause, restart, loop and scrub controls. Seeking resumes a paused player.
-Without the `video` feature the output falls back to the checker card and the
-status bar reports that video support is not compiled in.
+Video assets are opened when a layer uses them; unused video entries do not start
+a decoder.
+
+**Add media…** imports a new image or video asset. The file picker accepts both
+types even when replacing an existing asset; the kind is inferred from the file
+extension and any layers using that asset are switched between image and video
+automatically. Unused assets can be removed; assets referenced by a layer must be
+reassigned first.
+
+#### If video does not play
+
+- **Check the build feature.** A default `cargo run -p lpmt-app` has no video
+  support. The Media section shows an amber warning and the status bar names the
+  failed assets with `rebuild with --features video`. Use
+  `cargo run -p lpmt-app --features video`.
+- **Check the path.** Media paths are resolved relative to the project file, not
+  the current directory. The status bar lists failed asset names; the log shows
+  the resolved path.
+- **Check the file itself** with
+  `ffprobe assets/video/fingers.mov`, or run the decoder smoke test:
+  `cargo run -p lpmt-media --features video --example decode-video -- assets/video/fingers.mov`.
+- Without the `video` feature the output falls back to the checker card.
 
 The initial backend is `ffmpeg-next`; GStreamer remains a later option for hardware
 decode and pipeline-oriented capture.
@@ -118,7 +171,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 | Crate | Responsibility |
 |---|---|
 | `lpmt-core` | Domain model, stable IDs, geometry and homography math |
-| `lpmt-render` | `wgpu` device setup and output rendering |
+| `lpmt-render` | `wgpu` device setup, shared media textures and output rendering |
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
 | `lpmt-media` | Image decoding and optional `ffmpeg-next` video playback; capture next |
 | `lpmt-control` | Future OSC, MIDI, DMX and hotkey adapters |
@@ -133,7 +186,8 @@ In the editor, select a surface to drag or numerically edit its corners. The
 **Layers** section selects the active layer and edits its visibility, opacity,
 blend mode, surface, order and lifetime. Use the **Media** section to change a
 media path, reload it, assign it to the active layer, or control video playback.
-Use the Project file section to save or load the JSON show file.
+The **Outputs** section manages output windows and their stage views. Use the
+Project file section to save or load the JSON show file.
 
 ## Legacy LPMT 1 archive
 

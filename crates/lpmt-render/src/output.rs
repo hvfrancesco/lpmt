@@ -1,22 +1,25 @@
 //! A window-backed output renderer.
 //!
 //! The renderer consumes a `Stage` and an output view, not a fixed window-sized
-//! framebuffer. Content textures are uploaded by the application from decoded
-//! media; the renderer owns the GPU-side cache and bind groups.
+//! framebuffer. Content textures live in the device-wide `MediaCache`, so many
+//! output windows sample the same decoded media; each renderer owns only its
+//! surface, pipelines and per-draw uniform buffer.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
-use lpmt_core::model::{BlendMode, MediaId, Rect, SourceSpec, Stage};
-use lpmt_media::DecodedImage;
+use lpmt_core::model::{BlendMode, OutputSpec, Stage};
 use winit::window::Window;
 
 use crate::gpu::Gpu;
+use crate::media::MediaCache;
 
-const CHECKER_SIZE: u32 = 512;
 const MAX_LAYER_SLOTS: usize = 256;
+
+/// Layers render into this offscreen target first, so output-level colour and
+/// edge blending are applied once to the completed stage view.
+const SCENE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
 const SHADER: &str = r#"
 struct Uniforms {
@@ -77,6 +80,66 @@ struct Uniforms {
     _padding2: [f32; 3],
 }
 
+/// Post-composite uniforms: edge feather widths and colour correction.
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct CompositeUniforms {
+    edge_blend: [f32; 4],
+    color: [f32; 4],
+}
+
+const COMPOSITE_SHADER: &str = r#"
+struct Composite {
+    // Left, right, top, bottom feather widths, normalized to the output.
+    edge_blend: vec4<f32>,
+    // Brightness, contrast, gamma, unused.
+    color: vec4<f32>,
+};
+
+@group(0) @binding(0) var<uniform> composite: Composite;
+@group(1) @binding(0) var scene_texture: texture_2d<f32>;
+@group(1) @binding(1) var scene_sampler: sampler;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
+    var positions = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(3.0, -1.0),
+        vec2<f32>(-1.0, 3.0),
+    );
+    return vec4<f32>(positions[vertex_index], 0.0, 1.0);
+}
+
+fn edge_fade(coord: f32, width: f32) -> f32 {
+    if (width <= 0.0) {
+        return 1.0;
+    }
+    return smoothstep(0.0, width, coord);
+}
+
+@fragment
+fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+    let dimensions = vec2<f32>(textureDimensions(scene_texture));
+    let uv = frag_coord.xy / dimensions;
+    let edge = composite.edge_blend;
+
+    let feather =
+        edge_fade(uv.x, edge.x) *
+        edge_fade(1.0 - uv.x, edge.y) *
+        edge_fade(uv.y, edge.z) *
+        edge_fade(1.0 - uv.y, edge.w);
+
+    var rgb = textureSampleLevel(scene_texture, scene_sampler, uv, 0.0).rgb;
+
+    let gamma = max(composite.color.z, 0.01);
+    rgb = pow(max(rgb, vec3<f32>(0.0)), vec3<f32>(1.0 / gamma));
+    rgb = (rgb - vec3<f32>(0.5)) * composite.color.y + vec3<f32>(0.5);
+    rgb = max(rgb * composite.color.x, vec3<f32>(0.0)) * feather;
+
+    return vec4<f32>(rgb, 1.0);
+}
+"#;
+
 struct DrawItem {
     offset: u32,
     uniforms: Uniforms,
@@ -84,18 +147,28 @@ struct DrawItem {
     bind_group: wgpu::BindGroup,
 }
 
-struct TextureEntry {
-    texture: wgpu::Texture,
-    _view: wgpu::TextureView,
+struct SceneTarget {
+    _texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    bind_group: wgpu::BindGroup,
     width: u32,
     height: u32,
-    bind_group: wgpu::BindGroup,
 }
 
-struct ImageData<'a> {
-    width: u32,
-    height: u32,
-    rgba: &'a [u8],
+/// A frame that has been acquired and fully encoded but not submitted yet.
+///
+/// Splitting acquisition/encoding from submission lets the application collect
+/// every output in a group, submit them in one queue call and then present the
+/// batch together.
+pub struct PreparedFrame {
+    frame: wgpu::SurfaceTexture,
+    encoder: wgpu::CommandEncoder,
+}
+
+impl PreparedFrame {
+    pub fn finish(self) -> (wgpu::SurfaceTexture, wgpu::CommandBuffer) {
+        (self.frame, self.encoder.finish())
+    }
 }
 
 pub struct OutputRenderer {
@@ -105,16 +178,19 @@ pub struct OutputRenderer {
     uniform_buffer: wgpu::Buffer,
     uniform_stride: u64,
     uniform_bind_group: wgpu::BindGroup,
-    texture_bind_group_layout: wgpu::BindGroupLayout,
-    sampler: wgpu::Sampler,
-    checker: TextureEntry,
-    media: HashMap<MediaId, TextureEntry>,
+    scene: Option<SceneTarget>,
+    scene_layout: wgpu::BindGroupLayout,
+    composite_pipeline: wgpu::RenderPipeline,
+    composite_uniform_buffer: wgpu::Buffer,
+    composite_bind_group: wgpu::BindGroup,
+    composite_sampler: wgpu::Sampler,
     _window: Arc<Window>,
 }
 
 impl OutputRenderer {
     pub fn new(
         gpu: &Gpu,
+        media: &MediaCache,
         surface: wgpu::Surface<'static>,
         window: Arc<Window>,
         width: u32,
@@ -123,8 +199,11 @@ impl OutputRenderer {
         let config = configure_surface(gpu, &surface, width, height)?;
 
         let uniform_size = std::mem::size_of::<Uniforms>() as u64;
+        // Use the limits the device was actually created with, not the
+        // adapter's maximums: `Limits::default()` can request a stricter
+        // alignment than the hardware advertises.
         let uniform_alignment = u64::from(
-            gpu.adapter()
+            gpu.device()
                 .limits()
                 .min_uniform_buffer_offset_alignment
                 .max(1),
@@ -169,53 +248,6 @@ impl OutputRenderer {
             }],
         });
 
-        let texture_bind_group_layout =
-            gpu.device()
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("lpmt-source-bind-group-layout"),
-                    entries: &[
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 0,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Texture {
-                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                                view_dimension: wgpu::TextureViewDimension::D2,
-                                multisampled: false,
-                            },
-                            count: None,
-                        },
-                        wgpu::BindGroupLayoutEntry {
-                            binding: 1,
-                            visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                            count: None,
-                        },
-                    ],
-                });
-
-        let sampler = gpu.device().create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("lpmt-source-sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
-
-        let checker_pixels = create_checker_pixels();
-        let checker = create_texture_entry(
-            gpu,
-            &texture_bind_group_layout,
-            &sampler,
-            "lpmt-checker",
-            ImageData {
-                width: CHECKER_SIZE,
-                height: CHECKER_SIZE,
-                rgba: &checker_pixels,
-            },
-        )?;
-
         let shader = gpu
             .device()
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -229,13 +261,91 @@ impl OutputRenderer {
                     label: Some("lpmt-output-pipeline-layout"),
                     bind_group_layouts: &[
                         Some(&uniform_bind_group_layout),
-                        Some(&texture_bind_group_layout),
+                        Some(media.bind_group_layout()),
                     ],
                     immediate_size: 0,
                 });
 
         let pipelines = BlendMode::ALL
-            .map(|blend| create_pipeline(gpu, &shader, &pipeline_layout, config.format, blend));
+            .map(|blend| create_pipeline(gpu, &shader, &pipeline_layout, SCENE_FORMAT, blend));
+
+        let composite_uniforms = CompositeUniforms {
+            edge_blend: [0.0; 4],
+            color: [1.0, 1.0, 1.0, 0.0],
+        };
+        let composite_uniform_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("lpmt-output-composite-uniforms"),
+            size: std::mem::size_of::<CompositeUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        gpu.queue().write_buffer(
+            &composite_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&composite_uniforms),
+        );
+
+        let composite_uniform_layout =
+            gpu.device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("lpmt-output-composite-layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<
+                                CompositeUniforms,
+                            >()
+                                as u64),
+                        },
+                        count: None,
+                    }],
+                });
+
+        let composite_bind_group = gpu.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("lpmt-output-composite-bind-group"),
+            layout: &composite_uniform_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: composite_uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        let composite_sampler = gpu.device().create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("lpmt-output-composite-sampler"),
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        let composite_shader = gpu
+            .device()
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("lpmt-output-composite-shader"),
+                source: wgpu::ShaderSource::Wgsl(COMPOSITE_SHADER.into()),
+            });
+        let composite_pipeline_layout =
+            gpu.device()
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("lpmt-output-composite-pipeline-layout"),
+                    bind_group_layouts: &[
+                        Some(&composite_uniform_layout),
+                        Some(media.bind_group_layout()),
+                    ],
+                    immediate_size: 0,
+                });
+        let scene_layout = media.bind_group_layout().clone();
+        let composite_pipeline = create_composite_pipeline(
+            gpu,
+            &composite_shader,
+            &composite_pipeline_layout,
+            config.format,
+        );
 
         Ok(Self {
             surface,
@@ -244,75 +354,18 @@ impl OutputRenderer {
             uniform_buffer,
             uniform_stride,
             uniform_bind_group,
-            texture_bind_group_layout,
-            sampler,
-            checker,
-            media: HashMap::new(),
+            scene: None,
+            scene_layout,
+            composite_pipeline,
+            composite_uniform_buffer,
+            composite_bind_group,
+            composite_sampler,
             _window: window,
         })
     }
 
     pub fn size(&self) -> (u32, u32) {
         (self.config.width, self.config.height)
-    }
-
-    pub fn has_media(&self, id: &MediaId) -> bool {
-        self.media.contains_key(id)
-    }
-
-    pub fn clear_media(&mut self) {
-        self.media.clear();
-    }
-
-    /// Upload a decoded still image. Re-uploading the same media ID replaces
-    /// the texture and bind group, which is used by "reload media".
-    pub fn upload_image(
-        &mut self,
-        gpu: &Gpu,
-        media_id: MediaId,
-        image: &DecodedImage,
-    ) -> Result<()> {
-        let label = format!("lpmt-media-{media_id}");
-        let entry = create_texture_entry(
-            gpu,
-            &self.texture_bind_group_layout,
-            &self.sampler,
-            &label,
-            ImageData {
-                width: image.width,
-                height: image.height,
-                rgba: &image.rgba,
-            },
-        )?;
-        self.media.insert(media_id, entry);
-        Ok(())
-    }
-
-    /// Update a media texture in place when the frame size is unchanged. This
-    /// is the video fast path: it avoids recreating the texture and bind group
-    /// for every decoded frame.
-    pub fn update_image(
-        &mut self,
-        gpu: &Gpu,
-        media_id: MediaId,
-        image: &DecodedImage,
-    ) -> Result<()> {
-        if let Some(entry) = self.media.get(&media_id) {
-            if entry.width == image.width && entry.height == image.height {
-                write_image(
-                    gpu,
-                    &entry.texture,
-                    ImageData {
-                        width: image.width,
-                        height: image.height,
-                        rgba: &image.rgba,
-                    },
-                )?;
-                return Ok(());
-            }
-        }
-
-        self.upload_image(gpu, media_id, image)
     }
 
     pub fn resize(&mut self, gpu: &Gpu, width: u32, height: u32) -> Result<()> {
@@ -324,6 +377,7 @@ impl OutputRenderer {
         }
 
         self.config = configure_surface(gpu, &self.surface, width, height)?;
+        self.scene = None;
         log::debug!(
             "output resized to {}x{} ({:?})",
             self.config.width,
@@ -333,14 +387,34 @@ impl OutputRenderer {
         Ok(())
     }
 
-    /// Render one stage through one output view.
+    /// Acquire and encode one stage view for this output.
     ///
-    /// Layers are composited bottom-to-top in `Stage::layers` order. Each
-    /// visible layer gets its own dynamic-uniform slice and blend pipeline.
-    pub fn render(&mut self, gpu: &Gpu, stage: &Stage, view: Rect) -> Result<()> {
+    /// Layers are composited bottom-to-top in `Stage::layers` order into an
+    /// offscreen scene target, then a composite pass applies the output's edge
+    /// blending and colour correction. The caller submits and presents the
+    /// returned frame, optionally together with other outputs in the same group.
+    pub fn prepare(
+        &mut self,
+        gpu: &Gpu,
+        media: &MediaCache,
+        stage: &Stage,
+        output: &OutputSpec,
+    ) -> Result<Option<PreparedFrame>> {
         if self.config.width == 0 || self.config.height == 0 {
-            return Ok(());
+            return Ok(None);
         }
+
+        let view = output.view;
+        let edge = output.edge_blend.clamped();
+        let color = output.color.clamped();
+        gpu.queue().write_buffer(
+            &self.composite_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&CompositeUniforms {
+                edge_blend: [edge.left, edge.right, edge.top, edge.bottom],
+                color: [color.brightness, color.contrast, color.gamma, 0.0],
+            }),
+        );
 
         let mut draws = Vec::new();
         for layer in stage.layers.iter().filter(|layer| layer.visible) {
@@ -366,12 +440,7 @@ impl OutputRenderer {
                 continue;
             };
 
-            let entry = match &layer.source {
-                SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => {
-                    self.media.get(media_id).unwrap_or(&self.checker)
-                }
-                SourceSpec::TestPattern { .. } => &self.checker,
-            };
+            let bind_group = media.bind_group(&layer.source);
 
             let offset = (draws.len() as u64 * self.uniform_stride) as u32;
             draws.push(DrawItem {
@@ -385,7 +454,7 @@ impl OutputRenderer {
                     _padding2: [0.0; 3],
                 },
                 blend_index: pipeline_index(layer.blend),
-                bind_group: entry.bind_group.clone(),
+                bind_group: bind_group.clone(),
             });
         }
 
@@ -401,12 +470,12 @@ impl OutputRenderer {
             wgpu::CurrentSurfaceTexture::Success(frame)
             | wgpu::CurrentSurfaceTexture::Suboptimal(frame) => frame,
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                return Ok(())
+                return Ok(None)
             }
             wgpu::CurrentSurfaceTexture::Outdated => {
                 self.config =
                     configure_surface(gpu, &self.surface, self.config.width, self.config.height)?;
-                return Ok(());
+                return Ok(None);
             }
             wgpu::CurrentSurfaceTexture::Lost => {
                 anyhow::bail!("output surface lost; recreate the window");
@@ -415,6 +484,12 @@ impl OutputRenderer {
                 anyhow::bail!("validation error while acquiring output surface texture");
             }
         };
+
+        self.ensure_scene_target(gpu)?;
+        let scene = self
+            .scene
+            .as_ref()
+            .expect("scene target is created immediately before rendering");
 
         let target = frame
             .texture
@@ -428,9 +503,9 @@ impl OutputRenderer {
         {
             let background = stage.background;
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("lpmt-output-pass"),
+                label: Some("lpmt-output-scene-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &target,
+                    view: &scene.view,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -457,8 +532,81 @@ impl OutputRenderer {
             }
         }
 
-        gpu.queue().submit(Some(encoder.finish()));
-        gpu.queue().present(frame);
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("lpmt-output-composite-pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &target,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&self.composite_pipeline);
+            pass.set_bind_group(0, &self.composite_bind_group, &[]);
+            pass.set_bind_group(1, &scene.bind_group, &[]);
+            pass.draw(0..3, 0..1);
+        }
+
+        Ok(Some(PreparedFrame { frame, encoder }))
+    }
+
+    /// Allocate the offscreen scene target lazily and recreate it on resize.
+    fn ensure_scene_target(&mut self, gpu: &Gpu) -> Result<()> {
+        let width = self.config.width;
+        let height = self.config.height;
+        if self
+            .scene
+            .as_ref()
+            .is_some_and(|scene| scene.width == width && scene.height == height)
+        {
+            return Ok(());
+        }
+
+        let texture = gpu.device().create_texture(&wgpu::TextureDescriptor {
+            label: Some("lpmt-output-scene"),
+            size: wgpu::Extent3d {
+                width: width.max(1),
+                height: height.max(1),
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: SCENE_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let bind_group = gpu.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("lpmt-output-scene-bind-group"),
+            layout: &self.scene_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.composite_sampler),
+                },
+            ],
+        });
+
+        self.scene = Some(SceneTarget {
+            _texture: texture,
+            view,
+            bind_group,
+            width,
+            height,
+        });
         Ok(())
     }
 }
@@ -494,6 +642,43 @@ fn create_pipeline(
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
                     blend: Some(blend_state(blend)),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview_mask: None,
+            cache: None,
+        })
+}
+
+fn create_composite_pipeline(
+    gpu: &Gpu,
+    shader: &wgpu::ShaderModule,
+    layout: &wgpu::PipelineLayout,
+    format: wgpu::TextureFormat,
+) -> wgpu::RenderPipeline {
+    gpu.device()
+        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("lpmt-output-composite-pipeline"),
+            layout: Some(layout),
+            vertex: wgpu::VertexState {
+                module: shader,
+                entry_point: Some("vs_main"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: shader,
+                entry_point: Some("fs_main"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
@@ -572,135 +757,4 @@ fn configure_surface(
 
     surface.configure(gpu.device(), &config);
     Ok(config)
-}
-
-fn create_texture_entry(
-    gpu: &Gpu,
-    bind_group_layout: &wgpu::BindGroupLayout,
-    sampler: &wgpu::Sampler,
-    label: &str,
-    image: ImageData<'_>,
-) -> Result<TextureEntry> {
-    let ImageData {
-        width,
-        height,
-        rgba,
-    } = image;
-    anyhow::ensure!(width > 0 && height > 0, "image has an empty dimension");
-    anyhow::ensure!(
-        rgba.len() == width as usize * height as usize * 4,
-        "image buffer does not match {width}x{height}"
-    );
-
-    let extent = wgpu::Extent3d {
-        width,
-        height,
-        depth_or_array_layers: 1,
-    };
-    let texture = gpu.device().create_texture(&wgpu::TextureDescriptor {
-        label: Some(label),
-        size: extent,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-        view_formats: &[],
-    });
-
-    write_image(
-        gpu,
-        &texture,
-        ImageData {
-            width,
-            height,
-            rgba,
-        },
-    )?;
-
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    let bind_group = gpu.device().create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some(label),
-        layout: bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&view),
-            },
-            wgpu::BindGroupEntry {
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(sampler),
-            },
-        ],
-    });
-
-    Ok(TextureEntry {
-        texture,
-        _view: view,
-        width,
-        height,
-        bind_group,
-    })
-}
-
-fn write_image(gpu: &Gpu, texture: &wgpu::Texture, image: ImageData<'_>) -> Result<()> {
-    let ImageData {
-        width,
-        height,
-        rgba,
-    } = image;
-    anyhow::ensure!(width > 0 && height > 0, "image has an empty dimension");
-    anyhow::ensure!(
-        rgba.len() == width as usize * height as usize * 4,
-        "image buffer does not match {width}x{height}"
-    );
-
-    gpu.queue().write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        rgba,
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * width),
-            rows_per_image: Some(height),
-        },
-        wgpu::Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-    );
-
-    Ok(())
-}
-
-fn create_checker_pixels() -> Vec<u8> {
-    let size = CHECKER_SIZE;
-    let mut pixels = vec![0_u8; (size * size * 4) as usize];
-    let tints: [[u8; 3]; 4] = [
-        [235, 72, 64],
-        [76, 214, 112],
-        [72, 128, 245],
-        [242, 206, 70],
-    ];
-
-    for y in 0..size {
-        for x in 0..size {
-            let cell = (x / 64 + y / 64) & 1;
-            let quadrant = (usize::from(x >= size / 2)) + 2 * usize::from(y >= size / 2);
-            let tint = tints[quadrant];
-            let value = if cell == 0 { 1.0 } else { 0.42 };
-            let index = ((y * size + x) * 4) as usize;
-            pixels[index] = (f32::from(tint[0]) * value) as u8;
-            pixels[index + 1] = (f32::from(tint[1]) * value) as u8;
-            pixels[index + 2] = (f32::from(tint[2]) * value) as u8;
-            pixels[index + 3] = 255;
-        }
-    }
-
-    pixels
 }
