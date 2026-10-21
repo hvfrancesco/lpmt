@@ -7,8 +7,9 @@ use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, RichText, Sense, Sha
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
-    BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaAsset, MediaId, MediaKind, OutputTarget,
-    Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId, TestPattern, WarpGrid,
+    BlendMode, CircleCrop, ColorCorrection, Crop, EdgeBlend, LayerId, MediaAsset, MediaId,
+    MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId,
+    TestPattern, WarpGrid,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -137,6 +138,7 @@ pub struct EditorState {
     media_picker: Option<usize>,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
+    drag_mask_point: Option<usize>,
     surface_move: Option<SurfaceMoveDrag>,
     transport_scrub: Option<f32>,
     pub snap_corners: bool,
@@ -163,6 +165,7 @@ impl Default for EditorState {
             media_picker: None,
             drag_corner: None,
             drag_grid: None,
+            drag_mask_point: None,
             surface_move: None,
             transport_scrub: None,
             snap_corners: true,
@@ -322,6 +325,37 @@ pub enum EditorAction {
         surface: usize,
         opacity: f32,
     },
+    SetSurfaceMaskEnabled {
+        surface: usize,
+        enabled: bool,
+    },
+    SetSurfaceMaskInvert {
+        surface: usize,
+        invert: bool,
+    },
+    SetSurfaceMaskFeather {
+        surface: usize,
+        feather: f32,
+    },
+    SetSurfaceMaskPoint {
+        surface: usize,
+        point: usize,
+        value: Point2,
+    },
+    AddSurfaceMaskPoint {
+        surface: usize,
+        point: Point2,
+    },
+    RemoveSurfaceMaskPoint {
+        surface: usize,
+        point: usize,
+    },
+    ResetSurfaceMask {
+        surface: usize,
+    },
+    ClearSurfaceMask {
+        surface: usize,
+    },
     SetMediaPath {
         media: usize,
         path: String,
@@ -349,6 +383,10 @@ pub enum EditorAction {
     SetLayerTestPattern {
         layer: usize,
         pattern: TestPattern,
+    },
+    SetLayerCrop {
+        layer: usize,
+        crop: Crop,
     },
     SetLayerSurfaces {
         layer: usize,
@@ -1330,6 +1368,50 @@ pub fn draw(
                     }
                 }
             }
+            if surface.mask.enabled {
+                let mask_points: Vec<Pos2> = surface
+                    .mask
+                    .points
+                    .iter()
+                    .filter_map(|point| {
+                        surface_uv_to_stage(surface, *point)
+                            .map(|stage| stage_to_preview(preview, stage))
+                    })
+                    .collect();
+                let mask_color = if surface.mask.invert {
+                    Color32::from_rgb(255, 132, 112)
+                } else {
+                    Color32::from_rgb(255, 170, 82)
+                };
+                if mask_points.len() >= 2 {
+                    for index in 0..mask_points.len() {
+                        painter.line_segment(
+                            [
+                                mask_points[index],
+                                mask_points[(index + 1) % mask_points.len()],
+                            ],
+                            Stroke::new(1.5, mask_color),
+                        );
+                    }
+                }
+                for (index, point) in mask_points.iter().enumerate() {
+                    let active = state.drag_mask_point == Some(index);
+                    painter.circle_filled(
+                        *point,
+                        if active { 7.0 } else { 5.0 },
+                        if active {
+                            Color32::from_rgb(255, 210, 90)
+                        } else {
+                            mask_color
+                        },
+                    );
+                    painter.circle_stroke(
+                        *point,
+                        5.0,
+                        Stroke::new(1.0, Color32::from_rgb(20, 24, 32)),
+                    );
+                }
+            }
             for (index, point) in points.iter().enumerate() {
                 let active = state.drag_corner == Some(index);
                 painter.circle_filled(
@@ -1354,8 +1436,45 @@ pub fn draw(
 
         // Click a surface to make it active. Shift-click toggles membership in
         // the selection; dragging a selected surface moves the whole selection.
+        // Alt-click adds a mask point; right-click removes one.
         let shift = ui.input(|input| input.modifiers.shift);
-        if response.clicked() {
+        let alt = ui.input(|input| input.modifiers.alt);
+        let mut mask_click_handled = false;
+        if response.secondary_clicked() {
+            if let (Some(surface), Some(pointer)) = (
+                stage.surfaces.get(state.selected_surface),
+                response.interact_pointer_pos(),
+            ) {
+                if surface.mask.enabled {
+                    if let Some(point) = nearest_mask_point(preview, surface, pointer, 14.0) {
+                        actions.push(EditorAction::RemoveSurfaceMaskPoint {
+                            surface: state.selected_surface,
+                            point,
+                        });
+                        mask_click_handled = true;
+                    }
+                }
+            }
+        }
+        if response.clicked() && !mask_click_handled && alt {
+            if let (Some(surface), Some(pointer)) = (
+                stage.surfaces.get(state.selected_surface),
+                response.interact_pointer_pos(),
+            ) {
+                if surface.mask.enabled {
+                    if let Some(uv) =
+                        stage_to_surface_uv(surface, preview_to_stage(preview, pointer))
+                    {
+                        actions.push(EditorAction::AddSurfaceMaskPoint {
+                            surface: state.selected_surface,
+                            point: uv,
+                        });
+                        mask_click_handled = true;
+                    }
+                }
+            }
+        }
+        if response.clicked() && !mask_click_handled {
             if let Some(index) = response
                 .interact_pointer_pos()
                 .and_then(|pointer| surface_at(preview, &stage.surfaces, pointer))
@@ -1370,13 +1489,24 @@ pub fn draw(
 
         if response.drag_started() {
             if let Some(pointer) = response.interact_pointer_pos() {
+                let mask_point = stage
+                    .surfaces
+                    .get(state.selected_surface)
+                    .filter(|surface| surface.mask.enabled)
+                    .and_then(|surface| nearest_mask_point(preview, surface, pointer, 18.0));
                 let grid_point = stage
                     .surfaces
                     .get(state.selected_surface)
                     .filter(|surface| surface.grid_enabled)
                     .and_then(|surface| surface.grid.as_ref())
                     .and_then(|grid| nearest_grid_point(preview, grid, pointer, 18.0));
-                if let Some((surface, corner)) = nearest_surface_corner(
+                if let Some(point) = mask_point {
+                    state.select_only_surface(state.selected_surface);
+                    state.drag_mask_point = Some(point);
+                    state.drag_corner = None;
+                    state.drag_grid = None;
+                    state.surface_move = None;
+                } else if let Some((surface, corner)) = nearest_surface_corner(
                     preview,
                     &stage.surfaces,
                     state.selected_surface,
@@ -1385,9 +1515,11 @@ pub fn draw(
                 ) {
                     state.select_only_surface(surface);
                     state.drag_corner = Some(corner);
+                    state.drag_mask_point = None;
                 } else if let Some((row, column)) = grid_point {
                     state.drag_grid = Some((row, column));
                     state.drag_corner = None;
+                    state.drag_mask_point = None;
                     state.surface_move = None;
                 } else if let Some(surface) = surface_at(preview, &stage.surfaces, pointer) {
                     if shift && !state.is_surface_selected(surface) {
@@ -1398,6 +1530,7 @@ pub fn draw(
                         state.selected_surface = surface;
                         state.drag_corner = None;
                         state.drag_grid = None;
+                        state.drag_mask_point = None;
                     }
                     let originals = state
                         .selected_surfaces
@@ -1420,7 +1553,21 @@ pub fn draw(
         }
 
         if response.dragged() {
-            if let (Some((row, column)), Some(pointer)) =
+            if let (Some(point), Some(pointer)) =
+                (state.drag_mask_point, response.interact_pointer_pos())
+            {
+                if let Some(surface) = stage.surfaces.get(state.selected_surface) {
+                    if let Some(value) =
+                        stage_to_surface_uv(surface, preview_to_stage(preview, pointer))
+                    {
+                        actions.push(EditorAction::SetSurfaceMaskPoint {
+                            surface: state.selected_surface,
+                            point,
+                            value,
+                        });
+                    }
+                }
+            } else if let (Some((row, column)), Some(pointer)) =
                 (state.drag_grid, response.interact_pointer_pos())
             {
                 actions.push(EditorAction::SetGridPoint {
@@ -1476,6 +1623,7 @@ pub fn draw(
         if response.drag_stopped() {
             state.drag_corner = None;
             state.drag_grid = None;
+            state.drag_mask_point = None;
             state.surface_move = None;
             state.snap_target = None;
         }
@@ -1506,7 +1654,7 @@ pub fn draw(
             preview.left_bottom() + Vec2::new(8.0, -6.0),
             Align2::LEFT_BOTTOM,
             if state.mode == WorkspaceMode::Mapping {
-                "Click to edit · Shift-click to multi-select · drag a surface to move"
+                "Click to edit · Shift-click multi-select · drag surface · Alt-click adds a mask point"
             } else {
                 "Read-only preview · press F1 for Mapping"
             },
@@ -2078,6 +2226,87 @@ fn draw_layer_editor(
         }
     }
 
+    ui.add_space(4.0);
+    ui.separator();
+    ui.label(RichText::new("Source crop").strong());
+    let mut crop = layer.crop;
+    let mut crop_changed = false;
+    egui::Grid::new(("layer-crop", index))
+        .num_columns(2)
+        .spacing([8.0, 4.0])
+        .show(ui, |ui| {
+            for (label, value) in [
+                ("Top", &mut crop.top),
+                ("Right", &mut crop.right),
+                ("Bottom", &mut crop.bottom),
+                ("Left", &mut crop.left),
+            ] {
+                ui.label(label);
+                if ui
+                    .add(egui::Slider::new(value, 0.0..=0.45).fixed_decimals(3))
+                    .changed()
+                {
+                    crop_changed = true;
+                }
+                ui.end_row();
+            }
+        });
+
+    let mut circular = crop.circle.is_some();
+    if ui.checkbox(&mut circular, "Circular crop").changed() {
+        crop.circle = circular.then_some(CircleCrop {
+            center: Point2::new(0.5, 0.5),
+            radius: 0.5,
+        });
+        crop_changed = true;
+    }
+    if let Some(circle) = &mut crop.circle {
+        let mut center = circle.center;
+        let mut radius = circle.radius;
+        ui.horizontal(|ui| {
+            ui.label("Centre");
+            if ui
+                .add(
+                    egui::DragValue::new(&mut center.x)
+                        .speed(0.002)
+                        .range(0.0..=1.0),
+                )
+                .changed()
+            {
+                crop_changed = true;
+            }
+            if ui
+                .add(
+                    egui::DragValue::new(&mut center.y)
+                        .speed(0.002)
+                        .range(0.0..=1.0),
+                )
+                .changed()
+            {
+                crop_changed = true;
+            }
+        });
+        if ui
+            .add(
+                egui::Slider::new(&mut radius, 0.0..=1.0)
+                    .text("Radius")
+                    .fixed_decimals(3),
+            )
+            .changed()
+        {
+            crop_changed = true;
+        }
+        circle.center = center;
+        circle.radius = radius;
+    }
+    if ui.button("Clear crop").clicked() {
+        crop = Crop::default();
+        crop_changed = true;
+    }
+    if crop_changed {
+        actions.push(EditorAction::SetLayerCrop { layer: index, crop });
+    }
+
     ui.horizontal_wrapped(|ui| {
         if ui
             .add_enabled(index > 0, egui::Button::new("Lower"))
@@ -2329,6 +2558,64 @@ fn draw_surface_settings(
         });
     }
 
+    ui.add_space(4.0);
+    ui.separator();
+    ui.label(RichText::new("Surface mask").strong());
+    let mut mask_enabled = surface.mask.enabled;
+    if ui
+        .checkbox(&mut mask_enabled, "Enable polygon mask")
+        .changed()
+    {
+        actions.push(EditorAction::SetSurfaceMaskEnabled {
+            surface: state.selected_surface,
+            enabled: mask_enabled,
+        });
+    }
+    if mask_enabled {
+        let mut invert = surface.mask.invert;
+        if ui.checkbox(&mut invert, "Invert mask").changed() {
+            actions.push(EditorAction::SetSurfaceMaskInvert {
+                surface: state.selected_surface,
+                invert,
+            });
+        }
+        let mut feather = surface.mask.feather;
+        if ui
+            .add(
+                egui::Slider::new(&mut feather, 0.0..=0.5)
+                    .text("Feather")
+                    .fixed_decimals(3),
+            )
+            .changed()
+        {
+            actions.push(EditorAction::SetSurfaceMaskFeather {
+                surface: state.selected_surface,
+                feather,
+            });
+        }
+        ui.label(
+            RichText::new(format!(
+                "{} point(s) · Alt-click preview to add · right-click a point to remove",
+                surface.mask.points.len()
+            ))
+            .small()
+            .color(Color32::from_rgb(132, 144, 166)),
+        );
+        ui.horizontal_wrapped(|ui| {
+            if ui.button("Rectangle mask").clicked() {
+                actions.push(EditorAction::ResetSurfaceMask {
+                    surface: state.selected_surface,
+                });
+            }
+            if ui.button("Clear mask").clicked() {
+                actions.push(EditorAction::ClearSurfaceMask {
+                    surface: state.selected_surface,
+                });
+            }
+        });
+    }
+
+    ui.add_space(4.0);
     let mut grid_enabled = surface.grid.is_some() && surface.grid_enabled;
     if ui.checkbox(&mut grid_enabled, "Grid warp").changed() {
         actions.push(EditorAction::SetSurfaceGridEnabled {
@@ -2709,6 +2996,103 @@ fn surface_points(preview: EguiRect, surface: &Surface) -> Vec<Pos2> {
         .collect()
 }
 
+fn lerp_point(a: Point2, b: Point2, t: f32) -> Point2 {
+    Point2::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+}
+
+/// Map surface UV to stage space using the same bilinear grid interpolation as
+/// the renderer, falling back to the four-corner homography.
+fn surface_uv_to_stage(surface: &Surface, uv: Point2) -> Option<Point2> {
+    let uv = uv.clamp_unit();
+    if let Some(grid) = surface
+        .grid
+        .as_ref()
+        .filter(|grid| surface.grid_enabled && grid.is_valid())
+    {
+        let columns = f32::from(grid.columns);
+        let rows = f32::from(grid.rows);
+        let cell_x = (uv.x * columns).clamp(0.0, columns - 1e-5);
+        let cell_y = (uv.y * rows).clamp(0.0, rows - 1e-5);
+        let column = cell_x.floor() as u16;
+        let row = cell_y.floor() as u16;
+        let local_x = cell_x - f32::from(column);
+        let local_y = cell_y - f32::from(row);
+        let p00 = grid.point(row, column)?;
+        let p10 = grid.point(row, column + 1)?;
+        let p11 = grid.point(row + 1, column + 1)?;
+        let p01 = grid.point(row + 1, column)?;
+        let top = lerp_point(p00, p10, local_x);
+        let bottom = lerp_point(p01, p11, local_x);
+        return Some(lerp_point(top, bottom, local_y));
+    }
+    surface.homography().ok()?.try_transform(uv)
+}
+
+/// Inverse of [`surface_uv_to_stage`] for mask editing. The homography gives
+/// the initial estimate; an extra bilinear Newton pass keeps dragging accurate
+/// when grid warp is enabled.
+fn stage_to_surface_uv(surface: &Surface, stage_point: Point2) -> Option<Point2> {
+    let to_surface = surface.homography().ok()?.inverse().ok()?;
+    let mut uv = to_surface.try_transform(stage_point)?.clamp_unit();
+    if surface
+        .grid
+        .as_ref()
+        .is_some_and(|grid| surface.grid_enabled && grid.is_valid())
+    {
+        for _ in 0..6 {
+            let current = surface_uv_to_stage(surface, uv)?;
+            let error = Point2::new(stage_point.x - current.x, stage_point.y - current.y);
+            if error.x.abs() + error.y.abs() < 1e-6 {
+                break;
+            }
+            let step = 0.001;
+            let (u_probe, u_step) = if uv.x + step <= 1.0 {
+                (Point2::new(uv.x + step, uv.y), step)
+            } else {
+                (Point2::new(uv.x - step, uv.y), -step)
+            };
+            let (v_probe, v_step) = if uv.y + step <= 1.0 {
+                (Point2::new(uv.x, uv.y + step), step)
+            } else {
+                (Point2::new(uv.x, uv.y - step), -step)
+            };
+            let u_point = surface_uv_to_stage(surface, u_probe)?;
+            let v_point = surface_uv_to_stage(surface, v_probe)?;
+            let j00 = (u_point.x - current.x) / u_step;
+            let j10 = (u_point.y - current.y) / u_step;
+            let j01 = (v_point.x - current.x) / v_step;
+            let j11 = (v_point.y - current.y) / v_step;
+            let determinant = j00 * j11 - j01 * j10;
+            if determinant.abs() < 1e-6 {
+                break;
+            }
+            uv.x = (uv.x + (j11 * error.x - j01 * error.y) / determinant).clamp(0.0, 1.0);
+            uv.y = (uv.y + (-j10 * error.x + j00 * error.y) / determinant).clamp(0.0, 1.0);
+        }
+    }
+    Some(uv)
+}
+
+fn nearest_mask_point(
+    preview: EguiRect,
+    surface: &Surface,
+    pointer: Pos2,
+    threshold: f32,
+) -> Option<usize> {
+    surface
+        .mask
+        .points
+        .iter()
+        .enumerate()
+        .filter_map(|(index, point)| {
+            let screen = stage_to_preview(preview, surface_uv_to_stage(surface, *point)?);
+            let distance = screen.distance(pointer);
+            (distance <= threshold).then_some((index, distance))
+        })
+        .min_by(|left, right| left.1.total_cmp(&right.1))
+        .map(|(index, _)| index)
+}
+
 fn polygon_center(points: &[Pos2]) -> Pos2 {
     if points.is_empty() {
         return Pos2::ZERO;
@@ -2858,6 +3242,25 @@ mod tests {
         assert!(point_in_polygon(Pos2::new(5.0, 5.0), &square));
         assert!(!point_in_polygon(Pos2::new(15.0, 5.0), &square));
         assert!(!point_in_polygon(Pos2::new(-1.0, 5.0), &square));
+    }
+
+    #[test]
+    fn surface_uv_round_trips_through_grid_warp() {
+        let mut surface = Surface::full_stage("surface", "Surface");
+        surface.set_grid_enabled(true);
+        surface.set_grid_resolution(2, 2);
+        assert!(surface.set_grid_point(1, 1, Point2::new(0.55, 0.58)));
+
+        for uv in [
+            Point2::new(0.15, 0.2),
+            Point2::new(0.5, 0.5),
+            Point2::new(0.85, 0.8),
+        ] {
+            let stage = surface_uv_to_stage(&surface, uv).expect("uv maps to stage");
+            let round_trip = stage_to_surface_uv(&surface, stage).expect("stage maps back");
+            assert!((round_trip.x - uv.x).abs() < 1e-3, "{round_trip:?}");
+            assert!((round_trip.y - uv.y).abs() < 1e-3, "{round_trip:?}");
+        }
     }
 
     #[test]

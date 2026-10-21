@@ -13,7 +13,9 @@ use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::{CalibrationLut, LUT_SAMPLES};
-use lpmt_core::model::{BlendMode, ColorCorrection, EdgeBlend, OutputSpec, Rect, Stage, WarpGrid};
+use lpmt_core::model::{
+    BlendMode, ColorCorrection, Crop, EdgeBlend, OutputSpec, Rect, Stage, WarpGrid,
+};
 use winit::window::Window;
 
 use crate::gpu::Gpu;
@@ -25,6 +27,40 @@ const PREVIEW_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 /// Layers render into this offscreen target first, so output-level colour and
 /// edge blending are applied once to the completed stage view.
 const SCENE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+
+/// Crop support shared by the quad and grid fragment paths. Polygon mask
+/// coverage is rasterized into a texture by `MediaCache` and sampled through
+/// bind group 2 for both paths.
+const EFFECTS_WGSL_TEMPLATE: &str = r#"
+struct SurfaceEffects {
+    // Top, right, bottom, left rectangular crop insets.
+    crop: vec4<f32>,
+    // Circle centre x/y, radius, enabled flag.
+    circle: vec4<f32>,
+};
+
+fn crop_visible(uv: vec2<f32>) -> bool {
+    let crop = @EFFECTS@.crop;
+    let minimum = vec2<f32>(crop.w, crop.x);
+    let maximum = vec2<f32>(1.0 - crop.y, 1.0 - crop.z);
+    if (any(uv < minimum) || any(uv > maximum)) {
+        return false;
+    }
+    if (@EFFECTS@.circle.w > 0.5) {
+        if (distance(uv, @EFFECTS@.circle.xy) > @EFFECTS@.circle.z) {
+            return false;
+        }
+    }
+    return true;
+}
+"#;
+
+fn effects_shader(shader: &str, effects_path: &str) -> String {
+    format!(
+        "{}\n{shader}",
+        EFFECTS_WGSL_TEMPLATE.replace("@EFFECTS@", effects_path)
+    )
+}
 
 const SHADER: &str = r#"
 struct Uniforms {
@@ -38,11 +74,14 @@ struct Uniforms {
     _padding2: f32,
     _padding3: f32,
     _padding4: f32,
+    effects: SurfaceEffects,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(1) @binding(0) var source_texture: texture_2d<f32>;
 @group(1) @binding(1) var source_sampler: sampler;
+@group(2) @binding(0) var mask_texture: texture_2d<f32>;
+@group(2) @binding(1) var mask_sampler: sampler;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
@@ -65,14 +104,38 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     if (any(source_uv < vec2<f32>(0.0)) || any(source_uv > vec2<f32>(1.0))) {
         discard;
     }
+    if (!crop_visible(source_uv)) {
+        discard;
+    }
 
     let color = textureSampleLevel(source_texture, source_sampler, source_uv, 0.0);
-    let alpha = color.a * uniforms.opacity;
+    let coverage = textureSampleLevel(mask_texture, mask_sampler, source_uv, 0.0).r;
+    let alpha = color.a * uniforms.opacity * coverage;
     // Premultiplied output lets the fixed-function blend modes implement
     // Normal, Add, Screen and Multiply without reading the destination.
     return vec4<f32>(color.rgb * alpha, alpha);
 }
 "#;
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct SurfaceEffects {
+    crop: [f32; 4],
+    circle: [f32; 4],
+}
+
+impl SurfaceEffects {
+    fn new(crop: Crop) -> Self {
+        let crop = crop.clamped();
+        let circle = crop.circle.map_or([0.0; 4], |circle| {
+            [circle.center.x, circle.center.y, circle.radius, 1.0]
+        });
+        Self {
+            crop: [crop.top, crop.right, crop.bottom, crop.left],
+            circle,
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -83,17 +146,21 @@ struct Uniforms {
     view: [f32; 4],
     opacity: f32,
     _padding2: [f32; 3],
+    effects: SurfaceEffects,
 }
 
 const GRID_SHADER: &str = r#"
 struct Frame {
     // Output view within the stage: x, y, width, height.
     view: vec4<f32>,
+    effects: SurfaceEffects,
 };
 
 @group(0) @binding(0) var<uniform> frame: Frame;
 @group(1) @binding(0) var source_texture: texture_2d<f32>;
 @group(1) @binding(1) var source_sampler: sampler;
+@group(2) @binding(0) var mask_texture: texture_2d<f32>;
+@group(2) @binding(1) var mask_sampler: sampler;
 
 struct VertexIn {
     @location(0) position: vec2<f32>,
@@ -124,8 +191,12 @@ fn vs_main(vertex: VertexIn) -> VertexOut {
 
 @fragment
 fn fs_main(vertex: VertexOut) -> @location(0) vec4<f32> {
+    if (!crop_visible(vertex.uv)) {
+        discard;
+    }
     let color = textureSample(source_texture, source_sampler, vertex.uv);
-    let alpha = color.a * vertex.opacity;
+    let coverage = textureSample(mask_texture, mask_sampler, vertex.uv).r;
+    let alpha = color.a * vertex.opacity * coverage;
     return vec4<f32>(color.rgb * alpha, alpha);
 }
 "#;
@@ -134,6 +205,7 @@ fn fs_main(vertex: VertexOut) -> @location(0) vec4<f32> {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct GridFrameUniforms {
     view: [f32; 4],
+    effects: SurfaceEffects,
 }
 
 #[repr(C)]
@@ -409,12 +481,16 @@ enum DrawItem {
         uniforms: Uniforms,
         blend_index: usize,
         bind_group: wgpu::BindGroup,
+        mask_bind_group: wgpu::BindGroup,
     },
     Grid {
         first_vertex: u32,
         vertex_count: u32,
+        offset: u32,
+        uniforms: GridFrameUniforms,
         blend_index: usize,
         bind_group: wgpu::BindGroup,
+        mask_bind_group: wgpu::BindGroup,
     },
 }
 
@@ -462,6 +538,7 @@ struct StageRenderer {
     uniform_stride: u64,
     uniform_bind_group: wgpu::BindGroup,
     grid_uniform_buffer: wgpu::Buffer,
+    grid_uniform_stride: u64,
     grid_uniform_bind_group: wgpu::BindGroup,
     grid_vertex_buffer: wgpu::Buffer,
     grid_vertex_capacity: u64,
@@ -547,11 +624,12 @@ impl StageRenderer {
             }],
         });
 
+        let shader_source = effects_shader(SHADER, "uniforms.effects");
         let shader = gpu
             .device()
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("lpmt-output-shader"),
-                source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+                source: wgpu::ShaderSource::Wgsl(shader_source.into()),
             });
 
         let pipeline_layout =
@@ -561,6 +639,7 @@ impl StageRenderer {
                     bind_group_layouts: &[
                         Some(&uniform_bind_group_layout),
                         Some(media.bind_group_layout()),
+                        Some(media.bind_group_layout()),
                     ],
                     immediate_size: 0,
                 });
@@ -568,16 +647,20 @@ impl StageRenderer {
         let pipelines = BlendMode::ALL
             .map(|blend| create_pipeline(gpu, &shader, &pipeline_layout, SCENE_FORMAT, blend));
 
+        let grid_shader_source = effects_shader(GRID_SHADER, "frame.effects");
         let grid_shader = gpu
             .device()
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("lpmt-output-grid-shader"),
-                source: wgpu::ShaderSource::Wgsl(GRID_SHADER.into()),
+                source: wgpu::ShaderSource::Wgsl(grid_shader_source.into()),
             });
         let grid_uniform_size = std::mem::size_of::<GridFrameUniforms>() as u64;
+        let grid_uniform_stride = grid_uniform_size.div_ceil(uniform_alignment) * uniform_alignment;
+        let grid_uniform_binding_size = wgpu::BufferSize::new(grid_uniform_size)
+            .expect("the grid uniform struct is never empty");
         let grid_uniform_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("lpmt-output-grid-uniforms"),
-            size: grid_uniform_size,
+            size: grid_uniform_stride * MAX_LAYER_SLOTS as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -587,11 +670,11 @@ impl StageRenderer {
                     label: Some("lpmt-output-grid-uniform-layout"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
+                        visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: wgpu::BufferSize::new(grid_uniform_size),
+                            has_dynamic_offset: true,
+                            min_binding_size: Some(grid_uniform_binding_size),
                         },
                         count: None,
                     }],
@@ -601,7 +684,11 @@ impl StageRenderer {
             layout: &grid_uniform_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: grid_uniform_buffer.as_entire_binding(),
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &grid_uniform_buffer,
+                    offset: 0,
+                    size: Some(grid_uniform_binding_size),
+                }),
             }],
         });
         let grid_pipeline_layout =
@@ -610,6 +697,7 @@ impl StageRenderer {
                     label: Some("lpmt-output-grid-pipeline-layout"),
                     bind_group_layouts: &[
                         Some(&grid_uniform_layout),
+                        Some(media.bind_group_layout()),
                         Some(media.bind_group_layout()),
                     ],
                     immediate_size: 0,
@@ -719,6 +807,7 @@ impl StageRenderer {
             uniform_stride,
             uniform_bind_group,
             grid_uniform_buffer,
+            grid_uniform_stride,
             grid_uniform_bind_group,
             grid_vertex_buffer,
             grid_vertex_capacity,
@@ -733,7 +822,7 @@ impl StageRenderer {
     fn encode(
         &mut self,
         gpu: &Gpu,
-        media: &MediaCache,
+        media: &mut MediaCache,
         stage: &Stage,
         target: StageTarget<'_>,
         encoder: &mut wgpu::CommandEncoder,
@@ -757,21 +846,13 @@ impl StageRenderer {
             0,
             bytemuck::bytes_of(&CompositeUniforms::new(edge, color, calibration, guide)),
         );
-        gpu.queue().write_buffer(
-            &self.grid_uniform_buffer,
-            0,
-            bytemuck::bytes_of(&GridFrameUniforms {
-                view: [view.x, view.y, view.width, view.height],
-            }),
-        );
-
         let mut draws = Vec::new();
         let mut grid_vertices = Vec::new();
         for layer in stage.layers.iter().filter(|layer| layer.visible) {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
-            let bind_group = media.bind_group(&layer.source);
+            let bind_group = media.bind_group(&layer.source).clone();
             let blend_index = pipeline_index(layer.blend);
             for surface_id in &layer.surface_ids {
                 if draws.len() >= MAX_LAYER_SLOTS {
@@ -788,6 +869,8 @@ impl StageRenderer {
                 if opacity <= 0.0 {
                     continue;
                 }
+                let effects = SurfaceEffects::new(layer.crop);
+                let mask_bind_group = media.mask_bind_group(gpu, surface)?;
 
                 if let Some(grid) = surface
                     .grid
@@ -796,11 +879,18 @@ impl StageRenderer {
                 {
                     let first_vertex = grid_vertices.len() as u32;
                     append_grid_vertices(&mut grid_vertices, grid, opacity);
+                    let offset = (draws.len() as u64 * self.grid_uniform_stride) as u32;
                     draws.push(DrawItem::Grid {
                         first_vertex,
                         vertex_count: grid_vertices.len() as u32 - first_vertex,
+                        offset,
+                        uniforms: GridFrameUniforms {
+                            view: [view.x, view.y, view.width, view.height],
+                            effects,
+                        },
                         blend_index,
                         bind_group: bind_group.clone(),
+                        mask_bind_group: mask_bind_group.clone(),
                     });
                     continue;
                 }
@@ -822,23 +912,31 @@ impl StageRenderer {
                         view: [view.x, view.y, view.width, view.height],
                         opacity,
                         _padding2: [0.0; 3],
+                        effects,
                     },
                     blend_index,
                     bind_group: bind_group.clone(),
+                    mask_bind_group,
                 });
             }
         }
 
         for draw in &draws {
-            if let DrawItem::Quad {
-                offset, uniforms, ..
-            } = draw
-            {
-                gpu.queue().write_buffer(
+            match draw {
+                DrawItem::Quad {
+                    offset, uniforms, ..
+                } => gpu.queue().write_buffer(
                     &self.uniform_buffer,
                     u64::from(*offset),
                     bytemuck::bytes_of(uniforms),
-                );
+                ),
+                DrawItem::Grid {
+                    offset, uniforms, ..
+                } => gpu.queue().write_buffer(
+                    &self.grid_uniform_buffer,
+                    u64::from(*offset),
+                    bytemuck::bytes_of(uniforms),
+                ),
             }
         }
         if !grid_vertices.is_empty() {
@@ -886,22 +984,28 @@ impl StageRenderer {
                         offset,
                         blend_index,
                         bind_group,
+                        mask_bind_group,
                         ..
                     } => {
                         pass.set_pipeline(&self.pipelines[*blend_index]);
                         pass.set_bind_group(0, &self.uniform_bind_group, &[*offset]);
                         pass.set_bind_group(1, bind_group, &[]);
+                        pass.set_bind_group(2, mask_bind_group, &[]);
                         pass.draw(0..3, 0..1);
                     }
                     DrawItem::Grid {
                         first_vertex,
                         vertex_count,
+                        offset,
                         blend_index,
                         bind_group,
+                        mask_bind_group,
+                        ..
                     } => {
                         pass.set_pipeline(&self.grid_pipelines[*blend_index]);
-                        pass.set_bind_group(0, &self.grid_uniform_bind_group, &[]);
+                        pass.set_bind_group(0, &self.grid_uniform_bind_group, &[*offset]);
                         pass.set_bind_group(1, bind_group, &[]);
+                        pass.set_bind_group(2, mask_bind_group, &[]);
                         pass.set_vertex_buffer(0, self.grid_vertex_buffer.slice(..));
                         pass.draw(*first_vertex..*first_vertex + *vertex_count, 0..1);
                     }
@@ -1053,7 +1157,7 @@ impl OutputRenderer {
     pub fn prepare(
         &mut self,
         gpu: &Gpu,
-        media: &MediaCache,
+        media: &mut MediaCache,
         stage: &Stage,
         output: &OutputSpec,
         guide: GuideMode,
@@ -1151,7 +1255,7 @@ impl PreviewRenderer {
 
     /// Render the full stage, with no output-specific edge blending or colour
     /// correction. The result is gamma encoded for egui's texture sampler.
-    pub fn render(&mut self, gpu: &Gpu, media: &MediaCache, stage: &Stage) -> Result<()> {
+    pub fn render(&mut self, gpu: &Gpu, media: &mut MediaCache, stage: &Stage) -> Result<()> {
         let mut encoder = gpu
             .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -1440,6 +1544,18 @@ mod tests {
     use super::*;
     use lpmt_core::model::Point2;
     use std::mem::{offset_of, size_of};
+
+    #[test]
+    fn mask_and_crop_uniform_layout_matches_the_wgsl_structs() {
+        assert_eq!(offset_of!(SurfaceEffects, crop), 0);
+        assert_eq!(offset_of!(SurfaceEffects, circle), 16);
+        assert_eq!(size_of::<SurfaceEffects>(), 32);
+        assert_eq!(offset_of!(Uniforms, effects), 112);
+        assert_eq!(size_of::<Uniforms>(), 144);
+        assert_eq!(offset_of!(GridFrameUniforms, view), 0);
+        assert_eq!(offset_of!(GridFrameUniforms, effects), 16);
+        assert_eq!(size_of::<GridFrameUniforms>(), 48);
+    }
 
     #[test]
     fn composite_uniform_layout_matches_the_wgsl_struct() {

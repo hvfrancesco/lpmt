@@ -99,6 +99,7 @@ impl Default for Rect {
 
 pub const WARP_GRID_MIN: u16 = 2;
 pub const WARP_GRID_MAX: u16 = 8;
+pub const MASK_POINT_LIMIT: usize = 64;
 
 /// A regular control grid over a surface. `rows` and `columns` count cells, so
 /// a 2x2 grid contains 3x3 points. Points are row-major in stage space.
@@ -240,6 +241,122 @@ fn lerp(a: Point2, b: Point2, t: f32) -> Point2 {
     Point2::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
 }
 
+/// A polygon mask in surface UV space. Points are normalized to the surface's
+/// content square, so the mask follows the surface when it is warped.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SurfaceMask {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub invert: bool,
+    /// Soft edge width in surface UV units.
+    #[serde(default)]
+    pub feather: f32,
+    #[serde(default)]
+    pub points: Vec<Point2>,
+}
+
+impl Default for SurfaceMask {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            invert: false,
+            feather: 0.0,
+            points: Vec::new(),
+        }
+    }
+}
+
+impl SurfaceMask {
+    pub fn is_active(&self) -> bool {
+        self.enabled && self.points.len() >= 3
+    }
+
+    pub fn clamped(mut self) -> Self {
+        self.feather = self.feather.clamp(0.0, 0.5);
+        for point in &mut self.points {
+            *point = point.clamp_unit();
+        }
+        self
+    }
+
+    /// Build a four-point rectangle inset from the surface edges.
+    pub fn rectangle(inset: f32) -> Self {
+        let inset = inset.clamp(0.0, 0.45);
+        Self {
+            enabled: true,
+            invert: false,
+            feather: 0.0,
+            points: vec![
+                Point2::new(inset, inset),
+                Point2::new(1.0 - inset, inset),
+                Point2::new(1.0 - inset, 1.0 - inset),
+                Point2::new(inset, 1.0 - inset),
+            ],
+        }
+    }
+}
+
+/// A circular crop in source UV space.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CircleCrop {
+    pub center: Point2,
+    pub radius: f32,
+}
+
+impl CircleCrop {
+    pub fn clamped(self) -> Self {
+        Self {
+            center: self.center.clamp_unit(),
+            radius: self.radius.clamp(0.0, 1.0),
+        }
+    }
+}
+
+/// Source framing applied before the surface mask. Rectangular insets and an
+/// optional circle are intersected; content outside them is transparent.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Crop {
+    #[serde(default)]
+    pub top: f32,
+    #[serde(default)]
+    pub right: f32,
+    #[serde(default)]
+    pub bottom: f32,
+    #[serde(default)]
+    pub left: f32,
+    #[serde(default)]
+    pub circle: Option<CircleCrop>,
+}
+
+impl Default for Crop {
+    fn default() -> Self {
+        Self {
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+            left: 0.0,
+            circle: None,
+        }
+    }
+}
+
+impl Crop {
+    pub fn is_identity(self) -> bool {
+        self == Self::default()
+    }
+
+    pub fn clamped(self) -> Self {
+        Self {
+            top: self.top.clamp(0.0, 0.45),
+            right: self.right.clamp(0.0, 0.45),
+            bottom: self.bottom.clamp(0.0, 0.45),
+            left: self.left.clamp(0.0, 0.45),
+            circle: self.circle.map(CircleCrop::clamped),
+        }
+    }
+}
+
 /// A quad in stage space. Surface geometry is intentionally independent from
 /// the content that is drawn through it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -256,6 +373,10 @@ pub struct Surface {
     /// grid so it can be restored without losing the deformation.
     #[serde(default = "default_grid_enabled", skip_serializing_if = "is_true")]
     pub grid_enabled: bool,
+    /// Optional polygon mask in surface UV. The mask is applied after the
+    /// layer's crop and before compositing.
+    #[serde(default)]
+    pub mask: SurfaceMask,
     pub opacity: f32,
     pub visible: bool,
 }
@@ -268,6 +389,7 @@ impl Surface {
             corners,
             grid: None,
             grid_enabled: true,
+            mask: SurfaceMask::default(),
             opacity: 1.0,
             visible: true,
         }
@@ -528,6 +650,9 @@ pub struct Layer {
     #[serde(alias = "surface_id", deserialize_with = "deserialize_surface_ids")]
     pub surface_ids: Vec<SurfaceId>,
     pub source: SourceSpec,
+    /// Source framing applied before the surface mask.
+    #[serde(default)]
+    pub crop: Crop,
     pub opacity: f32,
     pub blend: BlendMode,
     pub visible: bool,
@@ -565,6 +690,7 @@ impl Layer {
             source: SourceSpec::TestPattern {
                 pattern: TestPattern::Checker,
             },
+            crop: Crop::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -584,6 +710,7 @@ impl Layer {
             source: SourceSpec::Image {
                 media_id: media_id.clone(),
             },
+            crop: Crop::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -603,6 +730,7 @@ impl Layer {
             source: SourceSpec::Video {
                 media_id: media_id.clone(),
             },
+            crop: Crop::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -1127,6 +1255,90 @@ mod tests {
         assert_eq!(color.brightness, 0.0);
         assert_eq!(color.contrast, 4.0);
         assert_eq!(color.gamma, 0.1);
+    }
+
+    #[test]
+    fn older_projects_load_without_masks_or_crops() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        for surface in value["stages"][0]["surfaces"].as_array_mut().unwrap() {
+            surface.as_object_mut().unwrap().remove("mask");
+        }
+        for layer in value["stages"][0]["layers"].as_array_mut().unwrap() {
+            layer.as_object_mut().unwrap().remove("crop");
+        }
+
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.stages[0]
+            .surfaces
+            .iter()
+            .all(|surface| surface.mask == SurfaceMask::default()));
+        assert!(project.stages[0]
+            .layers
+            .iter()
+            .all(|layer| layer.crop.is_identity()));
+    }
+
+    #[test]
+    fn surface_masks_and_layer_crops_round_trip() {
+        let mut project = Project::demo();
+        let surface = &mut project.stages[0].surfaces[0];
+        surface.mask = SurfaceMask::rectangle(0.12);
+        surface.mask.invert = true;
+        surface.mask.feather = 0.08;
+        project.stages[0].layers[0].crop = Crop {
+            top: 0.1,
+            right: 0.2,
+            bottom: 0.05,
+            left: 0.15,
+            circle: Some(CircleCrop {
+                center: Point2::new(0.4, 0.6),
+                radius: 0.3,
+            }),
+        };
+
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+        assert_eq!(round_trip.stages[0].surfaces[0].mask.points.len(), 4);
+        assert_eq!(
+            round_trip.stages[0].layers[0]
+                .crop
+                .circle
+                .map(|circle| circle.radius),
+            Some(0.3)
+        );
+    }
+
+    #[test]
+    fn mask_and_crop_values_clamp() {
+        let mask = SurfaceMask {
+            enabled: true,
+            invert: false,
+            feather: 5.0,
+            points: vec![Point2::new(-1.0, 2.0)],
+        }
+        .clamped();
+        assert_eq!(mask.feather, 0.5);
+        assert_eq!(mask.points[0], Point2::new(0.0, 1.0));
+
+        let crop = Crop {
+            top: -1.0,
+            right: 4.0,
+            bottom: 0.2,
+            left: 0.1,
+            circle: Some(CircleCrop {
+                center: Point2::new(2.0, -1.0),
+                radius: 9.0,
+            }),
+        }
+        .clamped();
+        assert_eq!(crop.top, 0.0);
+        assert_eq!(crop.right, 0.45);
+        assert_eq!(crop.bottom, 0.2);
+        assert_eq!(crop.left, 0.1);
+        let circle = crop.circle.unwrap();
+        assert_eq!(circle.center, Point2::new(1.0, 0.0));
+        assert_eq!(circle.radius, 1.0);
     }
 
     #[test]

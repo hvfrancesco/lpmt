@@ -54,6 +54,12 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   mode rather than one pipeline per layer. The editor can select, show/hide, reorder, delete,
   create test-pattern layers and toggle a layer's surfaces. The demo uses two surfaces/layers to
   exercise compositing.
+- **Masks and crops:** surfaces support editable polygon masks with invert and feather, stored in
+  surface UV so they follow the warp. Mask coverage is rasterized on the CPU into a cached,
+  device-wide coverage texture and sampled by both the quad and grid shaders. Layers support
+  rectangular edge insets and an optional circular source crop. The editor edits mask points
+  directly in the live preview (Alt-click add, right-click remove, drag to move) and exposes crop
+  controls in the layer card. All changes participate in undo/redo.
 - **Project persistence:** JSON save/load in the editor plus `--project <path>` startup loading,
   with native Open/Save-as dialogs and media import/replace/remove. Saves are atomic: the JSON is
   written and flushed to a temporary file in the destination directory, then renamed over the
@@ -123,10 +129,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   Corner edits still apply a four-corner homography and carry the whole grid with them; toggling
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
-- **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
-  and the legacy importer.
-- **Next implementation slice:** polygon/rectangular/circular masks and crops. The legacy XML importer
-  stays planned.
+- **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
+  Bézier-compatible patches, 3D LUTs, OSC/MIDI bindings, the timeline, the legacy XML importer,
+  packaging and validated macOS/Windows builds.
+- **Next implementation slice:** M5 show control — stable parameter paths, OSC/MIDI bindings with
+  generic learn, configurable hotkeys and a timeline with numeric/colour/trigger tracks.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -737,13 +744,14 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 ### M4 — Mapping depth
 
 - [x] Regular grid warp with 2×2 to 6×6 control cells.
-- [ ] Bézier-compatible patches, polygon/rectangular/circular masks, crops.
-- Colourisation, chroma key and advanced blend modes.
+- [x] Polygon surface masks with invert/feather and rectangular/circular layer crops.
+- [ ] Bézier-compatible patches.
+- [ ] Colourisation, chroma key and advanced blend modes.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
 - [x] Multi-select, whole-surface drag, align and distribute.
 - [ ] 3D LUTs and broader calibration diagnostics.
-- Acceptance: feature parity with LPMT 1’s core mapping and masking.
+- Acceptance: feature parity with LPMT 1’s core mapping and masking, except Bézier patches.
 
 ### M5 — Show control
 

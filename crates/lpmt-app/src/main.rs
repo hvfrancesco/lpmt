@@ -24,7 +24,8 @@ use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
     BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
-    OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, TestPattern,
+    OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask, TestPattern,
+    MASK_POINT_LIMIT,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
@@ -771,6 +772,93 @@ impl App {
                         surface.opacity = opacity.clamp(0.0, 1.0);
                     }
                 }
+                EditorAction::SetSurfaceMaskEnabled { surface, enabled } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        if enabled && surface.mask.points.len() < 3 {
+                            surface.mask = SurfaceMask::rectangle(0.08);
+                        }
+                        surface.mask.enabled = enabled;
+                    }
+                }
+                EditorAction::SetSurfaceMaskInvert { surface, invert } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.mask.invert = invert;
+                    }
+                }
+                EditorAction::SetSurfaceMaskFeather { surface, feather } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.mask.feather = feather.clamp(0.0, 0.5);
+                    }
+                }
+                EditorAction::SetSurfaceMaskPoint {
+                    surface,
+                    point,
+                    value,
+                } => {
+                    if let Some(point) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                        .and_then(|surface| surface.mask.points.get_mut(point))
+                    {
+                        *point = value.clamp_unit();
+                    }
+                }
+                EditorAction::AddSurfaceMaskPoint { surface, point } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        if surface.mask.points.len() >= MASK_POINT_LIMIT {
+                            self.status_message =
+                                format!("A mask can have at most {MASK_POINT_LIMIT} points");
+                        } else {
+                            surface.mask.points.push(point.clamp_unit());
+                        }
+                    }
+                }
+                EditorAction::RemoveSurfaceMaskPoint { surface, point } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        if point < surface.mask.points.len() {
+                            surface.mask.points.remove(point);
+                        }
+                    }
+                }
+                EditorAction::ResetSurfaceMask { surface } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.mask = SurfaceMask::rectangle(0.08);
+                    }
+                }
+                EditorAction::ClearSurfaceMask { surface } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.mask = SurfaceMask::default();
+                    }
+                }
                 EditorAction::SetMediaPath { media, path } => {
                     let fallback = self
                         .project
@@ -861,6 +949,15 @@ impl App {
                         if let SourceSpec::TestPattern { pattern: current } = &mut layer.source {
                             *current = pattern;
                         }
+                    }
+                }
+                EditorAction::SetLayerCrop { layer, crop } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        layer.crop = crop.clamped();
                     }
                 }
                 EditorAction::SetLayerSurfaces { layer, surfaces } => {
@@ -2114,6 +2211,20 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             HistoryKey::SurfaceOpacity(*surface),
             "change surface opacity",
         ),
+        SetSurfaceMaskEnabled { .. } => (HistoryKey::Discrete, "toggle surface mask"),
+        SetSurfaceMaskInvert { .. } => (HistoryKey::Discrete, "invert surface mask"),
+        SetSurfaceMaskFeather { surface, .. } => (
+            HistoryKey::SurfaceMaskFeather(*surface),
+            "change mask feather",
+        ),
+        SetSurfaceMaskPoint { surface, point, .. } => (
+            HistoryKey::SurfaceMaskPoint(*surface, *point),
+            "move mask point",
+        ),
+        AddSurfaceMaskPoint { .. } => (HistoryKey::Discrete, "add mask point"),
+        RemoveSurfaceMaskPoint { .. } => (HistoryKey::Discrete, "remove mask point"),
+        ResetSurfaceMask { .. } => (HistoryKey::Discrete, "reset surface mask"),
+        ClearSurfaceMask { .. } => (HistoryKey::Discrete, "clear surface mask"),
         SetMediaPath { media, .. } => (HistoryKey::MediaPath(*media), "change media path"),
         RenameLayer { layer, .. } => (HistoryKey::LayerName(*layer), "rename layer"),
         SetLayerMedia { .. } => (HistoryKey::Discrete, "assign layer media"),
@@ -2121,6 +2232,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerOpacity { layer, .. } => (HistoryKey::LayerOpacity(*layer), "change layer opacity"),
         SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
         SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
+        SetLayerCrop { layer, .. } => (HistoryKey::LayerCrop(*layer), "change layer crop"),
         SetLayerSurfaces { .. } => (HistoryKey::Discrete, "change layer surfaces"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
         AddLayerFromMedia { .. } => (HistoryKey::Discrete, "add media layer"),

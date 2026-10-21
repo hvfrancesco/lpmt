@@ -13,9 +13,10 @@ layer compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
-guides, multi-surface mapping, quad/grid warp and thumbnail media picking.
-Mapping uses an inline editable hierarchy beside the live preview with a bottom
-media shelf; Calibration and Show are separate modes.
+guides, multi-surface mapping, quad/grid warp, polygon masks, rectangular and
+circular crops and thumbnail media picking. Mapping uses an inline editable
+hierarchy beside the live preview with a bottom media shelf; Calibration and
+Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -36,6 +37,12 @@ media shelf; Calibration and Show are separate modes.
   top/middle/bottom to the selection bounds and distribute three or more
   surface centres horizontally or vertically. Multi-surface moves are one
   coalesced undo step.
+- **Surface masks and layer crops:** each surface can use an editable polygon
+  mask with invert and feather. Alt-click the preview to add a point,
+  right-click a point to remove it, and drag points to reshape the mask. Each
+  layer can apply top/right/bottom/left and circular source crops. Mask coverage
+  is rasterized once per change into a shared texture, so preview and every
+  output use the same data without slowing the render path.
 - **Quad and grid warp:** each surface starts as a four-corner quad and can
   switch to a regular 2×2 to 6×6 control grid. Grid points are dragged directly
   in the preview, with coalesced undo. The four corners always remain available:
@@ -123,17 +130,17 @@ media shelf; Calibration and Show are separate modes.
 ### Next session
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
-patterns, output guides, multi-surface mapping, grid warp and the inline Mapping
-editor with thumbnail picking are now in place. The next implementation slice is
-**masks and crops**:
+patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
+crops and the inline Mapping editor with thumbnail picking are now in place.
+The next implementation slice is **M5 show control**:
 
-- polygon, rectangular and circular masks;
-- mask feather and invert;
-- per-layer or per-surface mask assignment;
-- 3D LUT support and richer per-output calibration diagnostics later.
+- stable animatable parameter paths and a binding layer;
+- OSC and MIDI bindings with generic learn and configurable hotkeys;
+- a timeline with numeric curves, colour tracks and triggers.
 
-Audio is on the shared clock; a per-layer mix bus and timeline remain later
-work. The legacy XML importer remains planned; the full roadmap is in
+Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
+the shared clock; a per-layer mix bus and hardware decode remain later work. The
+legacy XML importer remains planned; the full roadmap is in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
 
 ## Build and run
@@ -311,6 +318,11 @@ active and move the grid deformation with the surface. Disabling **Grid warp**
 keeps the deformation for later; use **Reset grid** to rebuild the mesh and
 **Reset to full stage** for a complete reset. With **Snap corners** enabled, a
 dragged quad corner locks onto another surface's nearest corner.
+Enable **Polygon mask** in a surface card to cut a feathered, optionally inverted
+polygon out of that surface. Alt-click the preview to add a mask point,
+right-click a point to remove it, and drag the orange handles to reshape it. The
+layer card also exposes **Source crop**: four edge insets plus an optional
+circular crop. Both are undone/redone with the rest of the project.
 Shift-click surfaces, or drag a selected surface, to edit several at once; align
 and distribute actions appear under the surface list. The active layer card
 contains its name, thumbnail source, **Choose media…** button,
