@@ -118,9 +118,14 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   selected surface moves the whole selection within the normalized stage; align left/centre/right,
   top/middle/bottom and distribute centres horizontally/vertically operate on the selection bounds.
   Multi-surface drags coalesce into one undo step.
+- **Quad and grid warp:** a surface starts as a four-corner quad and can switch to a regular 2×2 to
+  6×6 cell grid. The renderer builds a triangle mesh and samples the source over the grid UVs.
+  Corner edits still apply a four-corner homography and carry the whole grid with them; toggling
+  grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
+  actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mix bus, 3D LUTs, masks/deformation, OSC/MIDI, timeline
   and the legacy importer.
-- **Next implementation slice:** grid warp and masks for mapping depth. The legacy XML importer
+- **Next implementation slice:** polygon/rectangular/circular masks and crops. The legacy XML importer
   stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
@@ -731,7 +736,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ### M4 — Mapping depth
 
-- Grid warp, Bézier-compatible patches, polygon/rectangular/circular masks, crops.
+- [x] Regular grid warp with 2×2 to 6×6 control cells.
+- [ ] Bézier-compatible patches, polygon/rectangular/circular masks, crops.
 - Colourisation, chroma key and advanced blend modes.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.

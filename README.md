@@ -13,9 +13,9 @@ layer compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
-guides, multi-surface mapping and thumbnail media picking. Mapping uses an
-inline editable hierarchy beside the live preview with a bottom media shelf;
-Calibration and Show are separate modes.
+guides, multi-surface mapping, quad/grid warp and thumbnail media picking.
+Mapping uses an inline editable hierarchy beside the live preview with a bottom
+media shelf; Calibration and Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -32,10 +32,17 @@ Calibration and Show are separate modes.
   threshold, with a visible snap target. The toggle lives in the hierarchy.
 - **Multi-surface mapping:** Shift-click surfaces in the preview or list to add
   or remove them from the selection. Dragging any selected surface moves the
-  whole selection; the properties panel can align left/centre/right or
+  whole selection; the surface list exposes align left/centre/right or
   top/middle/bottom to the selection bounds and distribute three or more
   surface centres horizontally or vertically. Multi-surface moves are one
   coalesced undo step.
+- **Quad and grid warp:** each surface starts as a four-corner quad and can
+  switch to a regular 2×2 to 6×6 control grid. Grid points are dragged directly
+  in the preview, with coalesced undo. The four corners always remain available:
+  moving one carries the whole grid through the same homography, so the
+  deformation follows the surface. Toggling grid warp off preserves the stored
+  deformation; **Reset grid** rebuilds it and **Reset to full stage** resets the
+  whole surface. Old projects load as quad surfaces.
 - Each output is mapped to a stable `OutputId` and renders its own
   `OutputSpec.view` rectangle of the stage. The editor can add, delete, open,
   close and fullscreen outputs, edit their normalized view rectangles and pick
@@ -107,8 +114,8 @@ Calibration and Show are separate modes.
   **Ctrl+Z**, **Ctrl+Shift+Z** or **Ctrl+Y** work when no text field has focus.
   The top bar marks unsaved changes.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
-- Homography, LUT parsing, test-pattern generation, media decoding, undo
-  history, atomic-save and JSON compatibility unit tests.
+- Homography, grid mesh, LUT parsing, test-pattern generation, media decoding,
+  undo history, atomic-save and JSON compatibility unit tests.
 - Fullscreen outputs claim an unused secondary monitor when one is present; the
   next outputs open as windows (960×540 or 1280×720) so the editor stays
   reachable. With a single display the first fullscreen output uses it.
@@ -116,12 +123,13 @@ Calibration and Show are separate modes.
 ### Next session
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
-patterns, output guides, multi-surface mapping and the inline Mapping editor
-with thumbnail picking are now in place. The next implementation slice is
-**mapping depth**:
+patterns, output guides, multi-surface mapping, grid warp and the inline Mapping
+editor with thumbnail picking are now in place. The next implementation slice is
+**masks and crops**:
 
-- grid warp controls for curved or irregular surfaces;
-- polygon/rectangular masks and crops;
+- polygon, rectangular and circular masks;
+- mask feather and invert;
+- per-layer or per-surface mask assignment;
 - 3D LUT support and richer per-output calibration diagnostics later.
 
 Audio is on the shared clock; a per-layer mix bus and timeline remain later
@@ -296,15 +304,19 @@ per show, many Outputs as views of that Stage**.
 
 In Mapping, all surfaces are outlined in the live preview. Click one to make it
 active; its settings expand inline in the left editor, while the matching layer
-editor stays next to its own layer row. Drag corners in the preview or use the
-collapsed numeric fields. With **Snap corners** enabled, a dragged corner locks
-onto another surface's nearest corner. Shift-click surfaces, or drag a selected
-surface, to edit several at once; align and distribute actions appear under the
-surface list. The active layer card contains its name, thumbnail source,
-**Choose media…** button, assigned-surface checkboxes, opacity, blend and order
-controls. The bottom media shelf reports whether each asset is unused, used by a
-layer, or assigned as show audio, and can add a visual asset as a new layer on
-every selected surface.
+editor stays next to its own layer row. A surface is either a four-corner quad
+or a grid warp; enable **Grid warp** in the surface card and choose a 2×2 to 6×6
+cell grid, then drag the blue grid points in the preview. Corner handles remain
+active and move the grid deformation with the surface. Disabling **Grid warp**
+keeps the deformation for later; use **Reset grid** to rebuild the mesh and
+**Reset to full stage** for a complete reset. With **Snap corners** enabled, a
+dragged quad corner locks onto another surface's nearest corner.
+Shift-click surfaces, or drag a selected surface, to edit several at once; align
+and distribute actions appear under the surface list. The active layer card
+contains its name, thumbnail source, **Choose media…** button,
+assigned-surface checkboxes, opacity, blend and order controls. The bottom media
+shelf reports whether each asset is unused, used by a layer, or assigned as show
+audio, and can add a visual asset as a new layer on every selected surface.
 **Calibration** mode shows pacing, calibration LUT controls and temporary
 calibration guides. Audio and transport live in **Show** mode. Use the top
 **Project** menu to save or load the JSON show file; **Undo**/**Redo** in the

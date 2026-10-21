@@ -621,16 +621,62 @@ impl App {
                         .primary_stage_mut()
                         .and_then(|stage| stage.surfaces.get_mut(surface))
                     {
-                        surface.corners[corner] = value;
+                        surface.set_corner(corner, value);
                     }
                 }
                 EditorAction::SetSurfaceCorners { surfaces, .. } => {
                     if let Some(stage) = self.project.primary_stage_mut() {
                         for (index, corners) in surfaces {
                             if let Some(surface) = stage.surfaces.get_mut(index) {
-                                surface.corners = corners.map(Point2::clamp_unit);
+                                surface
+                                    .set_corners_preserving_grid(corners.map(Point2::clamp_unit));
                             }
                         }
+                    }
+                }
+                EditorAction::SetSurfaceGridEnabled { surface, enabled } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.set_grid_enabled(enabled);
+                    }
+                }
+                EditorAction::SetSurfaceGridResolution {
+                    surface,
+                    rows,
+                    columns,
+                } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.set_grid_resolution(rows, columns);
+                    }
+                }
+                EditorAction::ResetSurfaceGrid { surface } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.reset_grid();
+                    }
+                }
+                EditorAction::SetGridPoint {
+                    surface,
+                    row,
+                    column,
+                    value,
+                } => {
+                    if let Some(surface) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.surfaces.get_mut(surface))
+                    {
+                        surface.set_grid_point(row, column, value);
                     }
                 }
                 EditorAction::ResetSurface { surface } => {
@@ -2047,6 +2093,18 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             SurfaceGeometryEdit::Align => (HistoryKey::Discrete, "align surfaces"),
             SurfaceGeometryEdit::Distribute => (HistoryKey::Discrete, "distribute surfaces"),
         },
+        SetSurfaceGridEnabled { .. } => (HistoryKey::Discrete, "toggle grid warp"),
+        SetSurfaceGridResolution { .. } => (HistoryKey::Discrete, "change grid resolution"),
+        ResetSurfaceGrid { .. } => (HistoryKey::Discrete, "reset grid warp"),
+        SetGridPoint {
+            surface,
+            row,
+            column,
+            ..
+        } => (
+            HistoryKey::SurfaceGridPoint(*surface, *row, *column),
+            "move grid point",
+        ),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),

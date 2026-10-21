@@ -97,6 +97,149 @@ impl Default for Rect {
     }
 }
 
+pub const WARP_GRID_MIN: u16 = 2;
+pub const WARP_GRID_MAX: u16 = 8;
+
+/// A regular control grid over a surface. `rows` and `columns` count cells, so
+/// a 2x2 grid contains 3x3 points. Points are row-major in stage space.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WarpGrid {
+    pub rows: u16,
+    pub columns: u16,
+    pub points: Vec<Point2>,
+}
+
+impl WarpGrid {
+    pub fn from_quad(corners: [Point2; 4], rows: u16, columns: u16) -> Self {
+        let rows = rows.clamp(WARP_GRID_MIN, WARP_GRID_MAX);
+        let columns = columns.clamp(WARP_GRID_MIN, WARP_GRID_MAX);
+        let homography = Homography::from_unit_quad(corners).ok();
+        let mut points = Vec::with_capacity((usize::from(rows) + 1) * (usize::from(columns) + 1));
+        for row in 0..=rows {
+            let v = f32::from(row) / f32::from(rows);
+            for column in 0..=columns {
+                let u = f32::from(column) / f32::from(columns);
+                let point = homography
+                    .and_then(|homography| homography.try_transform(Point2::new(u, v)))
+                    .unwrap_or_else(|| {
+                        let top = lerp(corners[0], corners[1], u);
+                        let bottom = lerp(corners[3], corners[2], u);
+                        lerp(top, bottom, v)
+                    });
+                points.push(point);
+            }
+        }
+        Self {
+            rows,
+            columns,
+            points,
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.rows >= WARP_GRID_MIN
+            && self.columns >= WARP_GRID_MIN
+            && self.rows <= WARP_GRID_MAX
+            && self.columns <= WARP_GRID_MAX
+            && self.points.len() == (usize::from(self.rows) + 1) * (usize::from(self.columns) + 1)
+    }
+
+    pub fn point(&self, row: u16, column: u16) -> Option<Point2> {
+        if row > self.rows || column > self.columns {
+            return None;
+        }
+        self.points
+            .get(usize::from(row) * (usize::from(self.columns) + 1) + usize::from(column))
+            .copied()
+    }
+
+    pub fn set_point(&mut self, row: u16, column: u16, value: Point2) -> bool {
+        if row > self.rows || column > self.columns {
+            return false;
+        }
+        let index = usize::from(row) * (usize::from(self.columns) + 1) + usize::from(column);
+        if let Some(point) = self.points.get_mut(index) {
+            *point = value;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Outer corners in the same order as [`Surface::corners`].
+    pub fn outer_corners(&self) -> Option<[Point2; 4]> {
+        Some([
+            self.point(0, 0)?,
+            self.point(0, self.columns)?,
+            self.point(self.rows, self.columns)?,
+            self.point(self.rows, 0)?,
+        ])
+    }
+
+    /// Resample the deformation onto a different regular grid, preserving the
+    /// shape instead of rebuilding it from the outer quad.
+    pub fn resampled(&self, rows: u16, columns: u16) -> Self {
+        let rows = rows.clamp(WARP_GRID_MIN, WARP_GRID_MAX);
+        let columns = columns.clamp(WARP_GRID_MIN, WARP_GRID_MAX);
+        let old_rows = f32::from(self.rows);
+        let old_columns = f32::from(self.columns);
+        let mut points = Vec::with_capacity((usize::from(rows) + 1) * (usize::from(columns) + 1));
+        for row in 0..=rows {
+            let v = f32::from(row) / f32::from(rows);
+            let source_row = v * old_rows;
+            let low_row = source_row.floor();
+            let high_row = (low_row + 1.0).min(old_rows);
+            let t_y = source_row - low_row;
+            for column in 0..=columns {
+                let u = f32::from(column) / f32::from(columns);
+                let source_column = u * old_columns;
+                let low_column = source_column.floor();
+                let high_column = (low_column + 1.0).min(old_columns);
+                let t_x = source_column - low_column;
+                let p00 = self
+                    .point(low_row as u16, low_column as u16)
+                    .unwrap_or(Point2::ZERO);
+                let p10 = self
+                    .point(low_row as u16, high_column as u16)
+                    .unwrap_or(Point2::ZERO);
+                let p01 = self
+                    .point(high_row as u16, low_column as u16)
+                    .unwrap_or(Point2::ZERO);
+                let p11 = self
+                    .point(high_row as u16, high_column as u16)
+                    .unwrap_or(Point2::ZERO);
+                let top = lerp(p00, p10, t_x);
+                let bottom = lerp(p01, p11, t_x);
+                points.push(lerp(top, bottom, t_y));
+            }
+        }
+        Self {
+            rows,
+            columns,
+            points,
+        }
+    }
+
+    pub fn translate(&mut self, delta: Point2) {
+        for point in &mut self.points {
+            point.x += delta.x;
+            point.y += delta.y;
+        }
+    }
+}
+
+fn default_grid_enabled() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+fn lerp(a: Point2, b: Point2, t: f32) -> Point2 {
+    Point2::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+}
+
 /// A quad in stage space. Surface geometry is intentionally independent from
 /// the content that is drawn through it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -105,6 +248,14 @@ pub struct Surface {
     pub name: String,
     /// Top-left, top-right, bottom-right, bottom-left, in unit-square order.
     pub corners: [Point2; 4],
+    /// Optional regular grid warp. When present, the renderer uses the grid
+    /// mesh and `corners` mirrors its four outer corners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub grid: Option<WarpGrid>,
+    /// Whether the stored grid is currently used. Toggling this off keeps the
+    /// grid so it can be restored without losing the deformation.
+    #[serde(default = "default_grid_enabled", skip_serializing_if = "is_true")]
+    pub grid_enabled: bool,
     pub opacity: f32,
     pub visible: bool,
 }
@@ -115,6 +266,8 @@ impl Surface {
             id: SurfaceId::new(id),
             name: name.into(),
             corners,
+            grid: None,
+            grid_enabled: true,
             opacity: 1.0,
             visible: true,
         }
@@ -138,13 +291,120 @@ impl Surface {
         Homography::from_unit_quad(self.corners)
     }
 
+    /// Toggle grid rendering without discarding the stored deformation.
+    pub fn set_grid_enabled(&mut self, enabled: bool) {
+        if enabled && self.grid.is_none() {
+            self.grid = Some(WarpGrid::from_quad(
+                self.corners,
+                WARP_GRID_MIN,
+                WARP_GRID_MIN,
+            ));
+        }
+        self.grid_enabled = enabled;
+        if enabled {
+            self.sync_corners_from_grid();
+        }
+    }
+
+    /// Change grid resolution, resampling the current deformation when one
+    /// already exists instead of resetting it.
+    pub fn set_grid_resolution(&mut self, rows: u16, columns: u16) {
+        self.grid = Some(match self.grid.as_ref() {
+            Some(grid) if grid.is_valid() => grid.resampled(rows, columns),
+            _ => WarpGrid::from_quad(self.corners, rows, columns),
+        });
+        self.grid_enabled = true;
+        self.sync_corners_from_grid();
+    }
+
+    /// Rebuild the grid as a regular mesh over the current quad while keeping
+    /// its resolution and enabled state.
+    pub fn reset_grid(&mut self) {
+        let (rows, columns) = self
+            .grid
+            .as_ref()
+            .map_or((WARP_GRID_MIN, WARP_GRID_MIN), |grid| {
+                (grid.rows, grid.columns)
+            });
+        self.grid = Some(WarpGrid::from_quad(self.corners, rows, columns));
+        self.sync_corners_from_grid();
+    }
+
+    /// Move a quad corner and carry the whole grid through the same
+    /// homography, preserving the deformation relative to the surface.
+    pub fn set_corner(&mut self, corner: usize, value: Point2) {
+        if corner >= self.corners.len() {
+            return;
+        }
+        let old_corners = self.corners;
+        let mut new_corners = old_corners;
+        new_corners[corner] = value;
+        if let Some(grid) = &mut self.grid {
+            if let Ok(transform) = Homography::from_quad(old_corners, new_corners) {
+                for point in &mut grid.points {
+                    if let Some(moved) = transform.try_transform(*point) {
+                        *point = moved;
+                    }
+                }
+            } else {
+                let (row, column) = match corner {
+                    0 => (0, 0),
+                    1 => (0, grid.columns),
+                    2 => (grid.rows, grid.columns),
+                    _ => (grid.rows, 0),
+                };
+                grid.set_point(row, column, value);
+            }
+        }
+        self.corners = new_corners;
+        self.sync_corners_from_grid();
+    }
+
+    pub fn set_grid_point(&mut self, row: u16, column: u16, value: Point2) -> bool {
+        let updated = self
+            .grid
+            .as_mut()
+            .is_some_and(|grid| grid.set_point(row, column, value));
+        if updated {
+            self.sync_corners_from_grid();
+        }
+        updated
+    }
+
+    pub fn sync_corners_from_grid(&mut self) {
+        if let Some(corners) = self.grid.as_ref().and_then(WarpGrid::outer_corners) {
+            self.corners = corners;
+        }
+    }
+
+    /// Translate a whole surface without changing its grid shape.
+    pub fn set_corners_preserving_grid(&mut self, corners: [Point2; 4]) {
+        let delta = Point2::new(
+            corners[0].x - self.corners[0].x,
+            corners[0].y - self.corners[0].y,
+        );
+        self.corners = corners;
+        if let Some(grid) = &mut self.grid {
+            grid.translate(delta);
+            self.sync_corners_from_grid();
+        }
+    }
+
     pub fn reset_to_full_stage(&mut self) {
-        self.corners = [
+        let corners = [
             Point2::new(0.0, 0.0),
             Point2::new(1.0, 0.0),
             Point2::new(1.0, 1.0),
             Point2::new(0.0, 1.0),
         ];
+        if let Some(grid) = &self.grid {
+            let rows = grid.rows;
+            let columns = grid.columns;
+            self.corners = corners;
+            self.grid = Some(WarpGrid::from_quad(corners, rows, columns));
+        } else {
+            self.corners = corners;
+        }
     }
 }
 
@@ -921,6 +1181,105 @@ mod tests {
         let round_trip: Project = serde_json::from_str(&json).unwrap();
         assert_eq!(round_trip, project);
         assert!(round_trip.stages[0].layers[0].uses_surface(&second_surface));
+    }
+
+    #[test]
+    fn grid_warp_round_trips_and_keeps_outer_corners_in_sync() {
+        let corners = [
+            Point2::new(0.1, 0.1),
+            Point2::new(0.9, 0.15),
+            Point2::new(0.8, 0.9),
+            Point2::new(0.2, 0.85),
+        ];
+        let mut surface = Surface::new("surface", "Surface", corners);
+        surface.set_grid_enabled(true);
+        let grid = surface.grid.as_ref().unwrap();
+        assert!(grid.is_valid());
+        assert_eq!(grid.points.len(), 9);
+        assert!(surface.grid_enabled);
+        assert_eq!(grid.outer_corners(), Some(surface.corners));
+
+        let center = Point2::new(0.5, 0.5);
+        assert!(surface.set_grid_point(1, 1, center));
+        assert_eq!(surface.grid.as_ref().unwrap().point(1, 1), Some(center));
+        assert_eq!(surface.corners, corners);
+
+        let moved_tl = Point2::new(0.15, 0.12);
+        assert!(surface.set_grid_point(0, 0, moved_tl));
+        assert_eq!(surface.corners[0], moved_tl);
+
+        let translated = surface
+            .corners
+            .map(|point| Point2::new(point.x + 0.05, point.y));
+        let before = surface.grid.as_ref().unwrap().point(1, 1).unwrap();
+        surface.set_corners_preserving_grid(translated);
+        let after = surface.grid.as_ref().unwrap().point(1, 1).unwrap();
+        assert!((after.x - before.x - 0.05).abs() < 1e-5);
+        assert!((after.y - before.y).abs() < 1e-5);
+
+        let json = serde_json::to_string(&surface).unwrap();
+        let round_trip: Surface = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip, surface);
+
+        let outer = surface.corners;
+        let stored_grid = surface.grid.clone();
+        surface.set_grid_enabled(false);
+        assert!(!surface.grid_enabled);
+        assert_eq!(surface.grid, stored_grid);
+        assert_eq!(surface.corners, outer);
+        let disabled_json = serde_json::to_string(&surface).unwrap();
+        let disabled_round_trip: Surface = serde_json::from_str(&disabled_json).unwrap();
+        assert!(!disabled_round_trip.grid_enabled);
+        assert_eq!(disabled_round_trip.grid, stored_grid);
+        surface.set_grid_enabled(true);
+        assert!(surface.grid_enabled);
+        assert_eq!(surface.grid, stored_grid);
+
+        let center_before = surface.grid.as_ref().unwrap().point(1, 1).unwrap();
+        surface.set_corner(0, Point2::new(0.05, 0.05));
+        let center_after = surface.grid.as_ref().unwrap().point(1, 1).unwrap();
+        assert_ne!(center_before, center_after);
+        assert!((surface.corners[0].x - 0.05).abs() < 1e-5);
+        assert!(surface.grid.as_ref().unwrap().is_valid());
+    }
+
+    #[test]
+    fn resampling_a_grid_preserves_its_shape() {
+        let mut surface = Surface::new(
+            "surface",
+            "Surface",
+            [
+                Point2::new(0.0, 0.0),
+                Point2::new(1.0, 0.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(0.0, 1.0),
+            ],
+        );
+        surface.set_grid_resolution(2, 2);
+        assert!(surface.set_grid_point(1, 1, Point2::new(0.5, 0.65)));
+        surface.set_grid_resolution(4, 4);
+        let grid = surface.grid.as_ref().unwrap();
+        assert_eq!((grid.rows, grid.columns), (4, 4));
+        let center = grid.point(2, 2).unwrap();
+        assert!((center.x - 0.5).abs() < 1e-5);
+        assert!((center.y - 0.65).abs() < 1e-5);
+    }
+
+    #[test]
+    fn older_surfaces_load_without_grid_warp() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        for surface in value["stages"][0]["surfaces"].as_array_mut().unwrap() {
+            surface.as_object_mut().unwrap().remove("grid");
+        }
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.stages[0]
+            .surfaces
+            .iter()
+            .all(|surface| surface.grid.is_none()));
+        assert!(project.stages[0]
+            .surfaces
+            .iter()
+            .all(|surface| surface.grid_enabled));
     }
 
     #[test]

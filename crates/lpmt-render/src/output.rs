@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::{CalibrationLut, LUT_SAMPLES};
-use lpmt_core::model::{BlendMode, ColorCorrection, EdgeBlend, OutputSpec, Rect, Stage};
+use lpmt_core::model::{BlendMode, ColorCorrection, EdgeBlend, OutputSpec, Rect, Stage, WarpGrid};
 use winit::window::Window;
 
 use crate::gpu::Gpu;
@@ -84,6 +84,84 @@ struct Uniforms {
     opacity: f32,
     _padding2: [f32; 3],
 }
+
+const GRID_SHADER: &str = r#"
+struct Frame {
+    // Output view within the stage: x, y, width, height.
+    view: vec4<f32>,
+};
+
+@group(0) @binding(0) var<uniform> frame: Frame;
+@group(1) @binding(0) var source_texture: texture_2d<f32>;
+@group(1) @binding(1) var source_sampler: sampler;
+
+struct VertexIn {
+    @location(0) position: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) opacity: f32,
+};
+
+struct VertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+    @location(1) opacity: f32,
+};
+
+@vertex
+fn vs_main(vertex: VertexIn) -> VertexOut {
+    let output_uv = (vertex.position - frame.view.xy) / frame.view.zw;
+    var out: VertexOut;
+    out.position = vec4<f32>(
+        output_uv.x * 2.0 - 1.0,
+        1.0 - output_uv.y * 2.0,
+        0.0,
+        1.0,
+    );
+    out.uv = vertex.uv;
+    out.opacity = vertex.opacity;
+    return out;
+}
+
+@fragment
+fn fs_main(vertex: VertexOut) -> @location(0) vec4<f32> {
+    let color = textureSample(source_texture, source_sampler, vertex.uv);
+    let alpha = color.a * vertex.opacity;
+    return vec4<f32>(color.rgb * alpha, alpha);
+}
+"#;
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct GridFrameUniforms {
+    view: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct GridVertex {
+    position: [f32; 2],
+    uv: [f32; 2],
+    opacity: f32,
+    _padding: [f32; 3],
+}
+
+impl GridVertex {
+    const ATTRIBUTES: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
+        0 => Float32x2,
+        1 => Float32x2,
+        2 => Float32,
+    ];
+
+    fn layout() -> wgpu::VertexBufferLayout<'static> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &Self::ATTRIBUTES,
+        }
+    }
+}
+
+const INITIAL_GRID_VERTICES: u64 = 4096;
 
 const LUT_SLOTS: usize = LUT_SAMPLES / 4;
 const _: () = assert!(LUT_SAMPLES.is_multiple_of(4));
@@ -325,11 +403,19 @@ fn fs_main_gamma(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<
 }
 "#;
 
-struct DrawItem {
-    offset: u32,
-    uniforms: Uniforms,
-    blend_index: usize,
-    bind_group: wgpu::BindGroup,
+enum DrawItem {
+    Quad {
+        offset: u32,
+        uniforms: Uniforms,
+        blend_index: usize,
+        bind_group: wgpu::BindGroup,
+    },
+    Grid {
+        first_vertex: u32,
+        vertex_count: u32,
+        blend_index: usize,
+        bind_group: wgpu::BindGroup,
+    },
 }
 
 struct SceneTarget {
@@ -371,9 +457,14 @@ impl PreparedFrame {
 /// offscreen editor preview.
 struct StageRenderer {
     pipelines: [wgpu::RenderPipeline; 4],
+    grid_pipelines: [wgpu::RenderPipeline; 4],
     uniform_buffer: wgpu::Buffer,
     uniform_stride: u64,
     uniform_bind_group: wgpu::BindGroup,
+    grid_uniform_buffer: wgpu::Buffer,
+    grid_uniform_bind_group: wgpu::BindGroup,
+    grid_vertex_buffer: wgpu::Buffer,
+    grid_vertex_capacity: u64,
     scene: Option<SceneTarget>,
     scene_layout: wgpu::BindGroupLayout,
     composite_pipeline: wgpu::RenderPipeline,
@@ -477,6 +568,69 @@ impl StageRenderer {
         let pipelines = BlendMode::ALL
             .map(|blend| create_pipeline(gpu, &shader, &pipeline_layout, SCENE_FORMAT, blend));
 
+        let grid_shader = gpu
+            .device()
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("lpmt-output-grid-shader"),
+                source: wgpu::ShaderSource::Wgsl(GRID_SHADER.into()),
+            });
+        let grid_uniform_size = std::mem::size_of::<GridFrameUniforms>() as u64;
+        let grid_uniform_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("lpmt-output-grid-uniforms"),
+            size: grid_uniform_size,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let grid_uniform_layout =
+            gpu.device()
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("lpmt-output-grid-uniform-layout"),
+                    entries: &[wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: wgpu::BufferSize::new(grid_uniform_size),
+                        },
+                        count: None,
+                    }],
+                });
+        let grid_uniform_bind_group = gpu.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("lpmt-output-grid-uniform-bind-group"),
+            layout: &grid_uniform_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: grid_uniform_buffer.as_entire_binding(),
+            }],
+        });
+        let grid_pipeline_layout =
+            gpu.device()
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("lpmt-output-grid-pipeline-layout"),
+                    bind_group_layouts: &[
+                        Some(&grid_uniform_layout),
+                        Some(media.bind_group_layout()),
+                    ],
+                    immediate_size: 0,
+                });
+        let grid_pipelines = BlendMode::ALL.map(|blend| {
+            create_grid_pipeline(
+                gpu,
+                &grid_shader,
+                &grid_pipeline_layout,
+                SCENE_FORMAT,
+                blend,
+            )
+        });
+        let grid_vertex_capacity = INITIAL_GRID_VERTICES * std::mem::size_of::<GridVertex>() as u64;
+        let grid_vertex_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("lpmt-output-grid-vertices"),
+            size: grid_vertex_capacity,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         let composite_uniforms = CompositeUniforms::new(
             EdgeBlend::NONE,
             ColorCorrection::IDENTITY,
@@ -560,9 +714,14 @@ impl StageRenderer {
 
         Ok(Self {
             pipelines,
+            grid_pipelines,
             uniform_buffer,
             uniform_stride,
             uniform_bind_group,
+            grid_uniform_buffer,
+            grid_uniform_bind_group,
+            grid_vertex_buffer,
+            grid_vertex_capacity,
             scene: None,
             scene_layout,
             composite_pipeline,
@@ -598,13 +757,22 @@ impl StageRenderer {
             0,
             bytemuck::bytes_of(&CompositeUniforms::new(edge, color, calibration, guide)),
         );
+        gpu.queue().write_buffer(
+            &self.grid_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&GridFrameUniforms {
+                view: [view.x, view.y, view.width, view.height],
+            }),
+        );
 
         let mut draws = Vec::new();
+        let mut grid_vertices = Vec::new();
         for layer in stage.layers.iter().filter(|layer| layer.visible) {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
             let bind_group = media.bind_group(&layer.source);
+            let blend_index = pipeline_index(layer.blend);
             for surface_id in &layer.surface_ids {
                 if draws.len() >= MAX_LAYER_SLOTS {
                     break;
@@ -621,6 +789,22 @@ impl StageRenderer {
                     continue;
                 }
 
+                if let Some(grid) = surface
+                    .grid
+                    .as_ref()
+                    .filter(|grid| surface.grid_enabled && grid.is_valid())
+                {
+                    let first_vertex = grid_vertices.len() as u32;
+                    append_grid_vertices(&mut grid_vertices, grid, opacity);
+                    draws.push(DrawItem::Grid {
+                        first_vertex,
+                        vertex_count: grid_vertices.len() as u32 - first_vertex,
+                        blend_index,
+                        bind_group: bind_group.clone(),
+                    });
+                    continue;
+                }
+
                 let Ok(surface_to_stage) = surface.homography() else {
                     continue;
                 };
@@ -629,7 +813,7 @@ impl StageRenderer {
                 };
 
                 let offset = (draws.len() as u64 * self.uniform_stride) as u32;
-                draws.push(DrawItem {
+                draws.push(DrawItem::Quad {
                     offset,
                     uniforms: Uniforms {
                         inv_surface: stage_to_surface.to_column_major_4x4(),
@@ -639,17 +823,30 @@ impl StageRenderer {
                         opacity,
                         _padding2: [0.0; 3],
                     },
-                    blend_index: pipeline_index(layer.blend),
+                    blend_index,
                     bind_group: bind_group.clone(),
                 });
             }
         }
 
         for draw in &draws {
+            if let DrawItem::Quad {
+                offset, uniforms, ..
+            } = draw
+            {
+                gpu.queue().write_buffer(
+                    &self.uniform_buffer,
+                    u64::from(*offset),
+                    bytemuck::bytes_of(uniforms),
+                );
+            }
+        }
+        if !grid_vertices.is_empty() {
+            self.ensure_grid_vertex_capacity(gpu, grid_vertices.len() as u64);
             gpu.queue().write_buffer(
-                &self.uniform_buffer,
-                u64::from(draw.offset),
-                bytemuck::bytes_of(&draw.uniforms),
+                &self.grid_vertex_buffer,
+                0,
+                bytemuck::cast_slice(&grid_vertices),
             );
         }
 
@@ -684,10 +881,31 @@ impl StageRenderer {
             });
 
             for draw in &draws {
-                pass.set_pipeline(&self.pipelines[draw.blend_index]);
-                pass.set_bind_group(0, &self.uniform_bind_group, &[draw.offset]);
-                pass.set_bind_group(1, &draw.bind_group, &[]);
-                pass.draw(0..3, 0..1);
+                match draw {
+                    DrawItem::Quad {
+                        offset,
+                        blend_index,
+                        bind_group,
+                        ..
+                    } => {
+                        pass.set_pipeline(&self.pipelines[*blend_index]);
+                        pass.set_bind_group(0, &self.uniform_bind_group, &[*offset]);
+                        pass.set_bind_group(1, bind_group, &[]);
+                        pass.draw(0..3, 0..1);
+                    }
+                    DrawItem::Grid {
+                        first_vertex,
+                        vertex_count,
+                        blend_index,
+                        bind_group,
+                    } => {
+                        pass.set_pipeline(&self.grid_pipelines[*blend_index]);
+                        pass.set_bind_group(0, &self.grid_uniform_bind_group, &[]);
+                        pass.set_bind_group(1, bind_group, &[]);
+                        pass.set_vertex_buffer(0, self.grid_vertex_buffer.slice(..));
+                        pass.draw(*first_vertex..*first_vertex + *vertex_count, 0..1);
+                    }
+                }
             }
         }
 
@@ -715,6 +933,23 @@ impl StageRenderer {
         }
 
         Ok(())
+    }
+
+    fn ensure_grid_vertex_capacity(&mut self, gpu: &Gpu, vertices: u64) {
+        let bytes = vertices.saturating_mul(std::mem::size_of::<GridVertex>() as u64);
+        if bytes <= self.grid_vertex_capacity {
+            return;
+        }
+        let capacity = bytes
+            .next_power_of_two()
+            .max(INITIAL_GRID_VERTICES * std::mem::size_of::<GridVertex>() as u64);
+        self.grid_vertex_buffer = gpu.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("lpmt-output-grid-vertices"),
+            size: capacity,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.grid_vertex_capacity = capacity;
     }
 
     /// Allocate the offscreen scene target lazily and recreate it on resize.
@@ -943,6 +1178,105 @@ impl PreviewRenderer {
     }
 }
 
+fn append_grid_vertices(out: &mut Vec<GridVertex>, grid: &WarpGrid, opacity: f32) {
+    let columns = f32::from(grid.columns);
+    let rows = f32::from(grid.rows);
+    for row in 0..grid.rows {
+        for column in 0..grid.columns {
+            let (Some(p00), Some(p10), Some(p11), Some(p01)) = (
+                grid.point(row, column),
+                grid.point(row, column + 1),
+                grid.point(row + 1, column + 1),
+                grid.point(row + 1, column),
+            ) else {
+                continue;
+            };
+            let u0 = f32::from(column) / columns;
+            let u1 = f32::from(column + 1) / columns;
+            let v0 = f32::from(row) / rows;
+            let v1 = f32::from(row + 1) / rows;
+
+            out.push(GridVertex {
+                position: [p00.x, p00.y],
+                uv: [u0, v0],
+                opacity,
+                _padding: [0.0; 3],
+            });
+            out.push(GridVertex {
+                position: [p10.x, p10.y],
+                uv: [u1, v0],
+                opacity,
+                _padding: [0.0; 3],
+            });
+            out.push(GridVertex {
+                position: [p11.x, p11.y],
+                uv: [u1, v1],
+                opacity,
+                _padding: [0.0; 3],
+            });
+
+            out.push(GridVertex {
+                position: [p00.x, p00.y],
+                uv: [u0, v0],
+                opacity,
+                _padding: [0.0; 3],
+            });
+            out.push(GridVertex {
+                position: [p11.x, p11.y],
+                uv: [u1, v1],
+                opacity,
+                _padding: [0.0; 3],
+            });
+            out.push(GridVertex {
+                position: [p01.x, p01.y],
+                uv: [u0, v1],
+                opacity,
+                _padding: [0.0; 3],
+            });
+        }
+    }
+}
+
+fn create_grid_pipeline(
+    gpu: &Gpu,
+    shader: &wgpu::ShaderModule,
+    layout: &wgpu::PipelineLayout,
+    format: wgpu::TextureFormat,
+    blend: BlendMode,
+) -> wgpu::RenderPipeline {
+    let label = format!("lpmt-grid-pipeline-{}", blend.label().to_lowercase());
+    let vertex_layout = GridVertex::layout();
+    gpu.device()
+        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(&label),
+            layout: Some(layout),
+            vertex: wgpu::VertexState {
+                module: shader,
+                entry_point: Some("vs_main"),
+                compilation_options: Default::default(),
+                buffers: &[Some(vertex_layout)],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                ..Default::default()
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: shader,
+                entry_point: Some("fs_main"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format,
+                    blend: Some(blend_state(blend)),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview_mask: None,
+            cache: None,
+        })
+}
+
 fn create_pipeline(
     gpu: &Gpu,
     shader: &wgpu::ShaderModule,
@@ -1104,6 +1438,7 @@ fn configure_surface(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lpmt_core::model::Point2;
     use std::mem::{offset_of, size_of};
 
     #[test]
@@ -1146,6 +1481,27 @@ mod tests {
         assert_eq!(uniforms.lut_red[LUT_SLOTS - 1][3], 1.0);
         assert_eq!(uniforms.lut_green[LUT_SLOTS - 1][3], 0.5);
         assert_eq!(uniforms.lut_blue[LUT_SLOTS - 1][3], 1.0);
+    }
+
+    #[test]
+    fn grid_vertices_triangulate_every_cell() {
+        let grid = WarpGrid::from_quad(
+            [
+                Point2::new(0.0, 0.0),
+                Point2::new(1.0, 0.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(0.0, 1.0),
+            ],
+            2,
+            2,
+        );
+        let mut vertices = Vec::new();
+        append_grid_vertices(&mut vertices, &grid, 0.5);
+        assert_eq!(vertices.len(), 4 * 6);
+        assert!(vertices.iter().all(|vertex| vertex.opacity == 0.5));
+        assert_eq!(vertices[0].uv, [0.0, 0.0]);
+        assert_eq!(vertices[1].uv, [0.5, 0.0]);
+        assert_eq!(vertices[2].uv, [0.5, 0.5]);
     }
 
     #[test]

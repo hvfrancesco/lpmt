@@ -15,6 +15,7 @@ const COALESCE_WINDOW: Duration = Duration::from_millis(800);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HistoryKey {
     SurfaceCorner(usize, usize),
+    SurfaceGridPoint(usize, u16, u16),
     SurfaceGeometry,
     SurfaceName(usize),
     SurfaceOpacity(usize),

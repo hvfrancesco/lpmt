@@ -8,7 +8,7 @@ use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
     BlendMode, ColorCorrection, EdgeBlend, LayerId, MediaAsset, MediaId, MediaKind, OutputTarget,
-    Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId, TestPattern,
+    Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId, TestPattern, WarpGrid,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -136,6 +136,7 @@ pub struct EditorState {
     /// Layer whose source is being chosen in the in-app media picker.
     media_picker: Option<usize>,
     drag_corner: Option<usize>,
+    drag_grid: Option<(u16, u16)>,
     surface_move: Option<SurfaceMoveDrag>,
     transport_scrub: Option<f32>,
     pub snap_corners: bool,
@@ -161,6 +162,7 @@ impl Default for EditorState {
             layer_name_id: None,
             media_picker: None,
             drag_corner: None,
+            drag_grid: None,
             surface_move: None,
             transport_scrub: None,
             snap_corners: true,
@@ -184,6 +186,7 @@ impl EditorState {
     /// the editor (for example after undo).
     pub fn cancel_drag(&mut self) {
         self.drag_corner = None;
+        self.drag_grid = None;
         self.surface_move = None;
         self.snap_target = None;
     }
@@ -197,6 +200,7 @@ impl EditorState {
         self.selected_surfaces.clear();
         self.selected_surfaces.insert(index);
         self.drag_corner = None;
+        self.drag_grid = None;
         self.surface_move = None;
     }
 
@@ -219,6 +223,7 @@ impl EditorState {
             self.selected_surface = index;
         }
         self.drag_corner = None;
+        self.drag_grid = None;
         self.surface_move = None;
     }
 
@@ -279,6 +284,24 @@ pub enum EditorAction {
     SetSurfaceCorners {
         surfaces: Vec<(usize, [Point2; 4])>,
         edit: SurfaceGeometryEdit,
+    },
+    SetSurfaceGridEnabled {
+        surface: usize,
+        enabled: bool,
+    },
+    SetSurfaceGridResolution {
+        surface: usize,
+        rows: u16,
+        columns: u16,
+    },
+    ResetSurfaceGrid {
+        surface: usize,
+    },
+    SetGridPoint {
+        surface: usize,
+        row: u16,
+        column: u16,
+        value: Point2,
     },
     ResetSurface {
         surface: usize,
@@ -1258,6 +1281,55 @@ pub fn draw(
                 Color32::from_rgb(190, 220, 255),
             );
 
+            if surface.grid_enabled {
+                if let Some(grid) = &surface.grid {
+                    let grid_color = Color32::from_rgb(108, 182, 255);
+                    for row in 0..=grid.rows {
+                        for column in 0..=grid.columns {
+                            let Some(point) = grid.point(row, column) else {
+                                continue;
+                            };
+                            let screen = stage_to_preview(preview, point);
+                            if column < grid.columns {
+                                if let Some(next) = grid.point(row, column + 1) {
+                                    painter.line_segment(
+                                        [screen, stage_to_preview(preview, next)],
+                                        Stroke::new(1.0, grid_color),
+                                    );
+                                }
+                            }
+                            if row < grid.rows {
+                                if let Some(next) = grid.point(row + 1, column) {
+                                    painter.line_segment(
+                                        [screen, stage_to_preview(preview, next)],
+                                        Stroke::new(1.0, grid_color),
+                                    );
+                                }
+                            }
+                            let is_corner = (row == 0 || row == grid.rows)
+                                && (column == 0 || column == grid.columns);
+                            if is_corner {
+                                continue;
+                            }
+                            let active = state.drag_grid == Some((row, column));
+                            painter.circle_filled(
+                                screen,
+                                if active { 8.0 } else { 5.5 },
+                                if active {
+                                    Color32::from_rgb(255, 210, 90)
+                                } else {
+                                    Color32::from_rgb(238, 242, 250)
+                                },
+                            );
+                            painter.circle_stroke(
+                                screen,
+                                5.5,
+                                Stroke::new(1.0, Color32::from_rgb(20, 24, 32)),
+                            );
+                        }
+                    }
+                }
+            }
             for (index, point) in points.iter().enumerate() {
                 let active = state.drag_corner == Some(index);
                 painter.circle_filled(
@@ -1298,6 +1370,12 @@ pub fn draw(
 
         if response.drag_started() {
             if let Some(pointer) = response.interact_pointer_pos() {
+                let grid_point = stage
+                    .surfaces
+                    .get(state.selected_surface)
+                    .filter(|surface| surface.grid_enabled)
+                    .and_then(|surface| surface.grid.as_ref())
+                    .and_then(|grid| nearest_grid_point(preview, grid, pointer, 18.0));
                 if let Some((surface, corner)) = nearest_surface_corner(
                     preview,
                     &stage.surfaces,
@@ -1307,6 +1385,10 @@ pub fn draw(
                 ) {
                     state.select_only_surface(surface);
                     state.drag_corner = Some(corner);
+                } else if let Some((row, column)) = grid_point {
+                    state.drag_grid = Some((row, column));
+                    state.drag_corner = None;
+                    state.surface_move = None;
                 } else if let Some(surface) = surface_at(preview, &stage.surfaces, pointer) {
                     if shift && !state.is_surface_selected(surface) {
                         state.toggle_surface_selection(surface);
@@ -1315,6 +1397,7 @@ pub fn draw(
                     } else {
                         state.selected_surface = surface;
                         state.drag_corner = None;
+                        state.drag_grid = None;
                     }
                     let originals = state
                         .selected_surfaces
@@ -1337,7 +1420,16 @@ pub fn draw(
         }
 
         if response.dragged() {
-            if let (Some(index), Some(pointer)) =
+            if let (Some((row, column)), Some(pointer)) =
+                (state.drag_grid, response.interact_pointer_pos())
+            {
+                actions.push(EditorAction::SetGridPoint {
+                    surface: state.selected_surface,
+                    row,
+                    column,
+                    value: preview_to_stage(preview, pointer).clamp_unit(),
+                });
+            } else if let (Some(index), Some(pointer)) =
                 (state.drag_corner, response.interact_pointer_pos())
             {
                 let mut value = preview_to_stage(preview, pointer).clamp_unit();
@@ -1383,6 +1475,7 @@ pub fn draw(
 
         if response.drag_stopped() {
             state.drag_corner = None;
+            state.drag_grid = None;
             state.surface_move = None;
             state.snap_target = None;
         }
@@ -2236,7 +2329,42 @@ fn draw_surface_settings(
         });
     }
 
-    ui.label("Drag corners in the preview for quick warp.");
+    let mut grid_enabled = surface.grid.is_some() && surface.grid_enabled;
+    if ui.checkbox(&mut grid_enabled, "Grid warp").changed() {
+        actions.push(EditorAction::SetSurfaceGridEnabled {
+            surface: state.selected_surface,
+            enabled: grid_enabled,
+        });
+    }
+
+    if grid_enabled {
+        if let Some(grid) = &surface.grid {
+            let mut chosen = (grid.rows, grid.columns);
+            egui::ComboBox::from_label("Grid")
+                .selected_text(format!("{} × {} cells", chosen.0, chosen.1))
+                .show_ui(ui, |ui| {
+                    for size in [2_u16, 3, 4, 5, 6] {
+                        ui.selectable_value(
+                            &mut chosen,
+                            (size, size),
+                            format!("{size} × {size} cells"),
+                        );
+                    }
+                });
+            if chosen != (grid.rows, grid.columns) {
+                actions.push(EditorAction::SetSurfaceGridResolution {
+                    surface: state.selected_surface,
+                    rows: chosen.0,
+                    columns: chosen.1,
+                });
+            }
+            ui.label("Drag grid points to deform; drag corners to move the whole surface.");
+        }
+    } else if surface.grid.is_some() {
+        ui.label("Grid warp off. The stored deformation will return when re-enabled.");
+    }
+
+    ui.label("Corners adjust the whole surface and its grid together.");
     egui::CollapsingHeader::new("Corners (numeric)")
         .default_open(false)
         .show(ui, |ui| {
@@ -2269,14 +2397,21 @@ fn draw_surface_settings(
                         ui.end_row();
                     }
                 });
-
-            ui.add_space(8.0);
-            if ui.button("Reset to full stage").clicked() {
-                actions.push(EditorAction::ResetSurface {
-                    surface: state.selected_surface,
-                });
-            }
         });
+
+    ui.add_space(6.0);
+    ui.horizontal_wrapped(|ui| {
+        if surface.grid.is_some() && ui.button("Reset grid").clicked() {
+            actions.push(EditorAction::ResetSurfaceGrid {
+                surface: state.selected_surface,
+            });
+        }
+        if ui.button("Reset to full stage").clicked() {
+            actions.push(EditorAction::ResetSurface {
+                surface: state.selected_surface,
+            });
+        }
+    });
 }
 
 fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
@@ -2595,6 +2730,29 @@ fn surface_at(preview: EguiRect, surfaces: &[Surface], pointer: Pos2) -> Option<
         })
 }
 
+fn nearest_grid_point(
+    preview: EguiRect,
+    grid: &WarpGrid,
+    pointer: Pos2,
+    threshold: f32,
+) -> Option<(u16, u16)> {
+    let mut best: Option<(f32, (u16, u16))> = None;
+    for row in 0..=grid.rows {
+        for column in 0..=grid.columns {
+            let Some(point) = grid.point(row, column) else {
+                continue;
+            };
+            let distance = stage_to_preview(preview, point).distance(pointer);
+            if distance <= threshold
+                && best.is_none_or(|(best_distance, _)| distance < best_distance)
+            {
+                best = Some((distance, (row, column)));
+            }
+        }
+    }
+    best.map(|(_, point)| point)
+}
+
 fn nearest_surface_corner(
     preview: EguiRect,
     surfaces: &[Surface],
@@ -2852,6 +3010,30 @@ mod tests {
         let originals = [(0, quad("a", 0.0, 0.0, 0.2, 0.2).corners)];
         assert_eq!(clamp_translation(&originals, -0.5, -0.5), (0.0, 0.0));
         assert_eq!(clamp_translation(&originals, 0.9, 0.9), (0.8, 0.8));
+    }
+
+    #[test]
+    fn grid_point_hit_testing_finds_the_nearest_handle() {
+        let preview = EguiRect::from_min_size(Pos2::ZERO, Vec2::splat(100.0));
+        let grid = WarpGrid::from_quad(
+            [
+                Point2::new(0.0, 0.0),
+                Point2::new(1.0, 0.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(0.0, 1.0),
+            ],
+            2,
+            2,
+        );
+        assert_eq!(
+            nearest_grid_point(preview, &grid, Pos2::new(52.0, 49.0), 12.0),
+            Some((1, 1))
+        );
+        assert_eq!(
+            nearest_grid_point(preview, &grid, Pos2::new(2.0, 2.0), 12.0),
+            Some((0, 0))
+        );
+        assert!(nearest_grid_point(preview, &grid, Pos2::new(25.0, 25.0), 12.0).is_none());
     }
 
     #[test]
