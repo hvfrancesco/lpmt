@@ -7,3 +7,4 @@ pub mod guide;
 pub mod homography;
 pub mod lut;
 pub mod model;
+pub mod param;

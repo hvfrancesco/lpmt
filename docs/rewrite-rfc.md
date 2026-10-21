@@ -99,6 +99,13 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   present cannot stall the shared loop; fullscreen outputs on a dedicated secondary display keep
   tear-free `Fifo`. Single-display auto-fullscreen outputs open windowed so the editor remains
   reachable; assigning a display explicitly still opts into fullscreen.
+- **Control foundation and OSC:** `lpmt-core::param` defines stable IDs and paths for layer,
+  surface, output, audio and transport parameters, plus a project parameter inventory. The
+  `lpmt-control` crate runs a background UDP OSC listener (default `127.0.0.1:9000`, override with
+  `LPMT_OSC_ADDR`), accepts messages and bundles, and maps numeric/bool/text arguments onto the same
+  editor actions used by the UI. Show mode reports listener status, message count and the last
+  accepted or rejected address. Bindings are session-only; persisted bindings, MIDI, DMX and the
+  timeline are next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -135,10 +142,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, OSC/MIDI bindings, the timeline, the legacy XML importer,
-  packaging and validated macOS/Windows builds.
-- **Next implementation slice:** M5 show control — stable parameter paths, OSC/MIDI bindings with
-  generic learn, configurable hotkeys and a timeline with numeric/colour/trigger tracks.
+  Bézier-compatible patches, 3D LUTs, MIDI/DMX bindings, persisted bindings/generic learn, the
+  timeline, the legacy XML importer, packaging and validated macOS/Windows builds.
+- **Next implementation slice:** M5.1 show control — MIDI and configurable hotkeys on the parameter/
+  binding layer, persisted bindings, then the timeline with numeric/colour/trigger tracks.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -761,8 +768,11 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ### M5 — Show control
 
-- Parameter tree, OSC and MIDI bindings, generic learn, configurable hotkeys.
-- Timeline with curves, colours and triggers targeting parameters.
+- [x] Stable parameter IDs/paths and a project parameter inventory.
+- [x] OSC listener with numeric/bool/text arguments, bundles and Show-mode status.
+- [ ] MIDI and DMX bindings, generic learn, configurable hotkeys.
+- [ ] Persisted parameter bindings.
+- [ ] Timeline with curves, colours and triggers targeting parameters.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 
 ### M6 — Media breadth and sync

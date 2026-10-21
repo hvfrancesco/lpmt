@@ -18,6 +18,7 @@ egui-wgpu.workspace = true
 egui-winit.workspace = true
 env_logger.workspace = true
 log.workspace = true
+lpmt-control = { path = "../lpmt-control" }
 lpmt-core = { path = "../lpmt-core" }
 lpmt-media = { path = "../lpmt-media" }
 lpmt-render = { path = "../lpmt-render" }

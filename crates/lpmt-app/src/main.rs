@@ -20,13 +20,15 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
+use lpmt_control::{OscEvent, OscListener};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
-    BlendMode, Layer, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
+    BlendMode, Layer, LayerId, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
     OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask, TestPattern,
     MASK_POINT_LIMIT,
 };
+use lpmt_core::param::{EdgeSide, ParameterId, ParameterValue};
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
 use lpmt_render::output::{OutputRenderer, PreviewRenderer};
@@ -75,6 +77,11 @@ struct App {
     monitors: Vec<String>,
     videos: VideoRuntime,
     audio: AudioRuntime,
+    osc: Option<OscListener>,
+    osc_address: String,
+    osc_messages: u64,
+    osc_last: String,
+    osc_error: Option<String>,
     clock: ShowClock,
     last_clock_seek: u64,
     last_clock_loop: u64,
@@ -122,6 +129,18 @@ impl App {
     fn new(gpu: Gpu) -> Result<Self> {
         let media = MediaCache::new(&gpu)?;
         let project = Project::demo();
+        let osc_address =
+            std::env::var("LPMT_OSC_ADDR").unwrap_or_else(|_| "127.0.0.1:9000".to_owned());
+        let (osc, osc_error) = match OscListener::bind(&osc_address) {
+            Ok(listener) => {
+                log::info!("OSC listening on {}", listener.address());
+                (Some(listener), None)
+            }
+            Err(error) => {
+                log::warn!("OSC listener unavailable: {error:#}");
+                (None, Some(error.to_string()))
+            }
+        };
         let mut app = Self {
             gpu,
             media,
@@ -139,6 +158,11 @@ impl App {
             monitors: Vec::new(),
             videos: VideoRuntime::new(),
             audio: AudioRuntime::new(),
+            osc,
+            osc_address,
+            osc_messages: 0,
+            osc_last: String::new(),
+            osc_error,
             clock: ShowClock::new(),
             last_clock_seek: 0,
             last_clock_loop: 0,
@@ -610,6 +634,254 @@ impl App {
         if indices.len() > 1 {
             log::trace!("presented {count} grouped outputs in one batch");
         }
+    }
+
+    fn poll_osc(&mut self) {
+        let events = self
+            .osc
+            .as_ref()
+            .map(OscListener::drain)
+            .unwrap_or_default();
+        for event in events {
+            self.handle_osc_event(event);
+        }
+    }
+
+    fn handle_osc_event(&mut self, event: OscEvent) {
+        match event {
+            OscEvent::Parameter {
+                parameter,
+                value,
+                address,
+            } => {
+                self.osc_messages = self.osc_messages.saturating_add(1);
+                self.osc_last = format!("{address} = {value}");
+                match self.handle_osc_parameter(parameter, value) {
+                    Ok(()) => {
+                        self.osc_error = None;
+                        log::debug!("OSC applied {address}");
+                    }
+                    Err(error) => {
+                        self.osc_error = Some(error.clone());
+                        log::warn!("OSC rejected {address}: {error}");
+                    }
+                }
+            }
+            OscEvent::Invalid { address, reason } => {
+                self.osc_messages = self.osc_messages.saturating_add(1);
+                let error = format!("{address}: {reason}");
+                self.osc_last.clone_from(&error);
+                self.osc_error = Some(error.clone());
+                log::warn!("OSC invalid message: {error}");
+            }
+            OscEvent::Error { message } => {
+                self.osc_error = Some(message.clone());
+                log::error!("OSC error: {message}");
+            }
+        }
+    }
+
+    fn handle_osc_parameter(
+        &mut self,
+        parameter: ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), String> {
+        let path = parameter.path();
+        match parameter {
+            ParameterId::TransportPlaying => {
+                let playing = require_bool(&value, &path)?;
+                if playing != self.clock.is_playing() {
+                    if playing {
+                        self.clock.play();
+                    } else {
+                        self.clock.pause();
+                    }
+                }
+                Ok(())
+            }
+            ParameterId::TransportPosition => {
+                let position = require_float(&value, &path)?;
+                self.clock.seek(f64::from(position));
+                Ok(())
+            }
+            ParameterId::TransportLooping => {
+                self.clock.set_looping(require_bool(&value, &path)?);
+                Ok(())
+            }
+            _ => {
+                let actions = self.project_actions_for_parameter(&parameter, &value)?;
+                if !actions.is_empty() {
+                    self.apply_actions(actions);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn project_actions_for_parameter(
+        &self,
+        parameter: &ParameterId,
+        value: &ParameterValue,
+    ) -> Result<Vec<EditorAction>, String> {
+        let path = parameter.path();
+        let mut actions = Vec::new();
+        match parameter {
+            ParameterId::SurfaceOpacity(id) => {
+                let surface = self
+                    .surface_index(id)
+                    .ok_or_else(|| format!("{path}: surface not found"))?;
+                actions.push(EditorAction::SetSurfaceOpacity {
+                    surface,
+                    opacity: require_float(value, &path)?,
+                });
+            }
+            ParameterId::SurfaceVisible(id) => {
+                let surface = self
+                    .surface_index(id)
+                    .ok_or_else(|| format!("{path}: surface not found"))?;
+                actions.push(EditorAction::SetSurfaceVisibility {
+                    surface,
+                    visible: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::SurfaceMaskEnabled(id) => {
+                let surface = self
+                    .surface_index(id)
+                    .ok_or_else(|| format!("{path}: surface not found"))?;
+                actions.push(EditorAction::SetSurfaceMaskEnabled {
+                    surface,
+                    enabled: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::SurfaceMaskInvert(id) => {
+                let surface = self
+                    .surface_index(id)
+                    .ok_or_else(|| format!("{path}: surface not found"))?;
+                actions.push(EditorAction::SetSurfaceMaskInvert {
+                    surface,
+                    invert: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::SurfaceMaskFeather(id) => {
+                let surface = self
+                    .surface_index(id)
+                    .ok_or_else(|| format!("{path}: surface not found"))?;
+                actions.push(EditorAction::SetSurfaceMaskFeather {
+                    surface,
+                    feather: require_float(value, &path)?,
+                });
+            }
+            ParameterId::LayerOpacity(id) => {
+                let layer = self
+                    .layer_index(id)
+                    .ok_or_else(|| format!("{path}: layer not found"))?;
+                actions.push(EditorAction::SetLayerOpacity {
+                    layer,
+                    opacity: require_float(value, &path)?,
+                });
+            }
+            ParameterId::LayerVisible(id) => {
+                let layer = self
+                    .layer_index(id)
+                    .ok_or_else(|| format!("{path}: layer not found"))?;
+                actions.push(EditorAction::SetLayerVisibility {
+                    layer,
+                    visible: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::LayerBlend(id) => {
+                let layer = self
+                    .layer_index(id)
+                    .ok_or_else(|| format!("{path}: layer not found"))?;
+                let blend = value
+                    .blend_mode()
+                    .ok_or_else(|| format!("{path} expects normal/add/screen/multiply"))?;
+                actions.push(EditorAction::SetLayerBlend { layer, blend });
+            }
+            ParameterId::OutputEnabled(id) => {
+                let output = self
+                    .output_index(id)
+                    .ok_or_else(|| format!("{path}: output not found"))?;
+                actions.push(EditorAction::SetOutputEnabled {
+                    output,
+                    enabled: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::OutputBrightness(id)
+            | ParameterId::OutputContrast(id)
+            | ParameterId::OutputGamma(id) => {
+                let output = self
+                    .output_index(id)
+                    .ok_or_else(|| format!("{path}: output not found"))?;
+                let Some(spec) = self.project.outputs.get(output) else {
+                    return Err(format!("{path}: output not found"));
+                };
+                let mut color = spec.color;
+                let amount = require_float(value, &path)?;
+                match parameter {
+                    ParameterId::OutputBrightness(_) => color.brightness = amount,
+                    ParameterId::OutputContrast(_) => color.contrast = amount,
+                    ParameterId::OutputGamma(_) => color.gamma = amount,
+                    _ => unreachable!("guard only admits colour parameters"),
+                }
+                actions.push(EditorAction::SetOutputColor { output, color });
+            }
+            ParameterId::OutputEdgeBlend(id, side) => {
+                let output = self
+                    .output_index(id)
+                    .ok_or_else(|| format!("{path}: output not found"))?;
+                let Some(spec) = self.project.outputs.get(output) else {
+                    return Err(format!("{path}: output not found"));
+                };
+                let mut edge = spec.edge_blend;
+                let amount = require_float(value, &path)?;
+                match side {
+                    EdgeSide::Left => edge.left = amount,
+                    EdgeSide::Right => edge.right = amount,
+                    EdgeSide::Top => edge.top = amount,
+                    EdgeSide::Bottom => edge.bottom = amount,
+                }
+                actions.push(EditorAction::SetOutputEdgeBlend {
+                    output,
+                    edge_blend: edge,
+                });
+            }
+            ParameterId::ShowAudioVolume => {
+                actions.push(EditorAction::SetShowAudioVolume {
+                    volume: require_float(value, &path)?,
+                });
+            }
+            ParameterId::ShowAudioMuted => {
+                actions.push(EditorAction::SetShowAudioMuted {
+                    muted: require_bool(value, &path)?,
+                });
+            }
+            ParameterId::TransportPlaying
+            | ParameterId::TransportPosition
+            | ParameterId::TransportLooping => {
+                return Err(format!("{path} is applied directly to the show clock"));
+            }
+        }
+        Ok(actions)
+    }
+
+    fn surface_index(&self, id: &SurfaceId) -> Option<usize> {
+        self.project
+            .primary_stage()
+            .and_then(|stage| stage.surfaces.iter().position(|surface| &surface.id == id))
+    }
+
+    fn layer_index(&self, id: &LayerId) -> Option<usize> {
+        self.project
+            .primary_stage()
+            .and_then(|stage| stage.layers.iter().position(|layer| &layer.id == id))
+    }
+
+    fn output_index(&self, id: &OutputId) -> Option<usize> {
+        self.project
+            .outputs
+            .iter()
+            .position(|output| &output.id == id)
     }
 
     fn apply_actions(&mut self, actions: Vec<EditorAction>) {
@@ -1844,6 +2116,13 @@ impl App {
                         .map_or(OutputPacing::default(), OutputWindow::pacing_status)
                 })
                 .collect(),
+            osc: editor::OscStatus {
+                address: self.osc_address.clone(),
+                listening: self.osc.is_some(),
+                messages: self.osc_messages,
+                last: self.osc_last.clone(),
+                error: self.osc_error.clone(),
+            },
             output_guides: self
                 .project
                 .outputs
@@ -2029,6 +2308,7 @@ impl ApplicationHandler for App {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.tick();
+        self.poll_osc();
 
         if self.pending_output_sync {
             self.pending_output_sync = false;
@@ -2195,6 +2475,18 @@ fn choose_monitor(
                     .any(|name| monitor.name().as_deref() == Some(name.as_str()))
         })
         .cloned()
+}
+
+fn require_float(value: &ParameterValue, path: &str) -> Result<f32, String> {
+    value
+        .as_f32()
+        .ok_or_else(|| format!("{path} expects a finite number"))
+}
+
+fn require_bool(value: &ParameterValue, path: &str) -> Result<bool, String> {
+    value
+        .as_bool()
+        .ok_or_else(|| format!("{path} expects a boolean or 0/1"))
 }
 
 fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {

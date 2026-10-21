@@ -8,15 +8,16 @@ real editor, independent output windows and a portable rendering stack.
 The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
-**Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
-layer compositing, optional video and audio playback, a shared show clock,
+**Current status (2026-10-22):** Linux-first M0–M3 complete; M4 mapping depth and
+M5 show control are in progress. Ordered layer compositing, optional video and
+audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
 guides, multi-surface mapping, quad/grid warp, polygon masks, rectangular and
-circular crops and thumbnail media picking. Mapping uses an inline editable
-hierarchy beside the live preview with a bottom media shelf; Calibration and
-Show are separate modes.
+circular crops, thumbnail media picking and an OSC control surface. Mapping uses
+an inline editable hierarchy beside the live preview with a bottom media shelf;
+Calibration and Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -112,6 +113,12 @@ Show are separate modes.
   show audio track. The **Show** mode transport (play/pause, restart, loop,
   scrub) drives it; players are paused, resumed and resynced to the clock, and a
   paused scrub decodes one preview frame so the output still updates.
+- **OSC control:** a background UDP listener exposes stable parameter paths for
+  layers, surfaces, outputs, show audio and transport. OSC changes go through
+  the same parameter/action path as the editor and participate in undo/redo
+  where they affect project state. The Show mode reports the listener address,
+  message count and last accepted or rejected message. Bindings are session-only
+  for now.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -137,11 +144,11 @@ Show are separate modes.
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
-crops and the inline Mapping editor with thumbnail picking are now in place.
-The next implementation slice is **M5 show control**:
+crops, stable parameter paths and OSC control are now in place. The next
+implementation slice is **M5.1 show control**:
 
-- stable animatable parameter paths and a binding layer;
-- OSC and MIDI bindings with generic learn and configurable hotkeys;
+- MIDI and configurable hotkeys on the same parameter/binding layer;
+- persisted bindings and generic learn;
 - a timeline with numeric curves, colour tracks and triggers.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
@@ -281,6 +288,44 @@ audio support is missing and suggests `rebuild with --features audio`; if the
 output device cannot be opened, the show still opens and the Audio section
 shows the device error.
 
+### OSC control
+
+The editor starts a UDP OSC listener on `127.0.0.1:9000`. Override it with
+`LPMT_OSC_ADDR`, for example:
+
+```bash
+LPMT_OSC_ADDR=0.0.0.0:9000 cargo run -p lpmt-app
+```
+
+Only the first argument of a message is used. Bundles are accepted. The
+`/lpmt/` prefix is optional; these are the main session paths:
+
+```text
+/lpmt/layer/layer-1/opacity          f 0.5
+/lpmt/layer/layer-1/visible          i 1
+/lpmt/layer/layer-1/blend            s screen
+/lpmt/surface/surface-1/opacity      f 0.75
+/lpmt/surface/surface-1/mask/feather f 0.04
+/lpmt/output/output-1/brightness     f 1.0
+/lpmt/output/output-1/edge_blend/right f 0.1
+/lpmt/audio/volume                   f 0.8
+/lpmt/transport/playing              i 1
+/lpmt/transport/position             f 3.0
+/lpmt/transport/looping              i 0
+```
+
+For example, with liblo tools:
+
+```bash
+oscsend localhost 9000 /lpmt/layer/layer-1/opacity f 0.5
+oscsend localhost 9000 /lpmt/transport/playing i 1
+```
+
+The **Show** mode displays the listener address, received message count and the
+last accepted or rejected message. Bindings are currently session-only;
+persisted bindings, generic learn, MIDI and the timeline are the next control
+milestone.
+
 Useful commands:
 
 ```bash
@@ -307,7 +352,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 | `lpmt-render` | `wgpu` device setup, shared media textures, calibration and output rendering |
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
 | `lpmt-media` | Image decoding plus optional `ffmpeg-next` video and `rodio` audio playback; capture next |
-| `lpmt-control` | Future OSC, MIDI, DMX and hotkey adapters |
+| `lpmt-control` | OSC listener; MIDI, DMX and hotkey adapters next |
 | `lpmt-import-legacy` | Future LPMT 1 XML importer |
 | `lpmt-app` | Window/event-loop composition and application state |
 

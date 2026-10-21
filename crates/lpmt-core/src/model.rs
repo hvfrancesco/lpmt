@@ -550,6 +550,16 @@ impl BlendMode {
             Self::Multiply => "Multiply",
         }
     }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "normal" => Some(Self::Normal),
+            "add" => Some(Self::Add),
+            "screen" => Some(Self::Screen),
+            "multiply" => Some(Self::Multiply),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -32,8 +32,18 @@ pub struct EditorStatus {
     pub output_pacing: Vec<OutputPacing>,
     /// Session-only guide mode, parallel to `project.outputs`.
     pub output_guides: Vec<GuideMode>,
+    pub osc: OscStatus,
     /// egui native textures for image and video thumbnails.
     pub media_thumbnails: HashMap<MediaId, egui::TextureId>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct OscStatus {
+    pub address: String,
+    pub listening: bool,
+    pub messages: u64,
+    pub last: String,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -736,6 +746,32 @@ pub fn draw(
                             }
                         }
                         ui.label("One clock drives every video and output.");
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.heading("OSC");
+                        if status.osc.listening {
+                            ui.label(format!("Listening on {}", status.osc.address));
+                        } else {
+                            ui.colored_label(
+                                Color32::from_rgb(255, 184, 92),
+                                format!("OSC unavailable on {}", status.osc.address),
+                            );
+                        }
+                        ui.label(format!("{} message(s) received", status.osc.messages));
+                        if !status.osc.last.is_empty() {
+                            ui.label(RichText::new(&status.osc.last).small().monospace());
+                        }
+                        if let Some(error) = &status.osc.error {
+                            ui.colored_label(Color32::from_rgb(255, 132, 112), error);
+                        }
+                        ui.label(
+                            RichText::new(
+                                "Try /lpmt/layer/layer-1/opacity 0.5 or /lpmt/transport/playing 1",
+                            )
+                            .small()
+                            .color(Color32::from_rgb(132, 144, 166)),
+                        );
 
                         ui.add_space(12.0);
                         ui.separator();

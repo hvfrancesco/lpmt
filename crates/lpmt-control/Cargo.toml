@@ -10,3 +10,4 @@ description = "OSC, MIDI and show-control adapters for LPMT"
 anyhow.workspace = true
 log.workspace = true
 lpmt-core = { path = "../lpmt-core" }
+rosc = "0.11"
