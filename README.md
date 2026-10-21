@@ -133,9 +133,9 @@ Calibration and Show are separate modes.
 - On machines with multiple displays, outputs claim an unused secondary
   monitor or open as windows so the editor stays reachable. On a single display,
   **output windows are not opened automatically**; the live preview is used for
-  authoring, and outputs can be opened explicitly from the Outputs panel with
-  **Open now**. This avoids Wayland compositors stacking output windows over
-  the editor, where there is no portable way to raise the editor back.
+  authoring, and outputs can be opened explicitly from **Calibration > Outputs**
+  with **Open now**. This avoids Wayland compositors stacking output windows
+  over the editor, where there is no portable way to raise the editor back.
 - Windowed outputs prefer `Mailbox` and fall back to `Immediate` instead of
   blocking `Fifo`, so an obscured output cannot freeze the whole event loop.
   Fullscreen outputs on a dedicated secondary display keep tear-free `Fifo`.
@@ -198,6 +198,16 @@ edge blending plus brightness/contrast/gamma. The same section loads or clears a
 selected output (`G` cycles it). The **Output groups** section assigns outputs to
 synchronized groups; the demo puts both outputs in **Main wall**. The stage
 preview outlines every open output view.
+
+#### Single-display / Wayland troubleshooting
+
+On a single display, output windows stay closed at startup because Wayland
+compositors may stack them above the editor and there is no portable
+application-level “raise this window” operation. Author in the live preview,
+then use **Calibration > Outputs > Open now** when you want the selected output
+in a window. It may cover the editor; use Alt+Tab or window controls to switch
+back. For an always-visible production output, connect a second display and
+assign the output to it.
 
 ### Video playback
 

@@ -151,9 +151,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
 single-display machine output windows stay closed by default and the live preview is used until
-the user presses **Open now** in the Outputs panel. Fullscreen is opt-in; auto-fullscreen never
-targets the editor’s display. An explicit display assignment is required to force fullscreen on
-the editor or primary display.
+the user presses **Open now** in Calibration > Outputs. If opened on the same display they may
+cover the editor; use the window switcher or connect a second display for an always-visible
+production output. Fullscreen is opt-in; auto-fullscreen never targets the editor’s display. An
+explicit display assignment is required to force fullscreen on the editor or primary display.
 
 ---
 
