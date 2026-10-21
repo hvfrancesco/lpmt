@@ -97,8 +97,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Presentation robustness:** fully occluded output windows skip surface acquisition and
   presentation. Windowed outputs prefer `Mailbox`/`Immediate` so a compositor-throttled `Fifo`
   present cannot stall the shared loop; fullscreen outputs on a dedicated secondary display keep
-  tear-free `Fifo`. Single-display auto-fullscreen outputs open windowed so the editor remains
-  reachable; assigning a display explicitly still opts into fullscreen.
+  tear-free `Fifo`. On a single display, output windows stay closed by default (the live preview
+  is used instead) so a Wayland compositor cannot stack them over the editor; **Open now** opts in
+  explicitly.
 - **Control foundation and OSC:** `lpmt-core::param` defines stable IDs and paths for layer,
   surface, output, audio and transport parameters, plus a project parameter inventory. The
   `lpmt-control` crate runs a background UDP OSC listener (default `127.0.0.1:9000`, override with
@@ -147,10 +148,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Next implementation slice:** M5.1 show control — MIDI and configurable hotkeys on the parameter/
   binding layer, persisted bindings, then the timeline with numeric/colour/trigger tracks.
 
-Run `cargo run -p lpmt-app` from the repository root. The demo opens two windowed outputs: the
-full-stage main output and a “Right half” view (`x=0.5..1.0`). Fullscreen is opt-in from the
-Outputs section. Auto-fullscreen never targets the editor’s display; on a single-monitor machine
-such outputs open as windows. An explicit display assignment is required to force fullscreen on
+Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
+two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
+single-display machine output windows stay closed by default and the live preview is used until
+the user presses **Open now** in the Outputs panel. Fullscreen is opt-in; auto-fullscreen never
+targets the editor’s display. An explicit display assignment is required to force fullscreen on
 the editor or primary display.
 
 ---

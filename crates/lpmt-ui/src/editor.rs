@@ -445,6 +445,9 @@ pub enum EditorAction {
         output: usize,
         enabled: bool,
     },
+    OpenOutput {
+        output: usize,
+    },
     SetOutputFullscreen {
         output: usize,
         fullscreen: bool,
@@ -917,6 +920,17 @@ pub fn draw(
                                 actions.push(EditorAction::SetOutputEnabled {
                                     output: state.selected_output,
                                     enabled,
+                                });
+                            }
+                            if ui
+                                .button("Open now")
+                                .on_hover_text(
+                                    "Open this output window; on a single display it may cover the editor",
+                                )
+                                .clicked()
+                            {
+                                actions.push(EditorAction::OpenOutput {
+                                    output: state.selected_output,
                                 });
                             }
 

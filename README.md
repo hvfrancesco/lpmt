@@ -130,15 +130,16 @@ Calibration and Show are separate modes.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
 - Homography, grid mesh, LUT parsing, test-pattern generation, media decoding,
   undo history, atomic-save and JSON compatibility unit tests.
-- Fullscreen outputs claim an unused secondary monitor when one is present; the
-  next outputs open as windows (960×540 or 1280×720) so the editor stays
-  reachable. On a single-display machine, auto-fullscreen outputs open as
-  windows so the editor remains usable; assign a display explicitly to force
-  fullscreen. Windowed outputs prefer `Mailbox` and fall back to `Immediate`
-  instead of blocking `Fifo`, so an obscured output cannot freeze the whole
-  event loop. Fullscreen outputs on a dedicated secondary display keep
-  tear-free `Fifo`. On drivers that only expose `Fifo`/`Immediate`, windowed
-  outputs may tear.
+- On machines with multiple displays, outputs claim an unused secondary
+  monitor or open as windows so the editor stays reachable. On a single display,
+  **output windows are not opened automatically**; the live preview is used for
+  authoring, and outputs can be opened explicitly from the Outputs panel with
+  **Open now**. This avoids Wayland compositors stacking output windows over
+  the editor, where there is no portable way to raise the editor back.
+- Windowed outputs prefer `Mailbox` and fall back to `Immediate` instead of
+  blocking `Fifo`, so an obscured output cannot freeze the whole event loop.
+  Fullscreen outputs on a dedicated secondary display keep tear-free `Fifo`.
+  On drivers that only expose `Fifo`/`Immediate`, windowed outputs may tear.
 
 ### Next session
 
@@ -186,8 +187,10 @@ between the checker, alignment grid, colour bars, grayscale ramp and RGB
 convergence card.
 
 The demo also defines two outputs: **Main output** (full stage, windowed at
-1280×720) and **Right half** (windowed, view `x=0.5..1.0`). Either can be made
-fullscreen on an explicitly chosen display from the Outputs section. The **Outputs** section adds or deletes outputs, toggles their
+1280×720) and **Right half** (windowed, view `x=0.5..1.0`). On a multi-display
+machine they open automatically; on a single display they stay closed until you
+press **Open now**. Either can be made fullscreen on an explicitly chosen
+display from the Outputs section. The **Outputs** section adds or deletes outputs, toggles their
 window, chooses fullscreen and an explicit display, edits the normalized view
 rectangle, applies `Full stage` / `Left half` / `Right half` presets, and sets
 edge blending plus brightness/contrast/gamma. The same section loads or clears a

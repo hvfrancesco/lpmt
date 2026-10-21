@@ -88,6 +88,7 @@ struct App {
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
     pending_output_sync: bool,
+    pending_output_open: Option<OutputId>,
     status_message: String,
     last_frame: Instant,
     fps: f32,
@@ -169,6 +170,7 @@ impl App {
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
             pending_output_sync: false,
+            pending_output_open: None,
             status_message: String::new(),
             last_frame: Instant::now(),
             fps: 0.0,
@@ -183,6 +185,47 @@ impl App {
     }
 
     fn create_windows(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
+        self.monitors = event_loop
+            .available_monitors()
+            .filter_map(|monitor| monitor.name())
+            .collect();
+        log::info!("available displays: {:?}", self.monitors);
+
+        if let Some(path) = self.startup_project.take() {
+            let path = path.to_string_lossy().into_owned();
+            if let Err(error) = self.load_project(&path) {
+                log::error!("failed to load startup project: {error:#}");
+                self.status_message = format!("Startup project failed: {error}");
+                self.reload_media();
+            }
+        } else {
+            self.reload_media();
+        }
+
+        // On a single display, output windows can be stacked over the editor
+        // by the compositor and there is no portable Wayland "raise editor"
+        // operation. Keep the editor usable with the live preview instead;
+        // outputs open only when explicitly requested from the Outputs panel.
+        let single_display = self.monitors.len() < 2;
+        if single_display {
+            self.status_message =
+                "Single display: using preview only. Open an output from Calibration > Outputs when needed."
+                    .to_owned();
+        } else {
+            // Create outputs before the editor. The editor is created last so
+            // it becomes the top/active window.
+            self.sync_output_windows(event_loop);
+        }
+        self.pending_output_sync = false;
+        self.create_editor_window(event_loop)?;
+        if let Some(editor) = self.editor.as_ref() {
+            editor.window.focus_window();
+        }
+
+        Ok(())
+    }
+
+    fn create_editor_window(&mut self, event_loop: &ActiveEventLoop) -> Result<()> {
         let editor_attributes = Window::default_attributes()
             .with_title("LPMT — Editor")
             .with_inner_size(LogicalSize::new(1180.0, 760.0))
@@ -230,28 +273,6 @@ impl App {
             egui_state,
             egui_renderer,
         });
-
-        self.monitors = event_loop
-            .available_monitors()
-            .filter_map(|monitor| monitor.name())
-            .collect();
-        log::info!("available displays: {:?}", self.monitors);
-
-        if let Some(path) = self.startup_project.take() {
-            let path = path.to_string_lossy().into_owned();
-            if let Err(error) = self.load_project(&path) {
-                log::error!("failed to load startup project: {error:#}");
-                self.status_message = format!("Startup project failed: {error}");
-                self.reload_media();
-            }
-        } else {
-            self.reload_media();
-        }
-
-        // Outputs are created from the project, not the other way around. A
-        // project can define any number of outputs, each with its own view.
-        self.sync_output_windows(event_loop);
-
         Ok(())
     }
 
@@ -265,11 +286,17 @@ impl App {
                 .any(|spec| spec.id == output.id && spec.enabled)
         });
 
+        let requested = self.pending_output_open.take();
         let missing: Vec<OutputId> = self
             .project
             .outputs
             .iter()
             .filter(|spec| spec.enabled && !self.outputs.iter().any(|output| output.id == spec.id))
+            .filter(|spec| {
+                requested
+                    .as_ref()
+                    .is_none_or(|requested| requested == &spec.id)
+            })
             .map(|spec| spec.id.clone())
             .collect();
         let editor_monitor = self
@@ -1480,6 +1507,17 @@ impl App {
                     }
                     self.pending_output_sync = true;
                 }
+                EditorAction::OpenOutput { output } => {
+                    let Some(id) = self.project.outputs.get(output).map(|spec| spec.id.clone())
+                    else {
+                        continue;
+                    };
+                    if let Some(spec) = self.project.output_mut(&id) {
+                        spec.enabled = true;
+                    }
+                    self.pending_output_open = Some(id);
+                    self.pending_output_sync = true;
+                }
                 EditorAction::SetOutputEdgeBlend { output, edge_blend } => {
                     if let Some(spec) = self.project.outputs.get_mut(output) {
                         spec.edge_blend = edge_blend.clamped();
@@ -2056,7 +2094,15 @@ impl App {
         self.ui_state.selected_output = 0;
         self.ui_state.selected_group = 0;
         self.ui_state.reset_text_buffers();
-        self.pending_output_sync = true;
+        self.pending_output_open = None;
+        if self.monitors.len() < 2 {
+            // Do not let a project load cover the editor with output windows on
+            // a compositor that cannot raise the editor afterwards.
+            self.outputs.clear();
+            self.pending_output_sync = false;
+        } else {
+            self.pending_output_sync = true;
+        }
         self.ui_state.image_path = self
             .project
             .media
@@ -2610,6 +2656,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | AddMedia
         | PickMediaFile { .. }
         | SetOutputGuide { .. }
+        | OpenOutput { .. }
         | Undo
         | Redo => return None,
     };
