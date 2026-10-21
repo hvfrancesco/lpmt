@@ -2,12 +2,18 @@
 //!
 //! Images are always available. Video decoding is compiled in with the
 //! `video` feature and decodes into tightly packed RGBA frames on a worker
-//! thread; the renderer uploads those frames as GPU textures. Capture and
-//! shared textures will follow the same CPU-to-GPU path.
+//! thread; the renderer uploads those frames as GPU textures. Audio playback is
+//! compiled in with the `audio` feature and follows the application's show
+//! clock. Capture and shared textures will follow the same CPU-to-GPU path.
 
 use std::path::Path;
 
 use anyhow::{Context, Result};
+
+#[cfg(feature = "audio")]
+mod audio;
+#[cfg(feature = "audio")]
+pub use audio::AudioPlayer;
 
 #[cfg(feature = "video")]
 mod video;

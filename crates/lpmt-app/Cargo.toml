@@ -9,6 +9,7 @@ description = "LPMT application"
 [features]
 default = []
 video = ["lpmt-media/video"]
+audio = ["lpmt-media/audio"]
 
 [dependencies]
 anyhow.workspace = true

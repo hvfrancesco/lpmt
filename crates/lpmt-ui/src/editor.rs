@@ -16,6 +16,8 @@ pub struct EditorStatus {
     pub message: String,
     pub transport: TransportStatus,
     pub video_supported: bool,
+    pub audio_supported: bool,
+    pub audio_error: Option<String>,
     pub monitors: Vec<String>,
 }
 
@@ -145,6 +147,15 @@ pub enum EditorAction {
     },
     SeekTransport {
         position: f64,
+    },
+    SetShowAudio {
+        media: Option<usize>,
+    },
+    SetShowAudioVolume {
+        volume: f32,
+    },
+    SetShowAudioMuted {
+        muted: bool,
     },
     AddOutput,
     DeleteOutput {
@@ -326,6 +337,62 @@ pub fn draw(
                     }
                 }
                 ui.label("One clock drives every video and output.");
+
+                ui.add_space(12.0);
+                ui.separator();
+                ui.heading("Audio");
+                if !status.audio_supported {
+                    ui.colored_label(
+                        Color32::from_rgb(255, 184, 92),
+                        "This build has no audio support. Rebuild with --features audio.",
+                    );
+                }
+                let audio_assets: Vec<(usize, &lpmt_core::model::MediaAsset)> = project
+                    .media
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, asset)| asset.kind == MediaKind::Audio)
+                    .collect();
+                let current_audio = project
+                    .audio_asset()
+                    .map_or("None", |asset| asset.name.as_str());
+                egui::ComboBox::from_id_salt("show-audio")
+                    .selected_text(current_audio)
+                    .show_ui(ui, |ui| {
+                        if ui
+                            .selectable_label(project.audio.media_id.is_none(), "None")
+                            .clicked()
+                        {
+                            actions.push(EditorAction::SetShowAudio { media: None });
+                        }
+                        for (index, asset) in &audio_assets {
+                            let selected = project.audio.media_id.as_ref() == Some(&asset.id);
+                            if ui.selectable_label(selected, &asset.name).clicked() {
+                                actions.push(EditorAction::SetShowAudio {
+                                    media: Some(*index),
+                                });
+                            }
+                        }
+                    });
+                if audio_assets.is_empty() {
+                    ui.label("Add an audio file in the Media section.");
+                }
+                let mut volume = project.audio.volume;
+                if ui
+                    .add(egui::Slider::new(&mut volume, 0.0..=1.0).text("Volume"))
+                    .changed()
+                {
+                    actions.push(EditorAction::SetShowAudioVolume { volume });
+                }
+                let mut muted = project.audio.muted;
+                if ui.checkbox(&mut muted, "Mute").changed() {
+                    actions.push(EditorAction::SetShowAudioMuted { muted });
+                }
+                if let Some(error) = &status.audio_error {
+                    ui.colored_label(Color32::from_rgb(255, 120, 120), error);
+                } else if project.audio_asset().is_some() && status.audio_supported {
+                    ui.label("Follows the show clock.");
+                }
 
                 ui.add_space(12.0);
                 ui.separator();
@@ -619,6 +686,7 @@ pub fn draw(
                     let kind = match asset.kind {
                         MediaKind::Image => "Image",
                         MediaKind::Video => "Video",
+                        MediaKind::Audio => "Audio",
                     };
                     if ui
                         .selectable_label(
@@ -652,10 +720,15 @@ pub fn draw(
                     }
                     if selected_media_used {
                         remove.on_disabled_hover_text(
-                            "This asset is used by a layer; reassign that layer first",
+                            "This asset is used by a layer or the show audio; reassign it first",
                         );
                     }
                 });
+
+                let selected_is_audio = project
+                    .media
+                    .get(state.selected_media)
+                    .is_some_and(|asset| asset.kind == MediaKind::Audio);
 
                 if project.media.get(state.selected_media).is_some() {
                     ui.add_space(6.0);
@@ -681,7 +754,8 @@ pub fn draw(
                         }
                         if ui
                             .add_enabled(
-                                stage.layers.get(state.selected_layer).is_some(),
+                                stage.layers.get(state.selected_layer).is_some()
+                                    && !selected_is_audio,
                                 egui::Button::new("Use for layer"),
                             )
                             .clicked()
@@ -689,6 +763,11 @@ pub fn draw(
                             actions.push(EditorAction::SetLayerMedia {
                                 layer: state.selected_layer,
                                 media: state.selected_media,
+                            });
+                        }
+                        if selected_is_audio && ui.button("Use as show audio").clicked() {
+                            actions.push(EditorAction::SetShowAudio {
+                                media: Some(state.selected_media),
                             });
                         }
                     });
@@ -702,6 +781,11 @@ pub fn draw(
                     ui.add_space(10.0);
                     ui.label("Video support is not compiled into this build.");
                     ui.label("Rebuild with `cargo run -p lpmt-app --features video`.");
+                }
+                if selected_is_audio && !status.audio_supported {
+                    ui.add_space(10.0);
+                    ui.label("Audio support is not compiled into this build.");
+                    ui.label("Rebuild with `cargo run -p lpmt-app --features audio`.");
                 }
 
                 ui.add_space(16.0);

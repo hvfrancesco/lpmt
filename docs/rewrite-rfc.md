@@ -46,7 +46,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   their normalized coordinates, change media paths, reload media, and changes appear on every
   output.
 - **Core schema v2 seed:** `Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`, `SourceSpec`,
-  `OutputSpec` and `OutputGroup` with stable IDs, JSON serialization and homography tests.
+  `ShowAudio`, `OutputSpec` and `OutputGroup` with stable IDs, JSON serialization and homography
+  tests.
 - **Ordered layer stack:** the renderer composites visible layers bottom-to-top with per-layer
   visibility, opacity, surface assignment and Normal/Add/Screen/Multiply blend modes. Each layer
   uses a dynamic uniform slice, so there is one pipeline per blend mode rather than one pipeline per
@@ -54,17 +55,22 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   demo uses two surfaces/layers to exercise compositing.
 - **Project persistence skeleton:** JSON save/load in the editor plus `--project <path>` startup
   loading, with native Open/Save-as dialogs and media import/replace/remove. The media picker accepts
-  images and videos, infers `MediaKind` from the extension and rewrites layers that reference a
-  changed asset. Picked media inside the show directory is stored project-relative; external files
+  images, videos and audio, infers `MediaKind` from the extension and rewrites layers that reference
+  a changed asset. Picked media inside the show directory is stored project-relative; external files
   stay absolute. A missing asset falls back to the test card.
 - **Optional video slice:** the `video` Cargo feature uses `ffmpeg-next` on a worker thread,
   loops a media asset, keeps only the newest frame and updates the GPU texture in place. Players are
   shared by `MediaId` and follow the application's shared show clock: the transport pauses, resumes
   and seeks them, drift is corrected, and a paused scrub decodes one preview frame. Image-only builds
-  have no system FFmpeg dependency. Audio playback/mix and hard per-output timing are still open.
-- **Shared show clock:** one `ShowClock` in the application is authoritative for every output and
-  every video. The editor transport edits that clock (play/pause, restart, loop, scrub); the clock
-  duration is the longest used video until the timeline provides its own length.
+  have no system FFmpeg dependency.
+- **Optional audio slice:** the `audio` Cargo feature uses `rodio`/Symphonia for one project-level
+  show track with volume and mute. It follows the same clock, is seeked after transport changes and
+  restarts on a show loop; if it ends before a longer video, it stays silent until the next loop.
+  A build without the feature has no ALSA/cpal dependency and reports a rebuild hint.
+- **Shared show clock:** one `ShowClock` in the application is authoritative for every output, every
+  video and the show audio. The editor transport edits that clock (play/pause, restart, loop, scrub);
+  the clock duration is the longest used video or the audio track until the timeline provides its
+  own length. A loop serial distinguishes a natural wrap from a deliberate seek.
 - **Multiple output windows:** every enabled `OutputSpec` owns a window keyed by its stable
   `OutputId` and renders its own normalized `view` rectangle of the stage. Opening, closing,
   fullscreen toggling, display assignment and adding/deleting outputs recreate windows only on
@@ -78,10 +84,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   composite pass applies left/right/top/bottom edge feathering and brightness/contrast/gamma
   correction. Correction happens after compositing, so overlapping outputs can be matched without
   changing the show content. The editor exposes all four edges and the three colour controls.
-- **Not implemented yet:** audio playback/mix, masks/deformation, per-output frame pacing diagnostics,
-  OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
-- **Next implementation slice:** audio playback on top of the shared show clock, then undo/redo and a
-  preview viewport independent from the outputs. The legacy XML importer stays planned.
+- **Not implemented yet:** per-layer audio mix bus, masks/deformation, per-output frame pacing
+  diagnostics, OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
+- **Next implementation slice:** undo/redo and atomic saves, then a preview viewport independent
+  from the outputs. The legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -518,8 +524,10 @@ concern, not an accidental consequence of blend functions.
   pipelines. Keep decoding behind a trait as playback features grow.
 - Cameras: `nokhwa`/V4L2 on Linux initially; Media Foundation/macOS capture later. Capture devices
   and virtual cameras should look like the same source abstraction.
-- Audio: one output device and mix bus; per-layer volume/mute; sync to the master clock. Do not tie
-  audio to a per-surface video player callback.
+- Audio v1: one output device and one project-level show track decoded by
+  `rodio`/Symphonia, with volume/mute and clock-driven transport. The per-layer mix bus, per-layer
+  volume/mute and device selection are later work. Do not tie audio to a per-surface video player
+  callback.
 - Loading is asynchronous and cancellable. The UI shows “loading / missing codec / device lost”.
 - Media paths can be relative to the project bundle or absolute; support search paths.
 
@@ -663,7 +671,9 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Shared player per `MediaId`, driven by one show clock with play/pause, restart, loop and
       seek/scrub controls.
 - [x] Shared show clock and video drift resync, including paused-scrub preview frames.
-- [ ] Audio playback and mix bus on the shared clock.
+- [x] Project show-audio track on the shared clock, with volume/mute and loop restart (optional
+      `audio` feature).
+- [ ] Per-layer audio mix bus and device selection.
 - [ ] Hardware decode and per-output video timing.
 - Preview viewport separate from output.
 - Acceptance: create a two-surface show from scratch, save, reload, play video.

@@ -9,6 +9,7 @@ description = "Media assets, decoding, playback and capture for LPMT"
 [features]
 default = []
 video = ["dep:ffmpeg-next"]
+audio = ["dep:rodio"]
 
 [dependencies]
 anyhow.workspace = true
@@ -16,6 +17,7 @@ ffmpeg-next = { workspace = true, optional = true }
 image.workspace = true
 log.workspace = true
 lpmt-core = { path = "../lpmt-core" }
+rodio = { workspace = true, optional = true }
 
 [[example]]
 name = "decode-video"

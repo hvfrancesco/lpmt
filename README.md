@@ -9,8 +9,8 @@ The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
 **Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
-layer compositing, optional video playback, a shared show clock, multiple
-output windows and grouped output presentation.
+layer compositing, optional video and audio playback, a shared show clock,
+multiple output windows and grouped output presentation.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -44,10 +44,14 @@ output windows and grouped output presentation.
 - Optional `ffmpeg-next` video decoding behind the `video` Cargo feature:
   background worker thread, looped playback, newest-frame mailbox and in-place
   GPU texture updates.
-- One **show clock** is authoritative for every output and every video player.
-  The Inspector transport (play/pause, restart, loop, scrub) drives it; players
-  are paused, resumed and resynced to the clock, and a paused scrub decodes one
-  preview frame so the output still updates.
+- Optional `rodio`/Symphonia audio playback behind the `audio` Cargo feature.
+  The project has one show-audio track with volume and mute; it follows the
+  shared clock, restarts on a show loop and stays silent after its own end when
+  a longer video defines the show duration.
+- One **show clock** is authoritative for every output, video player and the
+  show audio track. The Inspector transport (play/pause, restart, loop, scrub)
+  drives it; players are paused, resumed and resynced to the clock, and a paused
+  scrub decodes one preview frame so the output still updates.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -59,14 +63,14 @@ output windows and grouped output presentation.
 
 ### Next session
 
-The next implementation slice is **audio and editor history**:
+The next implementation slice is **editor history and preview**:
 
-- audio playback and a mix bus driven by the shared show clock;
 - undo/redo and atomic saves;
 - a preview viewport independent from the outputs;
 - output pacing diagnostics and calibration LUTs.
 
-The legacy XML importer remains planned; the full roadmap is in
+Audio is now on the shared clock; a per-layer mix bus and timeline remain later
+work. The legacy XML importer remains planned; the full roadmap is in
 [`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
 
 ## Build and run
@@ -137,11 +141,12 @@ timeline exists). Scrubbing while paused decodes a single preview frame at the
 new position. **Space** toggles play/pause and **Home** restarts when no text
 field has focus.
 
-**Add media…** imports a new image or video asset. The file picker accepts both
-types even when replacing an existing asset; the kind is inferred from the file
-extension and any layers using that asset are switched between image and video
-automatically. Unused assets can be removed; assets referenced by a layer must be
-reassigned first.
+**Add media…** imports a new image, video or audio asset. The file picker
+accepts all three types even when replacing an existing asset; the kind is
+inferred from the file extension. Referencing layers follow a change between
+image and video; if an asset becomes audio, those layers fall back to the test
+card. Unused assets can be removed; assets referenced by a layer or used as the
+show track must be reassigned first.
 
 #### If video does not play
 
@@ -163,10 +168,38 @@ reassigned first.
 The initial backend is `ffmpeg-next`; GStreamer remains a later option for hardware
 decode and pipeline-oriented capture.
 
+### Audio playback
+
+Audio is also optional, so the default build has no ALSA/cpal dependency. It
+decodes MP3, WAV, FLAC, Ogg/Vorbis and AAC/M4A through Symphonia.
+
+On Debian/Ubuntu:
+
+```bash
+sudo apt install libasound2-dev pkg-config
+cargo run -p lpmt-app --features audio
+```
+
+Use `--features video,audio` for a show with both. macOS uses CoreAudio without
+extra packages; Windows support is not validated yet.
+
+Select an asset in **Media**, then either click **Use as show audio** or choose
+it from the **Audio** section. Set **Volume** and **Mute** there. The track is
+controlled only by the shared **Transport**: it starts paused, follows
+play/pause and scrubs, restarts on **Restart**, and wraps with **Loop**. If the
+audio is shorter than the longest video, it plays once and restarts at the next
+show loop.
+
+Audio assets cannot be assigned to visual layers. A default build warns that
+audio support is missing and suggests `rebuild with --features audio`; if the
+output device cannot be opened, the show still opens and the Audio section
+shows the device error.
+
 Useful commands:
 
 ```bash
 cargo test --workspace
+cargo test -p lpmt-app --features video,audio
 cargo fmt --all
 cargo clippy --workspace --all-targets
 ```
@@ -187,7 +220,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 | `lpmt-core` | Domain model, stable IDs, geometry and homography math |
 | `lpmt-render` | `wgpu` device setup, shared media textures and output rendering |
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
-| `lpmt-media` | Image decoding and optional `ffmpeg-next` video playback; capture next |
+| `lpmt-media` | Image decoding plus optional `ffmpeg-next` video and `rodio` audio playback; capture next |
 | `lpmt-control` | Future OSC, MIDI, DMX and hotkey adapters |
 | `lpmt-import-legacy` | Future LPMT 1 XML importer |
 | `lpmt-app` | Window/event-loop composition and application state |
@@ -199,10 +232,12 @@ per show, many Outputs as views of that Stage**.
 In the editor, select a surface to drag or numerically edit its corners. The
 **Layers** section selects the active layer and edits its visibility, opacity,
 blend mode, surface, order and lifetime. Use the **Media** section to change a
-media path, reload it or assign it to the active layer. The **Transport** section
-at the top plays, pauses, restarts, loops and scrubs the shared show clock.
-The **Outputs** section manages output windows and their stage views. Use the
-Project file section to save or load the JSON show file.
+media path, reload it or assign images/videos to the active layer; audio assets
+are assigned to the show track in the **Audio** section. The **Transport**
+section at the top plays, pauses, restarts, loops and scrubs the shared show
+clock, which also drives the show audio. The **Outputs** section manages output
+windows and their stage views. Use the Project file section to save or load the
+JSON show file.
 
 ## Legacy LPMT 1 archive
 

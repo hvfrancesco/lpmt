@@ -4,9 +4,11 @@
 //! editor window and a separate output window. This is the smallest useful
 //! demonstration of the Stage + Outputs architecture.
 
+mod audio_runtime;
 mod clock;
 mod video_runtime;
 
+use audio_runtime::AudioRuntime;
 use clock::ShowClock;
 
 use std::path::{Path, PathBuf};
@@ -16,7 +18,7 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use lpmt_core::model::{
     BlendMode, Layer, MediaAsset, MediaKind, OutputGroup, OutputId, OutputSpec, OutputTarget,
-    Point2, Project, SourceSpec, Surface,
+    Point2, Project, SourceSpec, Surface, TestPattern,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
@@ -56,8 +58,10 @@ struct App {
     outputs: Vec<OutputWindow>,
     monitors: Vec<String>,
     videos: VideoRuntime,
+    audio: AudioRuntime,
     clock: ShowClock,
     last_clock_seek: u64,
+    last_clock_loop: u64,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
     pending_output_sync: bool,
@@ -94,8 +98,10 @@ impl App {
             outputs: Vec::new(),
             monitors: Vec::new(),
             videos: VideoRuntime::new(),
+            audio: AudioRuntime::new(),
             clock: ShowClock::new(),
             last_clock_seek: 0,
+            last_clock_loop: 0,
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
             pending_output_sync: false,
@@ -682,6 +688,11 @@ impl App {
                         MediaKind::Video => SourceSpec::Video {
                             media_id: asset.id.clone(),
                         },
+                        MediaKind::Audio => {
+                            self.status_message =
+                                "Audio assets are assigned in the Audio section".to_owned();
+                            continue;
+                        }
                     };
                     let name = asset.name.clone();
                     let Some(layer) = self
@@ -827,6 +838,31 @@ impl App {
                 EditorAction::SeekTransport { position } => {
                     self.clock.seek(position);
                     log::info!("transport seek to {:.3}s", self.clock.position_seconds());
+                }
+                EditorAction::SetShowAudio { media } => {
+                    if let Some(media) = media {
+                        let Some(asset) = self.project.media.get(media) else {
+                            continue;
+                        };
+                        if asset.kind != MediaKind::Audio {
+                            self.status_message =
+                                "Only audio assets can be used as the show track".to_owned();
+                            continue;
+                        }
+                        self.project.audio.media_id = Some(asset.id.clone());
+                    } else {
+                        self.project.audio.media_id = None;
+                    }
+                    self.reload_media();
+                }
+                EditorAction::SetShowAudioVolume { volume } => {
+                    let volume = volume.clamp(0.0, 1.0);
+                    self.project.audio.volume = volume;
+                    self.audio.set_volume(volume);
+                }
+                EditorAction::SetShowAudioMuted { muted } => {
+                    self.project.audio.muted = muted;
+                    self.audio.set_muted(muted);
                 }
                 EditorAction::AddOutput => {
                     let Some(stage_id) = self.project.primary_stage().map(|stage| stage.id.clone())
@@ -1056,6 +1092,7 @@ impl App {
                         let asset = match kind {
                             MediaKind::Image => MediaAsset::image(id, name, stored.clone()),
                             MediaKind::Video => MediaAsset::video(id, name, stored.clone()),
+                            MediaKind::Audio => MediaAsset::audio(id, name, stored.clone()),
                         };
                         self.project.media.push(asset);
                         self.ui_state.selected_media = self.project.media.len() - 1;
@@ -1069,7 +1106,7 @@ impl App {
                     };
                     if self.project.is_media_used(&asset.id) {
                         self.status_message =
-                            "That media asset is used by a layer; reassign the layer first"
+                            "That asset is used by a layer or the show audio; reassign it first"
                                 .to_owned();
                         continue;
                     }
@@ -1107,13 +1144,16 @@ impl App {
     }
 
     /// Keep layers pointing at a media asset valid when the file type changes
-    /// from image to video or back.
+    /// between image, video and audio.
     fn apply_media_kind(&mut self, media: usize, kind: MediaKind) {
         let Some(media_id) = self.project.media.get(media).map(|asset| asset.id.clone()) else {
             return;
         };
         if let Some(asset) = self.project.media.get_mut(media) {
             asset.kind = kind;
+        }
+        if kind != MediaKind::Audio && self.project.audio.media_id.as_ref() == Some(&media_id) {
+            self.project.audio.media_id = None;
         }
         let Some(stage) = self.project.primary_stage_mut() else {
             return;
@@ -1132,6 +1172,9 @@ impl App {
                     MediaKind::Video => SourceSpec::Video {
                         media_id: media_id.clone(),
                     },
+                    MediaKind::Audio => SourceSpec::TestPattern {
+                        pattern: TestPattern::Checker,
+                    },
                 };
             }
         }
@@ -1143,6 +1186,7 @@ impl App {
             media,
             project,
             videos,
+            audio,
             media_base,
             ..
         } = self;
@@ -1150,6 +1194,10 @@ impl App {
         media.clear();
         let (video_loaded, _) = videos.load(project, media_base);
         let mut loaded = video_loaded;
+        let (audio_loaded, audio_failed) = audio.load(project, media_base);
+        if audio_loaded {
+            loaded += 1;
+        }
         let mut failed_names: Vec<String> = project
             .media
             .iter()
@@ -1157,6 +1205,9 @@ impl App {
             .filter(|asset| !videos.is_loaded(&asset.id))
             .map(|asset| asset.name.clone())
             .collect();
+        if let Some(name) = audio_failed {
+            failed_names.push(name);
+        }
 
         for asset in &project.media {
             if asset.kind != MediaKind::Image || !project.is_media_used(&asset.id) {
@@ -1201,26 +1252,40 @@ impl App {
             }
         }
 
-        self.status_message =
-            if failed_names.is_empty() {
-                format!("Loaded {loaded} media asset(s)")
+        self.status_message = if failed_names.is_empty() {
+            format!("Loaded {loaded} media asset(s)")
+        } else {
+            let mut hints = Vec::new();
+            if !cfg!(feature = "video")
+                && project
+                    .media
+                    .iter()
+                    .any(|asset| asset.kind == MediaKind::Video && project.is_media_used(&asset.id))
+            {
+                hints.push("rebuild with --features video");
+            }
+            if !cfg!(feature = "audio") && project.audio_asset().is_some() {
+                hints.push("rebuild with --features audio");
+            }
+            let hint = if hints.is_empty() {
+                String::new()
             } else {
-                let hint = if !cfg!(feature = "video")
-                    && project.media.iter().any(|asset| {
-                        asset.kind == MediaKind::Video && project.is_media_used(&asset.id)
-                    }) {
-                    " · rebuild with --features video"
-                } else {
-                    ""
-                };
-                format!(
-                    "Loaded {loaded}, failed {}: {}{hint}",
-                    failed_names.len(),
-                    failed_names.join(", ")
-                )
+                format!(" · {}", hints.join(" · "))
             };
+            format!(
+                "Loaded {loaded}, failed {}: {}{hint}",
+                failed_names.len(),
+                failed_names.join(", ")
+            )
+        };
 
-        self.clock.set_duration(videos.max_duration());
+        let duration = match (videos.max_duration(), audio.max_duration()) {
+            (Some(video), Some(audio)) => Some(video.max(audio)),
+            (Some(video), None) => Some(video),
+            (None, Some(audio)) => Some(audio),
+            (None, None) => None,
+        };
+        self.clock.set_duration(duration);
     }
 
     /// Store media paths relative to the project when possible, so a show
@@ -1327,6 +1392,8 @@ impl App {
             message: self.status_message.clone(),
             transport,
             video_supported: cfg!(feature = "video"),
+            audio_supported: cfg!(feature = "audio"),
+            audio_error: self.audio.error().map(str::to_owned),
             monitors: self.monitors.clone(),
         }
     }
@@ -1397,11 +1464,19 @@ impl ApplicationHandler for App {
         let seek_serial = self.clock.seek_serial();
         let force_seek = seek_serial != self.last_clock_seek;
         self.last_clock_seek = seek_serial;
+        let loop_serial = self.clock.loop_serial();
+        let loop_wrap = loop_serial != self.last_clock_loop;
+        self.last_clock_loop = loop_serial;
         self.videos.sync_to_clock(
             self.clock.position_seconds(),
             self.clock.is_playing(),
             self.clock.is_looping(),
             force_seek,
+        );
+        self.audio.sync_to_clock(
+            self.clock.position_seconds(),
+            self.clock.is_playing(),
+            force_seek || loop_wrap,
         );
         self.videos.poll(&self.gpu, &mut self.media);
 
@@ -1539,9 +1614,10 @@ fn media_file_dialog(directory: &Path) -> rfd::FileDialog {
     rfd::FileDialog::new()
         .set_directory(directory)
         .add_filter(
-            "Images and videos",
+            "Images, video and audio",
             &[
-                "png", "jpg", "jpeg", "mp4", "mov", "mkv", "webm", "avi", "m4v",
+                "png", "jpg", "jpeg", "mp4", "mov", "mkv", "webm", "avi", "m4v", "mp3", "wav",
+                "flac", "ogg", "oga", "m4a", "aac",
             ],
         )
         .add_filter("Images", &["png", "jpg", "jpeg"])
@@ -1549,6 +1625,7 @@ fn media_file_dialog(directory: &Path) -> rfd::FileDialog {
             "Videos",
             &["mp4", "mov", "mkv", "webm", "avi", "m4v", "mpg", "mpeg"],
         )
+        .add_filter("Audio", &["mp3", "wav", "flac", "ogg", "oga", "m4a", "aac"])
 }
 
 fn media_kind_from_path(path: &Path, fallback: MediaKind) -> MediaKind {
@@ -1559,6 +1636,7 @@ fn media_kind_from_path(path: &Path, fallback: MediaKind) -> MediaKind {
     match extension.as_deref() {
         Some("mp4" | "mov" | "mkv" | "webm" | "avi" | "m4v" | "mpg" | "mpeg") => MediaKind::Video,
         Some("png" | "jpg" | "jpeg") => MediaKind::Image,
+        Some("mp3" | "wav" | "flac" | "ogg" | "oga" | "m4a" | "aac") => MediaKind::Audio,
         _ => fallback,
     }
 }
@@ -1625,6 +1703,10 @@ mod tests {
         assert_eq!(
             media_kind_from_path(Path::new("asset.unknown"), MediaKind::Video),
             MediaKind::Video
+        );
+        assert_eq!(
+            media_kind_from_path(Path::new("track.FLAC"), MediaKind::Image),
+            MediaKind::Audio
         );
     }
 }

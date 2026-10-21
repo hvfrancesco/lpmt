@@ -180,6 +180,7 @@ pub enum TestPattern {
 pub enum MediaKind {
     Image,
     Video,
+    Audio,
 }
 
 /// A source file referenced by one or more layers. Paths are stored relative
@@ -207,6 +208,15 @@ impl MediaAsset {
             id: MediaId::new(id),
             name: name.into(),
             kind: MediaKind::Video,
+            path: path.into(),
+        }
+    }
+
+    pub fn audio(id: impl Into<String>, name: impl Into<String>, path: impl Into<String>) -> Self {
+        Self {
+            id: MediaId::new(id),
+            name: name.into(),
+            kind: MediaKind::Audio,
             path: path.into(),
         }
     }
@@ -444,6 +454,32 @@ impl OutputGroup {
     }
 }
 
+/// Project-level audio track. It is intentionally independent from visual
+/// layers: one asset is mixed to the output device and follows the show clock.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShowAudio {
+    #[serde(default)]
+    pub media_id: Option<MediaId>,
+    #[serde(default = "default_audio_volume")]
+    pub volume: f32,
+    #[serde(default)]
+    pub muted: bool,
+}
+
+fn default_audio_volume() -> f32 {
+    1.0
+}
+
+impl Default for ShowAudio {
+    fn default() -> Self {
+        Self {
+            media_id: None,
+            volume: 1.0,
+            muted: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Project {
     pub schema_version: u32,
@@ -457,6 +493,8 @@ pub struct Project {
     pub output_groups: Vec<OutputGroup>,
     #[serde(default)]
     pub media: Vec<MediaAsset>,
+    #[serde(default)]
+    pub audio: ShowAudio,
 }
 
 impl Project {
@@ -504,8 +542,18 @@ impl Project {
         self.media.iter().find(|asset| &asset.id == id)
     }
 
-    /// True when at least one layer on any stage consumes this media asset.
+    pub fn audio_asset(&self) -> Option<&MediaAsset> {
+        self.audio
+            .media_id
+            .as_ref()
+            .and_then(|id| self.media_asset(id))
+    }
+
+    /// True when a layer or the show audio track consumes this media asset.
     pub fn is_media_used(&self, id: &MediaId) -> bool {
+        if self.audio.media_id.as_ref() == Some(id) {
+            return true;
+        }
         self.stages.iter().any(|stage| {
             stage.layers.iter().any(|layer| match &layer.source {
                 SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id == id,
@@ -576,6 +624,7 @@ impl Project {
             outputs: vec![main_output, right_half],
             output_groups: vec![group],
             media: vec![media, video, car],
+            audio: ShowAudio::default(),
         }
     }
 }
@@ -606,6 +655,29 @@ mod tests {
         value.as_object_mut().unwrap().remove("output_groups");
         let project: Project = serde_json::from_value(value).unwrap();
         assert!(project.output_groups.is_empty());
+    }
+
+    #[test]
+    fn older_projects_load_without_audio_track() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        value.as_object_mut().unwrap().remove("audio");
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert_eq!(project.audio, ShowAudio::default());
+    }
+
+    #[test]
+    fn show_audio_counts_as_used_media() {
+        let mut project = Project::demo();
+        let track = MediaAsset::audio("media-tone", "tone", "assets/audio/tone.wav");
+        let track_id = track.id.clone();
+        project.media.push(track);
+        project.audio.media_id = Some(track_id.clone());
+
+        assert!(project.is_media_used(&track_id));
+        assert_eq!(
+            project.audio_asset().map(|asset| asset.id.clone()),
+            Some(track_id)
+        );
     }
 
     #[test]

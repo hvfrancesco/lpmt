@@ -14,6 +14,7 @@ pub struct ShowClock {
     duration_seconds: Option<f64>,
     last_tick: Instant,
     seek_serial: u64,
+    loop_serial: u64,
 }
 
 impl ShowClock {
@@ -25,6 +26,7 @@ impl ShowClock {
             duration_seconds: None,
             last_tick: Instant::now(),
             seek_serial: 0,
+            loop_serial: 0,
         }
     }
 
@@ -48,6 +50,12 @@ impl ShowClock {
     /// distinguish a deliberate seek from a natural loop wrap.
     pub fn seek_serial(&self) -> u64 {
         self.seek_serial
+    }
+
+    /// Increments when the clock naturally wraps at the show duration, so
+    /// non-seekable media (or audio that ended) can restart at zero.
+    pub fn loop_serial(&self) -> u64 {
+        self.loop_serial
     }
 
     /// Advance by the wall-clock time elapsed since the previous tick.
@@ -132,6 +140,7 @@ impl ShowClock {
         }
         if self.looping {
             self.position_seconds %= duration;
+            self.loop_serial = self.loop_serial.wrapping_add(1);
         } else {
             self.position_seconds = duration;
             self.playing = false;
@@ -172,12 +181,14 @@ mod tests {
 
         assert!(clock.is_playing());
         assert!((clock.position_seconds() - 2.0).abs() < 1e-3);
+        assert_eq!(clock.loop_serial(), 1);
 
         clock.set_looping(false);
         let resumed = Instant::now();
         clock.advance(resumed + Duration::from_secs(10));
         assert!(!clock.is_playing());
         assert!((clock.position_seconds() - 5.0).abs() < 1e-3);
+        assert_eq!(clock.loop_serial(), 1);
     }
 
     #[test]
