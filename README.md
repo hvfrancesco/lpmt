@@ -9,8 +9,8 @@ The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
 **Current status (2026-10-21):** Linux-first M0/M1 vertical slice plus ordered
-layer compositing, optional video playback, multiple output windows and grouped
-output presentation.
+layer compositing, optional video playback, a shared show clock, multiple
+output windows and grouped output presentation.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -42,8 +42,12 @@ output presentation.
   (`MediaCache`) so every output samples the same decoded media without
   duplicating textures.
 - Optional `ffmpeg-next` video decoding behind the `video` Cargo feature:
-  background worker thread, looped playback, play/pause, restart, seek/scrub,
-  newest-frame mailbox and in-place GPU texture updates.
+  background worker thread, looped playback, newest-frame mailbox and in-place
+  GPU texture updates.
+- One **show clock** is authoritative for every output and every video player.
+  The Inspector transport (play/pause, restart, loop, scrub) drives it; players
+  are paused, resumed and resynced to the clock, and a paused scrub decodes one
+  preview frame so the output still updates.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -55,9 +59,9 @@ output presentation.
 
 ### Next session
 
-The next implementation slice is **show timing and editor history**:
+The next implementation slice is **audio and editor history**:
 
-- audio playback plus a shared show clock;
+- audio playback and a mix bus driven by the shared show clock;
 - undo/redo and atomic saves;
 - a preview viewport independent from the outputs;
 - output pacing diagnostics and calibration LUTs.
@@ -121,10 +125,17 @@ cargo run -p lpmt-app --features video
 Windows support for the video feature is not validated yet.
 
 In the editor's **Media** section, select `fingers · Video` and click **Use for
-layer**. Playback loops automatically and a **Playback** panel appears with
-play/pause, restart, loop and scrub controls. Seeking resumes a paused player.
-Video assets are opened when a layer uses them; unused video entries do not start
-a decoder.
+layer**. Video assets are opened when a layer uses them; unused video entries do
+not start a decoder.
+
+Playback is controlled by the **Transport** section at the top of the Inspector,
+not by individual assets. The transport starts paused: press **Play** to advance
+the shared show clock. Every used video follows that clock, is paused/resumed
+with it and is seeked when it drifts. **Restart** returns to zero and plays;
+**Loop** repeats the show at its duration (the longest used video until a real
+timeline exists). Scrubbing while paused decodes a single preview frame at the
+new position. **Space** toggles play/pause and **Home** restarts when no text
+field has focus.
 
 **Add media…** imports a new image or video asset. The file picker accepts both
 types even when replacing an existing asset; the kind is inferred from the file
@@ -134,6 +145,9 @@ reassigned first.
 
 #### If video does not play
 
+- **Start the transport.** The show clock starts paused; press **Play** in the
+  Inspector. A video that is assigned to a layer but not visible may also be
+  behind another layer or outside its surface.
 - **Check the build feature.** A default `cargo run -p lpmt-app` has no video
   support. The Media section shows an amber warning and the status bar names the
   failed assets with `rebuild with --features video`. Use
@@ -185,7 +199,8 @@ per show, many Outputs as views of that Stage**.
 In the editor, select a surface to drag or numerically edit its corners. The
 **Layers** section selects the active layer and edits its visibility, opacity,
 blend mode, surface, order and lifetime. Use the **Media** section to change a
-media path, reload it, assign it to the active layer, or control video playback.
+media path, reload it or assign it to the active layer. The **Transport** section
+at the top plays, pauses, restarts, loops and scrubs the shared show clock.
 The **Outputs** section manages output windows and their stage views. Use the
 Project file section to save or load the JSON show file.
 

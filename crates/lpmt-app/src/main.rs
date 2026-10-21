@@ -4,7 +4,10 @@
 //! editor window and a separate output window. This is the smallest useful
 //! demonstration of the Stage + Outputs architecture.
 
+mod clock;
 mod video_runtime;
+
+use clock::ShowClock;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -53,6 +56,8 @@ struct App {
     outputs: Vec<OutputWindow>,
     monitors: Vec<String>,
     videos: VideoRuntime,
+    clock: ShowClock,
+    last_clock_seek: u64,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
     pending_output_sync: bool,
@@ -89,6 +94,8 @@ impl App {
             outputs: Vec::new(),
             monitors: Vec::new(),
             videos: VideoRuntime::new(),
+            clock: ShowClock::new(),
+            last_clock_seek: 0,
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
             pending_output_sync: false,
@@ -800,33 +807,26 @@ impl App {
                         self.ui_state.selected_layer = moved;
                     }
                 }
-                EditorAction::ToggleVideoPlay { media } => {
-                    if let Some(media_id) =
-                        self.project.media.get(media).map(|asset| asset.id.clone())
-                    {
-                        self.videos.toggle_play(&media_id);
-                    }
+                EditorAction::ToggleTransport => {
+                    self.clock.toggle();
+                    log::info!(
+                        "transport {} at {:.3}s",
+                        if self.clock.is_playing() {
+                            "play"
+                        } else {
+                            "pause"
+                        },
+                        self.clock.position_seconds()
+                    );
                 }
-                EditorAction::RestartVideo { media } => {
-                    if let Some(media_id) =
-                        self.project.media.get(media).map(|asset| asset.id.clone())
-                    {
-                        self.videos.restart(&media_id);
-                    }
+                EditorAction::RestartTransport => {
+                    self.clock.restart();
+                    log::info!("transport restart");
                 }
-                EditorAction::SetVideoLoop { media, looping } => {
-                    if let Some(media_id) =
-                        self.project.media.get(media).map(|asset| asset.id.clone())
-                    {
-                        self.videos.set_looping(&media_id, looping);
-                    }
-                }
-                EditorAction::SeekVideo { media, position } => {
-                    if let Some(media_id) =
-                        self.project.media.get(media).map(|asset| asset.id.clone())
-                    {
-                        self.videos.seek(&media_id, position);
-                    }
+                EditorAction::SetTransportLoop { looping } => self.clock.set_looping(looping),
+                EditorAction::SeekTransport { position } => {
+                    self.clock.seek(position);
+                    log::info!("transport seek to {:.3}s", self.clock.position_seconds());
                 }
                 EditorAction::AddOutput => {
                     let Some(stage_id) = self.project.primary_stage().map(|stage| stage.id.clone())
@@ -1154,7 +1154,7 @@ impl App {
             .media
             .iter()
             .filter(|asset| asset.kind == MediaKind::Video && project.is_media_used(&asset.id))
-            .filter(|asset| videos.status(&asset.id).is_none())
+            .filter(|asset| !videos.is_loaded(&asset.id))
             .map(|asset| asset.name.clone())
             .collect();
 
@@ -1219,6 +1219,8 @@ impl App {
                     failed_names.join(", ")
                 )
             };
+
+        self.clock.set_duration(videos.max_duration());
     }
 
     /// Store media paths relative to the project when possible, so a show
@@ -1310,18 +1312,12 @@ impl App {
                 parts.join(" · ")
             )
         };
-        let video = self
-            .project
-            .media
-            .get(self.ui_state.selected_media)
-            .filter(|asset| asset.kind == MediaKind::Video)
-            .and_then(|asset| self.videos.status(&asset.id))
-            .map(|state| editor::VideoStatus {
-                playing: state.playing,
-                looping: state.looping,
-                position_seconds: state.position_seconds,
-                duration_seconds: state.duration_seconds,
-            });
+        let transport = editor::TransportStatus {
+            playing: self.clock.is_playing(),
+            looping: self.clock.is_looping(),
+            position_seconds: self.clock.position_seconds(),
+            duration_seconds: self.clock.duration_seconds(),
+        };
 
         EditorStatus {
             adapter: self.gpu.adapter_info().name.clone(),
@@ -1329,7 +1325,7 @@ impl App {
             fps: self.fps,
             frame_ms: self.frame_ms,
             message: self.status_message.clone(),
-            video,
+            transport,
             video_supported: cfg!(feature = "video"),
             monitors: self.monitors.clone(),
         }
@@ -1337,6 +1333,7 @@ impl App {
 
     fn tick(&mut self) {
         let now = Instant::now();
+        self.clock.advance(now);
         let elapsed = now.duration_since(self.last_frame).as_secs_f32();
         self.last_frame = now;
         if elapsed > 0.0 {
@@ -1394,7 +1391,18 @@ impl ApplicationHandler for App {
         }
 
         // Decode once per application tick and share the resulting textures
-        // with every output, instead of advancing the player per window.
+        // with every output, instead of advancing the player per window. The
+        // show clock is authoritative: each decoder is corrected before the
+        // newly decoded frame is uploaded.
+        let seek_serial = self.clock.seek_serial();
+        let force_seek = seek_serial != self.last_clock_seek;
+        self.last_clock_seek = seek_serial;
+        self.videos.sync_to_clock(
+            self.clock.position_seconds(),
+            self.clock.is_playing(),
+            self.clock.is_looping(),
+            force_seek,
+        );
         self.videos.poll(&self.gpu, &mut self.media);
 
         self.render_outputs();

@@ -14,13 +14,13 @@ pub struct EditorStatus {
     pub fps: f32,
     pub frame_ms: f32,
     pub message: String,
-    pub video: Option<VideoStatus>,
+    pub transport: TransportStatus,
     pub video_supported: bool,
     pub monitors: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct VideoStatus {
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct TransportStatus {
     pub playing: bool,
     pub looping: bool,
     pub position_seconds: f64,
@@ -41,7 +41,7 @@ pub struct EditorState {
     surface_name_id: Option<SurfaceId>,
     layer_name_id: Option<LayerId>,
     drag_corner: Option<usize>,
-    video_scrub: Option<f32>,
+    transport_scrub: Option<f32>,
 }
 
 impl Default for EditorState {
@@ -59,7 +59,7 @@ impl Default for EditorState {
             surface_name_id: None,
             layer_name_id: None,
             drag_corner: None,
-            video_scrub: None,
+            transport_scrub: None,
         }
     }
 }
@@ -138,18 +138,12 @@ pub enum EditorAction {
         layer: usize,
         offset: i32,
     },
-    ToggleVideoPlay {
-        media: usize,
-    },
-    RestartVideo {
-        media: usize,
-    },
-    SetVideoLoop {
-        media: usize,
+    ToggleTransport,
+    RestartTransport,
+    SetTransportLoop {
         looping: bool,
     },
-    SeekVideo {
-        media: usize,
+    SeekTransport {
         position: f64,
     },
     AddOutput,
@@ -214,6 +208,14 @@ pub fn draw(
     status: &EditorStatus,
 ) -> Vec<EditorAction> {
     let mut actions = Vec::new();
+    if !ui.ctx().egui_wants_keyboard_input() {
+        if ui.input(|input| input.key_pressed(egui::Key::Space)) {
+            actions.push(EditorAction::ToggleTransport);
+        }
+        if ui.input(|input| input.key_pressed(egui::Key::Home)) {
+            actions.push(EditorAction::RestartTransport);
+        }
+    }
     let Some(stage) = project.primary_stage() else {
         egui::CentralPanel::default().show(ui, |ui| {
             ui.centered_and_justified(|ui| ui.label("The project has no stage."));
@@ -275,6 +277,58 @@ pub fn draw(
                 ui.heading("Inspector");
                 ui.separator();
 
+                ui.heading("Transport");
+                ui.horizontal_wrapped(|ui| {
+                    let label = if status.transport.playing {
+                        "Pause"
+                    } else {
+                        "Play"
+                    };
+                    if ui.button(label).clicked() {
+                        actions.push(EditorAction::ToggleTransport);
+                    }
+                    if ui.button("Restart").clicked() {
+                        actions.push(EditorAction::RestartTransport);
+                    }
+                    let mut looping = status.transport.looping;
+                    if ui.checkbox(&mut looping, "Loop").changed() {
+                        actions.push(EditorAction::SetTransportLoop { looping });
+                    }
+                });
+                let time = match status.transport.duration_seconds {
+                    Some(duration) => format!(
+                        "{:.2} / {:.2} s",
+                        status.transport.position_seconds, duration
+                    ),
+                    None => format!("{:.2} s", status.transport.position_seconds),
+                };
+                ui.label(time);
+                if let Some(duration) = status
+                    .transport
+                    .duration_seconds
+                    .filter(|duration| *duration > 0.0)
+                {
+                    let mut position = state
+                        .transport_scrub
+                        .unwrap_or(status.transport.position_seconds as f32)
+                        .clamp(0.0, duration as f32);
+                    let response = ui.add(
+                        egui::Slider::new(&mut position, 0.0..=duration as f32).show_value(false),
+                    );
+                    if response.dragged() {
+                        state.transport_scrub = Some(position);
+                    }
+                    if response.drag_stopped() || (response.changed() && !response.dragged()) {
+                        state.transport_scrub = None;
+                        actions.push(EditorAction::SeekTransport {
+                            position: f64::from(position),
+                        });
+                    }
+                }
+                ui.label("One clock drives every video and output.");
+
+                ui.add_space(12.0);
+                ui.separator();
                 ui.label("Surfaces");
                 for (index, surface) in stage.surfaces.iter().enumerate() {
                     if ui
@@ -575,7 +629,6 @@ pub fn draw(
                     {
                         state.selected_media = index;
                         state.image_path.clone_from(&asset.path);
-                        state.video_scrub = None;
                     }
                 }
 
@@ -645,71 +698,10 @@ pub fn draw(
                     .media
                     .get(state.selected_media)
                     .is_some_and(|asset| asset.kind == MediaKind::Video);
-                if selected_is_video {
+                if selected_is_video && !status.video_supported {
                     ui.add_space(10.0);
-                    ui.separator();
-                    ui.heading("Playback");
-                    if let Some(video) = status.video {
-                        ui.horizontal(|ui| {
-                            let label = if video.playing { "Pause" } else { "Play" };
-                            if ui.button(label).clicked() {
-                                actions.push(EditorAction::ToggleVideoPlay {
-                                    media: state.selected_media,
-                                });
-                            }
-                            if ui.button("Restart").clicked() {
-                                actions.push(EditorAction::RestartVideo {
-                                    media: state.selected_media,
-                                });
-                            }
-                            let mut looping = video.looping;
-                            if ui.checkbox(&mut looping, "Loop").changed() {
-                                actions.push(EditorAction::SetVideoLoop {
-                                    media: state.selected_media,
-                                    looping,
-                                });
-                            }
-                        });
-
-                        let time = match video.duration_seconds {
-                            Some(duration) => {
-                                format!("{:.2} / {:.2} s", video.position_seconds, duration)
-                            }
-                            None => format!("{:.2} s", video.position_seconds),
-                        };
-                        ui.label(time);
-
-                        if let Some(duration) =
-                            video.duration_seconds.filter(|duration| *duration > 0.0)
-                        {
-                            let mut position = state
-                                .video_scrub
-                                .unwrap_or(video.position_seconds as f32)
-                                .clamp(0.0, duration as f32);
-                            let response = ui.add(
-                                egui::Slider::new(&mut position, 0.0..=duration as f32)
-                                    .show_value(false),
-                            );
-                            if response.dragged() {
-                                state.video_scrub = Some(position);
-                            }
-                            if response.drag_stopped()
-                                || (response.changed() && !response.dragged())
-                            {
-                                state.video_scrub = None;
-                                actions.push(EditorAction::SeekVideo {
-                                    media: state.selected_media,
-                                    position: f64::from(position),
-                                });
-                            }
-                        }
-                    } else if status.video_supported {
-                        ui.label("No player is running for this asset.");
-                        ui.label("Click “Use for layer” and check that the path resolves.");
-                    } else {
-                        ui.label("Video support is not compiled into this build.");
-                        ui.label("Rebuild with `cargo run -p lpmt-app --features video`.");
-                    }
+                    ui.label("Video support is not compiled into this build.");
+                    ui.label("Rebuild with `cargo run -p lpmt-app --features video`.");
                 }
 
                 ui.add_space(16.0);

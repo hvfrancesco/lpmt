@@ -59,9 +59,12 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   stay absolute. A missing asset falls back to the test card.
 - **Optional video slice:** the `video` Cargo feature uses `ffmpeg-next` on a worker thread,
   loops a media asset, keeps only the newest frame and updates the GPU texture in place. Players are
-  shared by `MediaId`; play/pause, restart, looping and seek/scrub controls are wired through the
-  editor. Seeking reopens the decoder at the target position. Image-only builds have no system FFmpeg
-  dependency. Audio, per-output sync and clock ownership are still open.
+  shared by `MediaId` and follow the application's shared show clock: the transport pauses, resumes
+  and seeks them, drift is corrected, and a paused scrub decodes one preview frame. Image-only builds
+  have no system FFmpeg dependency. Audio playback/mix and hard per-output timing are still open.
+- **Shared show clock:** one `ShowClock` in the application is authoritative for every output and
+  every video. The editor transport edits that clock (play/pause, restart, loop, scrub); the clock
+  duration is the longest used video until the timeline provides its own length.
 - **Multiple output windows:** every enabled `OutputSpec` owns a window keyed by its stable
   `OutputId` and renders its own normalized `view` rectangle of the stage. Opening, closing,
   fullscreen toggling, display assignment and adding/deleting outputs recreate windows only on
@@ -75,10 +78,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   composite pass applies left/right/top/bottom edge feathering and brightness/contrast/gamma
   correction. Correction happens after compositing, so overlapping outputs can be matched without
   changing the show content. The editor exposes all four edges and the three colour controls.
-- **Not implemented yet:** audio, masks/deformation, per-output frame pacing diagnostics, OSC/MIDI,
-  timeline, undo/redo, atomic saves and the legacy importer.
-- **Next implementation slice:** audio plus a shared show clock, then undo/redo and a preview
-  viewport independent from the outputs. The legacy XML importer stays planned.
+- **Not implemented yet:** audio playback/mix, masks/deformation, per-output frame pacing diagnostics,
+  OSC/MIDI, timeline, undo/redo, atomic saves and the legacy importer.
+- **Next implementation slice:** audio playback on top of the shared show clock, then undo/redo and a
+  preview viewport independent from the outputs. The legacy XML importer stays planned.
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
@@ -657,8 +660,10 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
 - [ ] Undo/redo.
 - [x] Video asset playback with background decoding and looped playback (optional feature).
-- [x] Shared player per `MediaId`, with play/pause, restart, loop and seek/scrub controls.
-- [ ] Audio playback and show-clock sync.
+- [x] Shared player per `MediaId`, driven by one show clock with play/pause, restart, loop and
+      seek/scrub controls.
+- [x] Shared show clock and video drift resync, including paused-scrub preview frames.
+- [ ] Audio playback and mix bus on the shared clock.
 - [ ] Hardware decode and per-output video timing.
 - Preview viewport separate from output.
 - Acceptance: create a two-surface show from scratch, save, reload, play video.

@@ -51,6 +51,8 @@ struct Shared {
     latest: Mutex<Option<VideoFrame>>,
     state: Mutex<PlaybackState>,
     seek_request: Mutex<Option<f64>>,
+    /// Decode exactly one frame after a paused seek, then go back to sleep.
+    preview_frame: AtomicBool,
     stop: AtomicBool,
 }
 
@@ -65,6 +67,7 @@ impl Shared {
                 duration_seconds,
             }),
             seek_request: Mutex::new(None),
+            preview_frame: AtomicBool::new(false),
             stop: AtomicBool::new(false),
         }
     }
@@ -81,18 +84,35 @@ impl Shared {
         self.update_state(|state| state.position_seconds = seconds.max(0.0));
     }
 
-    fn request_seek(&self, seconds: f64) {
+    fn request_seek(&self, seconds: f64, playing: bool) {
         let duration = self.state().duration_seconds;
         let position = clamp_position(seconds, duration);
         self.update_state(|state| {
             state.position_seconds = position;
-            state.playing = true;
+            state.playing = playing;
         });
+        self.preview_frame.store(false, Ordering::Relaxed);
         *lock(&self.seek_request) = Some(position);
     }
 
     fn take_seek(&self) -> Option<f64> {
         lock(&self.seek_request).take()
+    }
+
+    fn request_preview_frame(&self) {
+        self.preview_frame.store(true, Ordering::Relaxed);
+    }
+
+    fn take_preview_frame(&self) -> bool {
+        self.preview_frame.swap(false, Ordering::Relaxed)
+    }
+
+    fn has_preview_frame(&self) -> bool {
+        self.preview_frame.load(Ordering::Relaxed)
+    }
+
+    fn clear_preview_frame(&self) {
+        self.preview_frame.store(false, Ordering::Relaxed);
     }
 
     fn store_frame(&self, frame: VideoFrame) {
@@ -174,6 +194,7 @@ impl VideoPlayer {
     }
 
     pub fn play(&self) {
+        self.shared.clear_preview_frame();
         let state = self.state();
         if state
             .duration_seconds
@@ -199,7 +220,13 @@ impl VideoPlayer {
 
     /// Seek to a position in seconds. Seeking resumes a paused player.
     pub fn seek(&self, seconds: f64) {
-        self.shared.request_seek(seconds);
+        self.shared.request_seek(seconds, true);
+    }
+
+    /// Seek without resuming playback. The worker decodes one frame at the new
+    /// position so a paused transport still shows the scrubbed image.
+    pub fn seek_paused(&self, seconds: f64) {
+        self.shared.request_seek(seconds, false);
     }
 
     pub fn restart(&self) {
@@ -311,6 +338,9 @@ fn run_player(path: &Path, shared: Arc<Shared>) -> Result<()> {
                     WaitOutcome::Seek(position) => {
                         start = position;
                         next_frame = None;
+                        if !shared.is_playing() {
+                            shared.request_preview_frame();
+                        }
                     }
                     WaitOutcome::Stopped => break,
                 }
@@ -319,6 +349,9 @@ fn run_player(path: &Path, shared: Arc<Shared>) -> Result<()> {
                 start = position;
                 next_frame = None;
                 shared.set_position(position);
+                if !shared.is_playing() {
+                    shared.request_preview_frame();
+                }
             }
             DecodeOutcome::Stopped => break,
         }
@@ -480,6 +513,9 @@ fn wait_for_play(shared: &Shared) -> WaitOutcome {
     if let Some(position) = shared.take_seek() {
         return WaitOutcome::Seek(position);
     }
+    if shared.has_preview_frame() {
+        return WaitOutcome::Playing(false);
+    }
     if shared.is_playing() {
         return WaitOutcome::Playing(false);
     }
@@ -491,6 +527,9 @@ fn wait_for_play(shared: &Shared) -> WaitOutcome {
         }
         if let Some(position) = shared.take_seek() {
             return WaitOutcome::Seek(position);
+        }
+        if shared.has_preview_frame() {
+            return WaitOutcome::Playing(true);
         }
         if shared.is_playing() {
             return WaitOutcome::Playing(true);
@@ -536,6 +575,11 @@ fn receive_frames(
         let image = DecodedImage::from_rgba8(width, height, pixels)?;
         shared.store_frame(VideoFrame { image, pts_seconds });
         shared.set_position(pts_seconds);
+
+        if shared.take_preview_frame() {
+            shared.update_state(|state| state.playing = false);
+            return Ok(FrameOutcome::Continue);
+        }
 
         pace(next_frame, interval);
     }
@@ -615,5 +659,29 @@ mod tests {
         assert_eq!(clamp_position(12.0, Some(10.0)), 10.0);
         assert_eq!(clamp_position(12.0, None), 12.0);
         assert_eq!(clamp_position(f64::NAN, Some(10.0)), 0.0);
+    }
+
+    #[cfg(feature = "video")]
+    #[test]
+    fn paused_seek_decodes_one_preview_frame() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/video/fingers.mov");
+        let player = VideoPlayer::open(&path, true).expect("sample video should open");
+        player.pause();
+        while player.take_frame().is_some() {}
+
+        player.seek_paused(3.0);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut preview = None;
+        while Instant::now() < deadline {
+            if let Some(frame) = player.take_frame() {
+                preview = Some(frame);
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        let frame = preview.expect("paused seek should produce a frame");
+        assert!(frame.pts_seconds >= 2.9, "frame at {}", frame.pts_seconds);
+        assert!(!player.state().playing);
     }
 }
