@@ -553,6 +553,7 @@ struct StageRenderer {
 pub struct OutputRenderer {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
+    preferred_present_mode: Option<wgpu::PresentMode>,
     stage: StageRenderer,
     _window: Arc<Window>,
 }
@@ -1115,12 +1116,14 @@ impl OutputRenderer {
         window: Arc<Window>,
         width: u32,
         height: u32,
+        preferred_present_mode: Option<wgpu::PresentMode>,
     ) -> Result<Self> {
-        let config = configure_surface(gpu, &surface, width, height)?;
+        let config = configure_surface(gpu, &surface, width, height, preferred_present_mode)?;
         let stage = StageRenderer::new(gpu, media, config.format, false)?;
         Ok(Self {
             surface,
             config,
+            preferred_present_mode,
             stage,
             _window: window,
         })
@@ -1138,7 +1141,13 @@ impl OutputRenderer {
             return Ok(());
         }
 
-        self.config = configure_surface(gpu, &self.surface, width, height)?;
+        self.config = configure_surface(
+            gpu,
+            &self.surface,
+            width,
+            height,
+            self.preferred_present_mode,
+        )?;
         log::debug!(
             "output resized to {}x{} ({:?})",
             self.config.width,
@@ -1173,8 +1182,13 @@ impl OutputRenderer {
                 return Ok(None)
             }
             wgpu::CurrentSurfaceTexture::Outdated => {
-                self.config =
-                    configure_surface(gpu, &self.surface, self.config.width, self.config.height)?;
+                self.config = configure_surface(
+                    gpu,
+                    &self.surface,
+                    self.config.width,
+                    self.config.height,
+                    self.preferred_present_mode,
+                )?;
                 return Ok(None);
             }
             wgpu::CurrentSurfaceTexture::Lost => {
@@ -1509,11 +1523,32 @@ fn blend_state(blend: BlendMode) -> wgpu::BlendState {
     }
 }
 
+fn select_present_mode(
+    available: &[wgpu::PresentMode],
+    preferred: Option<wgpu::PresentMode>,
+) -> Option<wgpu::PresentMode> {
+    // Fullscreen outputs on a dedicated display can use tear-free Fifo.
+    // Windowed outputs prefer Mailbox or Immediate: blocking Fifo is what made
+    // the whole event loop stall when a window was obscured by the editor.
+    preferred
+        .filter(|mode| available.contains(mode))
+        .or_else(|| {
+            [
+                wgpu::PresentMode::Mailbox,
+                wgpu::PresentMode::Immediate,
+                wgpu::PresentMode::Fifo,
+            ]
+            .into_iter()
+            .find(|mode| available.contains(mode))
+        })
+}
+
 fn configure_surface(
     gpu: &Gpu,
     surface: &wgpu::Surface<'_>,
     width: u32,
     height: u32,
+    preferred_present_mode: Option<wgpu::PresentMode>,
 ) -> Result<wgpu::SurfaceConfiguration> {
     let mut config = surface
         .get_default_config(gpu.adapter(), width.max(1), height.max(1))
@@ -1528,12 +1563,14 @@ fn configure_surface(
     {
         config.format = srgb;
     }
-    if capabilities
-        .present_modes
-        .contains(&wgpu::PresentMode::Fifo)
-    {
-        config.present_mode = wgpu::PresentMode::Fifo;
+    if let Some(mode) = select_present_mode(&capabilities.present_modes, preferred_present_mode) {
+        config.present_mode = mode;
     }
+    log::debug!(
+        "output present mode: {:?} (requested: {preferred_present_mode:?}, available: {:?})",
+        config.present_mode,
+        capabilities.present_modes
+    );
 
     surface.configure(gpu.device(), &config);
     Ok(config)
@@ -1544,6 +1581,41 @@ mod tests {
     use super::*;
     use lpmt_core::model::Point2;
     use std::mem::{offset_of, size_of};
+
+    #[test]
+    fn windowed_outputs_avoid_blocking_fifo() {
+        let modes = [wgpu::PresentMode::Fifo, wgpu::PresentMode::Immediate];
+        assert_eq!(
+            select_present_mode(&modes, None),
+            Some(wgpu::PresentMode::Immediate)
+        );
+
+        let modes = [
+            wgpu::PresentMode::Fifo,
+            wgpu::PresentMode::Mailbox,
+            wgpu::PresentMode::Immediate,
+        ];
+        assert_eq!(
+            select_present_mode(&modes, None),
+            Some(wgpu::PresentMode::Mailbox)
+        );
+    }
+
+    #[test]
+    fn dedicated_fullscreen_outputs_request_fifo() {
+        let modes = [wgpu::PresentMode::Fifo, wgpu::PresentMode::Immediate];
+        assert_eq!(
+            select_present_mode(&modes, Some(wgpu::PresentMode::Fifo)),
+            Some(wgpu::PresentMode::Fifo)
+        );
+        assert_eq!(
+            select_present_mode(
+                &[wgpu::PresentMode::Immediate],
+                Some(wgpu::PresentMode::Fifo)
+            ),
+            Some(wgpu::PresentMode::Immediate)
+        );
+    }
 
     #[test]
     fn mask_and_crop_uniform_layout_matches_the_wgsl_structs() {

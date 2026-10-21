@@ -125,7 +125,13 @@ Show are separate modes.
   undo history, atomic-save and JSON compatibility unit tests.
 - Fullscreen outputs claim an unused secondary monitor when one is present; the
   next outputs open as windows (960×540 or 1280×720) so the editor stays
-  reachable. With a single display the first fullscreen output uses it.
+  reachable. On a single-display machine, auto-fullscreen outputs open as
+  windows so the editor remains usable; assign a display explicitly to force
+  fullscreen. Windowed outputs prefer `Mailbox` and fall back to `Immediate`
+  instead of blocking `Fifo`, so an obscured output cannot freeze the whole
+  event loop. Fullscreen outputs on a dedicated secondary display keep
+  tear-free `Fifo`. On drivers that only expose `Fifo`/`Immediate`, windowed
+  outputs may tear.
 
 ### Next session
 

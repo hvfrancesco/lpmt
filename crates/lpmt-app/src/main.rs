@@ -102,6 +102,10 @@ struct OutputWindow {
     renderer: OutputRenderer,
     pacing: OutputPacing,
     last_presented: Option<Instant>,
+    /// X11/Wayland report fully obscured windows. Do not acquire or present a
+    /// surface while hidden: a compositor-throttled present can block the
+    /// whole shared event loop.
+    occluded: bool,
 }
 
 impl OutputWindow {
@@ -330,10 +334,18 @@ impl App {
         let mut close = false;
         let mut resize = None;
 
-        if let Some(_output) = self.outputs.get(index) {
+        if let Some(output) = self.outputs.get_mut(index) {
             match event {
                 WindowEvent::CloseRequested => close = true,
                 WindowEvent::Resized(size) => resize = Some(size),
+                WindowEvent::Occluded(occluded) => {
+                    output.occluded = occluded;
+                    log::debug!(
+                        "output '{}' {}",
+                        output.id,
+                        if occluded { "occluded" } else { "visible" }
+                    );
+                }
                 // Outputs are rendered once per application tick in
                 // `about_to_wait`, so grouped outputs can share a frame.
                 WindowEvent::RedrawRequested => {}
@@ -536,6 +548,9 @@ impl App {
             let Some(output) = outputs.get_mut(*index) else {
                 continue;
             };
+            if output.occluded {
+                continue;
+            }
             output.pacing.note_attempt();
             let Some(output_spec) = project.output(&output.id) else {
                 output.pacing.note_error();
@@ -2079,6 +2094,10 @@ fn create_output_window(
     let mut attributes = Window::default_attributes()
         .with_title(format!("LPMT — {}", spec.name))
         .with_active(false);
+    let primary_name = event_loop
+        .primary_monitor()
+        .and_then(|monitor| monitor.name());
+    let mut preferred_present_mode = None;
 
     match &spec.target {
         OutputTarget::Windowed { width, height } => {
@@ -2089,6 +2108,13 @@ fn create_output_window(
         OutputTarget::Fullscreen { monitor } => {
             let monitor = choose_monitor(event_loop, monitor.as_deref(), used_monitors);
             if let Some(monitor) = monitor {
+                let on_primary = primary_name.as_deref() == monitor.name().as_deref();
+                if !on_primary {
+                    // Dedicated projector displays can stay tear-free. On the
+                    // primary display use the non-blocking windowed fallback,
+                    // even if the user explicitly requested fullscreen.
+                    preferred_present_mode = Some(wgpu::PresentMode::Fifo);
+                }
                 log::info!(
                     "placing output '{}' fullscreen on monitor {:?}",
                     spec.name,
@@ -2097,8 +2123,8 @@ fn create_output_window(
                 attributes =
                     attributes.with_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
             } else {
-                log::warn!(
-                    "no monitor available for output '{}'; opening it windowed",
+                log::info!(
+                    "no secondary monitor available for output '{}'; opening it windowed",
                     spec.name
                 );
                 attributes = attributes
@@ -2118,8 +2144,15 @@ fn create_output_window(
         .create_surface(window.clone())
         .with_context(|| format!("failed to create surface for output '{}'", spec.name))?;
     let size = window.inner_size();
-    let renderer =
-        OutputRenderer::new(gpu, media, surface, window.clone(), size.width, size.height)?;
+    let renderer = OutputRenderer::new(
+        gpu,
+        media,
+        surface,
+        window.clone(),
+        size.width,
+        size.height,
+        preferred_present_mode,
+    )?;
 
     Ok(OutputWindow {
         id: spec.id.clone(),
@@ -2127,6 +2160,7 @@ fn create_output_window(
         renderer,
         pacing: OutputPacing::default(),
         last_presented: None,
+        occluded: false,
     })
 }
 
@@ -2149,6 +2183,9 @@ fn choose_monitor(
     }
 
     let primary = event_loop.primary_monitor();
+    // Only auto-assign a secondary display. The primary display belongs to the
+    // editor, and a fullscreen output there can throttle presentation while
+    // the editor is focused. A user can still assign it explicitly.
     monitors
         .iter()
         .find(|monitor| {
@@ -2156,22 +2193,6 @@ fn choose_monitor(
                 && !used
                     .iter()
                     .any(|name| monitor.name().as_deref() == Some(name.as_str()))
-        })
-        .or_else(|| {
-            monitors.iter().find(|monitor| {
-                !used
-                    .iter()
-                    .any(|name| monitor.name().as_deref() == Some(name.as_str()))
-            })
-        })
-        // With every display already covered, a further fullscreen output
-        // would hide the editor. Open it windowed instead.
-        .or_else(|| {
-            if used.is_empty() {
-                monitors.first()
-            } else {
-                None
-            }
         })
         .cloned()
 }

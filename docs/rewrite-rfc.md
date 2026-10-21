@@ -94,6 +94,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   project changes. `lpmt-render::MediaCache` holds one texture/bind-group per `MediaId`, shared by
   all outputs; decoded video frames are uploaded once per application tick instead of once per
   window.
+- **Presentation robustness:** fully occluded output windows skip surface acquisition and
+  presentation. Windowed outputs prefer `Mailbox`/`Immediate` so a compositor-throttled `Fifo`
+  present cannot stall the shared loop; fullscreen outputs on a dedicated secondary display keep
+  tear-free `Fifo`. Single-display auto-fullscreen outputs open windowed so the editor remains
+  reachable; assigning a display explicitly still opts into fullscreen.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -137,8 +142,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 
 Run `cargo run -p lpmt-app` from the repository root. The demo opens two outputs: the main output
 goes borderless fullscreen on a secondary monitor when present, and a windowed “Right half” output
-shows `x=0.5..1.0` of the stage. On a single-monitor machine the first fullscreen output uses the
-primary display and later outputs open as windows.
+shows `x=0.5..1.0` of the stage. On a single-monitor machine, outputs that request auto-fullscreen
+open as windows so the editor remains usable; an explicit display assignment is required to force
+fullscreen on the primary display.
 
 ---
 
@@ -792,7 +798,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 |---|---|---|
 | Primary platform | Linux-first, macOS, Windows? | Build portable; validate Linux first, then macOS/Windows |
 | Video decode | ffmpeg vs GStreamer, hardware acceleration, packaging | Spike before M2; keep decoder trait |
-| Multi-window present | Vsync/refresh mismatch, tearing, latency | Shared frame state; output group barrier; document limits |
+| Multi-window present | Vsync/refresh mismatch, blocking presents, tearing, latency | Shared frame state; output group barrier; skip obscured windows; prefer Mailbox/Immediate over blocking Fifo; document tearing limits |
 | Colour | Gamma/linear blending, projector differences | Explicit pipeline, calibration controls, golden tests |
 | Edge blending | Physical overlap vs model regions | Output-level zones; per-surface feather later |
 | Distributed outputs | Scope creep | Design boundary only; implementation post-v1 |
