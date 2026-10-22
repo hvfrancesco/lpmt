@@ -1149,8 +1149,8 @@ impl Project {
 mod tests {
     use super::*;
     use crate::timeline::{
-        TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineInterpolation,
-        TimelineKey, TimelineMarker, TimelineTrigger,
+        TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineCue,
+        TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
     };
 
     #[test]
@@ -1266,6 +1266,14 @@ mod tests {
             interpolation: TimelineInterpolation::Smooth,
         });
         project.timeline.colour_tracks.push(colour_track);
+        project.timeline.cues.push(TimelineCue {
+            id: 3,
+            name: "Blackout".to_owned(),
+            time: 6.0,
+            note: "Hold for applause".to_owned(),
+            color: [0.9, 0.3, 0.2],
+            commands: vec![TimelineCommand::Pause, TimelineCommand::LoopOff],
+        });
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();
         assert_eq!(project, round_trip);

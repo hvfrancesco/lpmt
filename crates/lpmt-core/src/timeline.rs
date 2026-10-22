@@ -212,6 +212,25 @@ pub struct TimelineMarker {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimelineCue {
+    #[serde(default)]
+    pub id: u64,
+    #[serde(default)]
+    pub name: String,
+    pub time: f32,
+    #[serde(default)]
+    pub note: String,
+    #[serde(default = "default_cue_colour")]
+    pub color: [f32; 3],
+    #[serde(default)]
+    pub commands: Vec<TimelineCommand>,
+}
+
+fn default_cue_colour() -> [f32; 3] {
+    [0.35, 0.7, 1.0]
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Timeline {
     #[serde(default = "default_duration")]
     pub duration: f32,
@@ -219,6 +238,9 @@ pub struct Timeline {
     pub bpm: f32,
     #[serde(default = "default_beats_per_bar")]
     pub beats_per_bar: u32,
+    /// Time-signature denominator: 4 for quarter-note beats, 8 for eighth-note beats.
+    #[serde(default = "default_beat_unit")]
+    pub beat_unit: u32,
     #[serde(default)]
     pub tracks: Vec<TimelineTrack>,
     #[serde(default)]
@@ -227,6 +249,8 @@ pub struct Timeline {
     pub triggers: Vec<TimelineTrigger>,
     #[serde(default)]
     pub markers: Vec<TimelineMarker>,
+    #[serde(default)]
+    pub cues: Vec<TimelineCue>,
 }
 
 fn default_duration() -> f32 {
@@ -241,16 +265,22 @@ fn default_beats_per_bar() -> u32 {
     4
 }
 
+fn default_beat_unit() -> u32 {
+    4
+}
+
 impl Default for Timeline {
     fn default() -> Self {
         Self {
             duration: DEFAULT_TIMELINE_DURATION,
             bpm: default_bpm(),
             beats_per_bar: default_beats_per_bar(),
+            beat_unit: default_beat_unit(),
             tracks: Vec::new(),
             colour_tracks: Vec::new(),
             triggers: Vec::new(),
             markers: Vec::new(),
+            cues: Vec::new(),
         }
     }
 }
@@ -261,6 +291,7 @@ impl Timeline {
             && self.colour_tracks.is_empty()
             && self.triggers.is_empty()
             && self.markers.is_empty()
+            && self.cues.is_empty()
     }
 
     pub fn is_active(&self) -> bool {
@@ -276,7 +307,8 @@ impl Timeline {
 
     /// Clamp and sort after loading or before first use.
     pub fn seconds_per_beat(&self) -> f32 {
-        60.0 / self.bpm.clamp(20.0, 300.0)
+        let quarter_note = 60.0 / self.bpm.clamp(20.0, 300.0);
+        quarter_note * 4.0 / self.beat_unit.clamp(1, 32) as f32
     }
 
     pub fn seconds_per_bar(&self) -> f32 {
@@ -289,6 +321,7 @@ impl Timeline {
             .clamp(MIN_TIMELINE_DURATION, MAX_TIMELINE_DURATION);
         self.bpm = self.bpm.clamp(20.0, 300.0);
         self.beats_per_bar = self.beats_per_bar.clamp(1, 16);
+        self.beat_unit = self.beat_unit.clamp(1, 32);
         for track in &mut self.tracks {
             for key in &mut track.keys {
                 key.time = key.time.clamp(0.0, self.duration);
@@ -312,6 +345,11 @@ impl Timeline {
             marker.time = marker.time.clamp(0.0, self.duration);
         }
         self.sort_markers();
+        for cue in &mut self.cues {
+            cue.time = cue.time.clamp(0.0, self.duration);
+            cue.color = cue.color.map(|channel| channel.clamp(0.0, 1.0));
+        }
+        self.sort_cues();
     }
 
     pub fn sort_triggers(&mut self) {
@@ -320,6 +358,18 @@ impl Timeline {
 
     pub fn sort_markers(&mut self) {
         self.markers.sort_by(|a, b| a.time.total_cmp(&b.time));
+    }
+
+    pub fn sort_cues(&mut self) {
+        self.cues.sort_by(|a, b| a.time.total_cmp(&b.time));
+    }
+
+    pub fn cue_index(&self, id: u64) -> Option<usize> {
+        self.cues.iter().position(|cue| cue.id == id)
+    }
+
+    pub fn next_cue_id(&self) -> u64 {
+        self.cues.iter().map(|cue| cue.id).max().unwrap_or(0) + 1
     }
 
     pub fn track_index(&self, parameter: &str) -> Option<usize> {
@@ -445,6 +495,7 @@ mod tests {
             duration: 5.0,
             bpm: 120.0,
             beats_per_bar: 4,
+            beat_unit: 4,
             tracks: Vec::new(),
             colour_tracks: Vec::new(),
             triggers: vec![
@@ -471,6 +522,7 @@ mod tests {
                     name: "A".to_owned(),
                 },
             ],
+            cues: Vec::new(),
         };
         timeline.normalize();
         assert!(timeline.is_active());
@@ -507,6 +559,36 @@ mod tests {
     }
 
     #[test]
+    fn cues_sort_by_time_and_get_stable_ids() {
+        let mut timeline = Timeline {
+            cues: vec![
+                TimelineCue {
+                    id: 7,
+                    name: "End".to_owned(),
+                    time: 4.0,
+                    note: String::new(),
+                    color: [1.0, 0.5, 0.0],
+                    commands: vec![TimelineCommand::Pause],
+                },
+                TimelineCue {
+                    id: 2,
+                    name: "Start".to_owned(),
+                    time: 1.0,
+                    note: String::new(),
+                    color: [0.0, 0.5, 1.0],
+                    commands: vec![TimelineCommand::LoopOn, TimelineCommand::Restart],
+                },
+            ],
+            ..Timeline::default()
+        };
+        timeline.normalize();
+        assert_eq!(timeline.cues[0].id, 2);
+        assert_eq!(timeline.cues[1].id, 7);
+        assert_eq!(timeline.next_cue_id(), 8);
+        assert_eq!(timeline.cue_index(7), Some(1));
+    }
+
+    #[test]
     fn tempo_helpers_follow_bpm_and_time_signature() {
         let mut timeline = Timeline {
             bpm: 90.0,
@@ -515,11 +597,16 @@ mod tests {
         };
         assert!((timeline.seconds_per_beat() - 2.0 / 3.0).abs() < 1.0e-5);
         assert!((timeline.seconds_per_bar() - 2.0).abs() < 1.0e-5);
+        timeline.beat_unit = 8;
+        assert!((timeline.seconds_per_beat() - 1.0 / 3.0).abs() < 1.0e-5);
+        assert!((timeline.seconds_per_bar() - 1.0).abs() < 1.0e-5);
         timeline.bpm = 0.0;
         timeline.beats_per_bar = 0;
+        timeline.beat_unit = 0;
         timeline.normalize();
         assert_eq!(timeline.bpm, 20.0);
         assert_eq!(timeline.beats_per_bar, 1);
+        assert_eq!(timeline.beat_unit, 1);
     }
 
     #[test]
@@ -528,6 +615,7 @@ mod tests {
             duration: 2.0,
             bpm: 120.0,
             beats_per_bar: 4,
+            beat_unit: 4,
             tracks: vec![TimelineTrack {
                 parameter: "layer/layer-1/opacity".to_owned(),
                 keys: vec![
@@ -546,6 +634,7 @@ mod tests {
             colour_tracks: Vec::new(),
             triggers: Vec::new(),
             markers: Vec::new(),
+            cues: Vec::new(),
         };
         timeline.normalize();
         assert_eq!(timeline.tracks[0].keys[0].time, 0.0);

@@ -207,6 +207,10 @@ pub struct EditorState {
     timeline_drag_marker: Option<usize>,
     timeline_marker_name: String,
     timeline_marker_name_id: Option<usize>,
+    timeline_selected_cue: Option<u64>,
+    timeline_cue_name: String,
+    timeline_cue_note: String,
+    timeline_cue_buffer_id: Option<u64>,
     timeline_zoom: f32,
     timeline_view_start: f32,
     timeline_snap: bool,
@@ -268,6 +272,10 @@ impl Default for EditorState {
             timeline_drag_marker: None,
             timeline_marker_name: String::new(),
             timeline_marker_name_id: None,
+            timeline_selected_cue: None,
+            timeline_cue_name: String::new(),
+            timeline_cue_note: String::new(),
+            timeline_cue_buffer_id: None,
             timeline_zoom: 1.0,
             timeline_view_start: 0.0,
             timeline_snap: true,
@@ -317,6 +325,10 @@ impl EditorState {
         self.timeline_drag_marker = None;
         self.timeline_marker_name.clear();
         self.timeline_marker_name_id = None;
+        self.timeline_selected_cue = None;
+        self.timeline_cue_name.clear();
+        self.timeline_cue_note.clear();
+        self.timeline_cue_buffer_id = None;
         self.timeline_zoom = 1.0;
         self.timeline_view_start = 0.0;
         self.mask_add_mode = false;
@@ -497,6 +509,7 @@ pub enum EditorAction {
     SetTimelineTempo {
         bpm: f32,
         beats_per_bar: u32,
+        beat_unit: u32,
     },
     AddTimelineTrigger {
         time: f32,
@@ -512,6 +525,23 @@ pub enum EditorAction {
     },
     FireTimelineTrigger {
         trigger: usize,
+    },
+    AddTimelineCue {
+        time: f32,
+    },
+    SetTimelineCue {
+        id: u64,
+        name: String,
+        note: String,
+        time: f32,
+        color: [f32; 3],
+        commands: Vec<TimelineCommand>,
+    },
+    RemoveTimelineCue {
+        id: u64,
+    },
+    FireTimelineCue {
+        id: u64,
     },
     AddTimelineMarker {
         time: f32,
@@ -1119,64 +1149,174 @@ pub fn draw(
                         ui.add_space(12.0);
                         ui.separator();
                         ui.heading("Cues");
-                        let mut cues: Vec<(f32, String, CueAction)> = Vec::new();
-                        for (index, marker) in project.timeline.markers.iter().enumerate() {
-                            let name = if marker.name.is_empty() {
-                                format!("Marker {}", index + 1)
-                            } else {
-                                marker.name.clone()
-                            };
-                            cues.push((marker.time, name, CueAction::Marker(index)));
-                        }
-                        for (index, trigger) in project.timeline.triggers.iter().enumerate() {
-                            cues.push((
-                                trigger.time,
-                                format!("Trigger · {}", trigger_command_short(trigger.command)),
-                                CueAction::Trigger(index),
-                            ));
-                        }
-                        cues.sort_by(|left, right| left.0.total_cmp(&right.0));
-                        if cues.is_empty() {
+                        let position = status.transport.position_seconds as f32;
+                        let previous_cue = project
+                            .timeline
+                            .cues
+                            .iter()
+                            .rev()
+                            .find(|cue| cue.time < position - 1.0e-4)
+                            .map(|cue| cue.id);
+                        let next_cue = project
+                            .timeline
+                            .cues
+                            .iter()
+                            .find(|cue| cue.time > position + 1.0e-4)
+                            .map(|cue| cue.id);
+                        ui.horizontal_wrapped(|ui| {
+                            if ui
+                                .button("Add cue at playhead")
+                                .on_hover_text("Create a manual cue at the current playhead")
+                                .clicked()
+                            {
+                                actions.push(EditorAction::AddTimelineCue { time: position });
+                                state.timeline_selected_cue = None;
+                                state.timeline_cue_buffer_id = None;
+                            }
+                            if ui
+                                .add_enabled(previous_cue.is_some(), egui::Button::new("Prev cue"))
+                                .clicked()
+                            {
+                                if let Some(id) = previous_cue {
+                                    actions.push(EditorAction::FireTimelineCue { id });
+                                }
+                            }
+                            if ui
+                                .add_enabled(next_cue.is_some(), egui::Button::new("Next cue"))
+                                .clicked()
+                            {
+                                if let Some(id) = next_cue {
+                                    actions.push(EditorAction::FireTimelineCue { id });
+                                }
+                            }
+                        });
+                        if project.timeline.cues.is_empty() {
                             ui.label(
-                                RichText::new(
-                                    "Add markers or triggers in the timeline to build a cue list.",
-                                )
-                                .small()
-                                .color(Color32::from_rgb(132, 144, 166)),
+                                RichText::new("Add a cue to start a manual cue stack.")
+                                    .small()
+                                    .color(Color32::from_rgb(132, 144, 166)),
                             );
                         } else {
-                            for (time, label, cue) in cues {
+                            for cue in &project.timeline.cues {
+                                let selected = state.timeline_selected_cue == Some(cue.id);
                                 ui.horizontal(|ui| {
                                     if ui
                                         .small_button("Go")
-                                        .on_hover_text("Seek or fire this cue now")
+                                        .on_hover_text("Fire this cue's commands now")
                                         .clicked()
                                     {
-                                        match cue {
-                                            CueAction::Marker(marker) => {
-                                                if let Some(marker) =
-                                                    project.timeline.markers.get(marker)
-                                                {
-                                                    actions.push(EditorAction::SeekTransport {
-                                                        position: f64::from(marker.time),
-                                                    });
-                                                }
-                                            }
-                                            CueAction::Trigger(trigger) => {
-                                                actions.push(EditorAction::FireTimelineTrigger {
-                                                    trigger,
-                                                });
-                                            }
+                                        actions.push(EditorAction::FireTimelineCue { id: cue.id });
+                                    }
+                                    let [r, g, b, _] = egui::Rgba::from_rgb(
+                                        cue.color[0], cue.color[1], cue.color[2],
+                                    )
+                                    .to_srgba_unmultiplied();
+                                    ui.colored_label(Color32::from_rgb(r, g, b), "●");
+                                    let name = if cue.name.is_empty() {
+                                        format!("Cue {}", cue.id)
+                                    } else {
+                                        cue.name.clone()
+                                    };
+                                    if ui
+                                        .selectable_label(
+                                            selected,
+                                            format!("{:.2}s · {name}", cue.time),
+                                        )
+                                        .clicked()
+                                    {
+                                        state.timeline_selected_cue = Some(cue.id);
+                                        state.timeline_cue_buffer_id = None;
+                                    }
+                                });
+                                if selected && !cue.note.is_empty() {
+                                    ui.label(
+                                        RichText::new(&cue.note)
+                                            .small()
+                                            .color(Color32::from_rgb(132, 144, 166)),
+                                    );
+                                }
+                            }
+                        }
+                        if let Some(id) = state.timeline_selected_cue {
+                            if let Some(cue) = project
+                                .timeline
+                                .cues
+                                .iter()
+                                .find(|cue| cue.id == id)
+                                .cloned()
+                            {
+                                if state.timeline_cue_buffer_id != Some(id) {
+                                    state.timeline_cue_name.clone_from(&cue.name);
+                                    state.timeline_cue_note.clone_from(&cue.note);
+                                    state.timeline_cue_buffer_id = Some(id);
+                                }
+                                let mut name = state.timeline_cue_name.clone();
+                                let mut note = state.timeline_cue_note.clone();
+                                let mut time = cue.time;
+                                let mut color = cue.color;
+                                let mut commands = cue.commands.clone();
+                                ui.separator();
+                                ui.label(RichText::new("Cue editor").strong());
+                                egui::Grid::new(("timeline-cue-editor", id))
+                                    .num_columns(2)
+                                    .spacing([8.0, 4.0])
+                                    .show(ui, |ui| {
+                                        ui.label("Name");
+                                        ui.text_edit_singleline(&mut name);
+                                        ui.label("Time");
+                                        ui.add(
+                                            egui::DragValue::new(&mut time)
+                                                .range(0.0..=project.timeline.duration)
+                                                .speed(0.01)
+                                                .suffix(" s"),
+                                        );
+                                        ui.label("Note");
+                                        ui.add(
+                                            egui::TextEdit::multiline(&mut note)
+                                                .desired_rows(2)
+                                                .desired_width(220.0),
+                                        );
+                                        ui.label("Colour");
+                                        ui.color_edit_button_rgb(&mut color);
+                                    });
+                                ui.label("Commands");
+                                for command in TimelineCommand::ALL {
+                                    let mut enabled = commands.contains(&command);
+                                    if ui.checkbox(&mut enabled, command.label()).changed() {
+                                        if enabled {
+                                            commands.push(command);
+                                        } else {
+                                            commands.retain(|candidate| *candidate != command);
                                         }
                                     }
-                                    ui.label(
-                                        RichText::new(format!("{time:.2}s"))
-                                            .monospace()
-                                            .small()
-                                            .color(Color32::from_rgb(130, 142, 164)),
-                                    );
-                                    ui.label(label);
+                                }
+                                ui.horizontal(|ui| {
+                                    if ui.button("Delete cue").clicked() {
+                                        actions.push(EditorAction::RemoveTimelineCue { id });
+                                        state.timeline_selected_cue = None;
+                                        state.timeline_cue_buffer_id = None;
+                                    }
                                 });
+                                state.timeline_cue_name.clone_from(&name);
+                                state.timeline_cue_note.clone_from(&note);
+                                if name != cue.name
+                                    || note != cue.note
+                                    || time != cue.time
+                                    || color != cue.color
+                                    || commands != cue.commands
+                                {
+                                    actions.push(EditorAction::SetTimelineCue {
+                                        id,
+                                        name,
+                                        note,
+                                        time,
+                                        color,
+                                        commands,
+                                    });
+                                }
+                            } else {
+                                state.timeline_selected_cue = None;
+                                state.timeline_cue_buffer_id = None;
                             }
                         }
 
@@ -3619,6 +3759,7 @@ fn draw_timeline(
             actions.push(EditorAction::SetTimelineTempo {
                 bpm,
                 beats_per_bar: timeline.beats_per_bar,
+                beat_unit: timeline.beat_unit,
             });
         }
         let mut beats_per_bar = timeline.beats_per_bar;
@@ -3634,6 +3775,22 @@ fn draw_timeline(
             actions.push(EditorAction::SetTimelineTempo {
                 bpm: timeline.bpm,
                 beats_per_bar,
+                beat_unit: timeline.beat_unit,
+            });
+        }
+        let mut beat_unit = timeline.beat_unit;
+        egui::ComboBox::from_id_salt("timeline-beat-unit")
+            .selected_text(format!("/{beat_unit}"))
+            .show_ui(ui, |ui| {
+                for candidate in [2_u32, 4, 8, 16] {
+                    ui.selectable_value(&mut beat_unit, candidate, format!("/{candidate}"));
+                }
+            });
+        if beat_unit != timeline.beat_unit {
+            actions.push(EditorAction::SetTimelineTempo {
+                bpm: timeline.bpm,
+                beats_per_bar: timeline.beats_per_bar,
+                beat_unit,
             });
         }
         ui.checkbox(&mut state.timeline_snap, "Snap")
@@ -4716,12 +4873,6 @@ impl TimelineSnapMode {
             Self::Bar => "Bar",
         }
     }
-}
-
-#[derive(Clone, Copy)]
-enum CueAction {
-    Marker(usize),
-    Trigger(usize),
 }
 
 #[derive(Clone, Copy)]

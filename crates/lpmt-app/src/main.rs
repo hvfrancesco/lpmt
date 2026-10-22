@@ -1803,13 +1803,20 @@ impl App {
                     self.status_message =
                         format!("Timeline duration: {:.2}s", self.project.timeline.duration);
                 }
-                EditorAction::SetTimelineTempo { bpm, beats_per_bar } => {
+                EditorAction::SetTimelineTempo {
+                    bpm,
+                    beats_per_bar,
+                    beat_unit,
+                } => {
                     self.project.timeline.bpm = bpm;
                     self.project.timeline.beats_per_bar = beats_per_bar;
+                    self.project.timeline.beat_unit = beat_unit;
                     self.project.timeline.normalize();
                     self.status_message = format!(
-                        "Timeline tempo: {:.1} BPM · {} beats/bar",
-                        self.project.timeline.bpm, self.project.timeline.beats_per_bar
+                        "Timeline tempo: {:.1} BPM · {}/{}",
+                        self.project.timeline.bpm,
+                        self.project.timeline.beats_per_bar,
+                        self.project.timeline.beat_unit
                     );
                 }
                 EditorAction::AddTimelineTrigger { time, command } => {
@@ -1922,6 +1929,80 @@ impl App {
                         self.project.timeline.markers.remove(marker);
                         self.sync_clock_duration();
                         self.status_message = "Removed timeline marker".to_owned();
+                    }
+                }
+                EditorAction::AddTimelineCue { time } => {
+                    if self.project.timeline.is_empty() {
+                        let duration = self
+                            .clock
+                            .duration_seconds()
+                            .map_or(10.0, |duration| duration as f32);
+                        self.project.timeline.duration = duration;
+                    }
+                    self.project.timeline.normalize();
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let id = self.project.timeline.next_cue_id();
+                    let name = format!("Cue {id}");
+                    self.project
+                        .timeline
+                        .cues
+                        .push(lpmt_core::timeline::TimelineCue {
+                            id,
+                            name: name.clone(),
+                            time,
+                            note: String::new(),
+                            color: [0.35, 0.7, 1.0],
+                            commands: Vec::new(),
+                        });
+                    self.project.timeline.sort_cues();
+                    self.sync_clock_duration();
+                    self.status_message = format!("Added {name} at {time:.2}s");
+                }
+                EditorAction::SetTimelineCue {
+                    id,
+                    name,
+                    note,
+                    time,
+                    color,
+                    commands,
+                } => {
+                    let Some(cue) = self
+                        .project
+                        .timeline
+                        .cues
+                        .iter_mut()
+                        .find(|cue| cue.id == id)
+                    else {
+                        continue;
+                    };
+                    cue.name = name;
+                    cue.note = note;
+                    cue.time = time.clamp(0.0, self.project.timeline.duration);
+                    cue.color = color.map(|channel| channel.clamp(0.0, 1.0));
+                    cue.commands = commands;
+                    self.project.timeline.sort_cues();
+                }
+                EditorAction::RemoveTimelineCue { id } => {
+                    self.project.timeline.cues.retain(|cue| cue.id != id);
+                    self.status_message = "Removed timeline cue".to_owned();
+                }
+                EditorAction::FireTimelineCue { id } => {
+                    let Some(commands) = self
+                        .project
+                        .timeline
+                        .cues
+                        .iter()
+                        .find(|cue| cue.id == id)
+                        .map(|cue| cue.commands.clone())
+                    else {
+                        continue;
+                    };
+                    if commands.is_empty() {
+                        self.status_message = "Cue has no commands".to_owned();
+                        continue;
+                    }
+                    for command in commands {
+                        self.execute_timeline_command(command);
                     }
                 }
                 EditorAction::AddTimelineColourTrack { output } => {
@@ -4160,6 +4241,9 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             (HistoryKey::TimelineMarker(*marker), "move timeline marker")
         }
         RemoveTimelineMarker { .. } => (HistoryKey::Discrete, "remove timeline marker"),
+        AddTimelineCue { .. } => (HistoryKey::Discrete, "add timeline cue"),
+        SetTimelineCue { id, .. } => (HistoryKey::TimelineCue(*id), "change timeline cue"),
+        RemoveTimelineCue { .. } => (HistoryKey::Discrete, "remove timeline cue"),
         AddTimelineColourTrack { .. } => (HistoryKey::Discrete, "add colour track"),
         RemoveTimelineColourTrack { .. } => (HistoryKey::Discrete, "remove colour track"),
         AddTimelineColourKey { .. } => (HistoryKey::Discrete, "add colour key"),
@@ -4235,6 +4319,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | SetTransportLoop { .. }
         | SeekTransport { .. }
         | FireTimelineTrigger { .. }
+        | FireTimelineCue { .. }
         | ReloadMedia
         | SaveProject { .. }
         | SaveProjectDialog

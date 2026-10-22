@@ -188,12 +188,12 @@ shelf; Calibration and Show are separate modes.
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
 crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
-learn, parameter timeline tracks, transport triggers and named markers are now
-in place. The next timeline work is:
+learn, parameter timeline tracks, transport triggers, named markers and a
+persisted cue stack are now in place. The next timeline work is:
 
-- richer cue data and additional command triggers;
-- time-signature denominator and tempo maps;
-- richer interpolation and timeline templates.
+- tempo maps and cue follow/auto modes;
+- additional cue commands and richer interpolation;
+- timeline templates and per-stage timelines.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -448,8 +448,8 @@ invert), press **Add track**, then edit its keys:
   scroll horizontally, roll the wheel over the ruler to zoom, use **Ctrl+wheel**
   over any track to zoom, or **Shift+wheel** to pan;
 - enable **Snap** and choose **Time**, **Beat** or **Bar** quantization for new
-  and dragged keys, triggers and markers; **BPM** and **beats/bar** define the
-  musical grid. Ruler scrubbing remains continuous;
+  and dragged keys, triggers and markers; **BPM**, **beats/bar** and the beat
+  denominator define the musical grid. Ruler scrubbing remains continuous;
 - use the normal transport to play, pause, restart and loop the timeline.
 
 Choose an output and press **Add colour track** for a dedicated RGB tint lane.
@@ -473,11 +473,13 @@ it. **Prev marker** and **Next marker** — or the `[` and `]` keys when no text
 field has focus — jump between markers relative to the playhead. Markers are
 saved with the project and participate in undo/redo.
 
-The Show sidebar presents a sorted **Cues** list built from the timeline's
-markers and triggers. **Go** seeks to a marker or fires a trigger immediately,
-without waiting for the playhead, which makes the same cue list usable for
-rehearsal and live operation. Trigger cues are runtime actions and do not modify
-the project.
+The Show sidebar holds a persisted **Cues** stack. Add a cue at the playhead,
+then edit its name, note, colour and any combination of transport commands.
+**Go** fires that cue immediately; **Prev cue** and **Next cue** select by cue
+time relative to the playhead. Cue metadata and command lists are saved with the
+project and undoable, while firing a cue is a runtime action and does not dirty
+the project. Timeline markers and triggers remain available as automatic
+events.
 
 Timeline keys target stable parameter paths, so renaming a layer or surface does
 not break automation. Track and trigger edits are undoable and saved with the

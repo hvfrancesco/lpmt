@@ -114,8 +114,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   with absolute, relative and toggle modes, and maps them through the same parameter actions. Toggle
   gives pads and buttons latching control of bool parameters. A parameter timeline evaluates float
   curves and bool state tracks from the shared show clock in the Show panel, with transport triggers,
-  named markers, a manual cue list and a render-time overlay so playback does not dirty the
-  project. OSC addresses remain session-only; DMX, richer cue metadata and command triggers are
+  named markers, a persisted cue stack and a render-time overlay so playback does not dirty the
+  project. OSC addresses remain session-only; DMX, tempo maps and additional cue commands are
   next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
@@ -159,10 +159,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, richer
-  cue metadata/command triggers, the legacy XML importer, packaging and validated macOS/Windows
-  builds.
-- **Next implementation slice:** richer cue data, additional command triggers and tempo-map
-  support, all targeting the stable parameter paths.
+  tempo maps/cue follow modes and additional command triggers, the legacy XML importer, packaging
+  and validated macOS/Windows builds.
+- **Next implementation slice:** tempo maps, cue follow/auto modes and additional command
+  triggers, all targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -662,9 +662,10 @@ Timeline should be core functionality, not an addon. The current v1 implements:
   retiming, rename and undo support.
 - Horizontal timeline navigation with 1×–64× zoom, a view scrollbar, wheel-over-ruler zoom,
   Ctrl+wheel zoom over tracks and Shift+wheel pan.
-- Configurable time, beat or bar snap for key, trigger and marker edits, driven by persisted BPM
-  and beats-per-bar settings.
-- A manual Show-mode cue list built from markers and triggers, with per-cue **Go** actions.
+- Configurable time, beat or bar snap for key, trigger and marker edits, driven by persisted BPM,
+  beats-per-bar and time-signature denominator settings.
+- A persisted Show-mode cue stack with stable IDs, name, note, colour, multiple transport commands
+  and manual **Go** / previous / next actions.
 - Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, manage
   triggers, seek from the ruler, and resize the timeline duration.
 - Deterministic evaluation: playback and scrubbing sample the same clock used by video and audio.
@@ -674,8 +675,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 Still planned:
 
-- Richer cue metadata and additional command triggers.
-- Time-signature denominators and tempo maps.
+- Tempo maps, cue follow/auto modes and additional command triggers.
 - Per-stage timelines or independent cue stacks, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
@@ -824,10 +824,10 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Smooth easing, multi-key copy/paste and named timeline markers.
 - [x] Per-output RGB tint parameters, dedicated output colour tracks and multi-key colour copy/paste.
 - [x] Marker `[`/`]` keyboard navigation.
-- [x] Manual marker/trigger cue list with per-cue Go actions.
-- [x] Configurable time/beat/bar snap driven by BPM and beats-per-bar.
+- [x] Persisted cue stack with names, notes, colours, multiple commands and Go/prev/next.
+- [x] Configurable time/beat/bar snap driven by BPM, beats-per-bar and denominator.
 - [x] Multi-track key selection with path-based copy/paste.
-- [ ] Rich cue metadata and additional command triggers.
+- [ ] Tempo maps, cue follow/auto modes and additional command triggers.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 
