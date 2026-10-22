@@ -8,4 +8,5 @@ description = "egui editor for LPMT"
 
 [dependencies]
 egui.workspace = true
+image.workspace = true
 lpmt-core = { path = "../lpmt-core" }

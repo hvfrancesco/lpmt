@@ -18,6 +18,8 @@ use lpmt_core::timeline::{
     MIN_TIMELINE_DURATION,
 };
 
+const SPLASH_SECONDS: f64 = 3.5;
+
 #[derive(Debug, Clone, Default)]
 pub struct EditorStatus {
     pub adapter: String,
@@ -151,7 +153,12 @@ struct TimelineClipboard {
     keys: Vec<TimelineKey>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
+struct TimelineColourClipboard {
+    tint: [f32; 3],
+    interpolation: TimelineInterpolation,
+}
+
 pub struct EditorState {
     pub mode: WorkspaceMode,
     /// Active surface shown in the inspector and with edit handles.
@@ -184,12 +191,19 @@ pub struct EditorState {
     timeline_selected_colour_key: Option<usize>,
     timeline_drag_colour_key: Option<(usize, usize)>,
     timeline_add_colour_output: Option<usize>,
+    timeline_colour_clipboard: Option<TimelineColourClipboard>,
     timeline_clipboard: Option<TimelineClipboard>,
     timeline_selected_keys: BTreeSet<usize>,
     timeline_selected_marker: Option<usize>,
     timeline_drag_marker: Option<usize>,
     timeline_marker_name: String,
     timeline_marker_name_id: Option<usize>,
+    timeline_zoom: f32,
+    timeline_view_start: f32,
+    timeline_snap: bool,
+    timeline_snap_seconds: f32,
+    splash_texture: Option<egui::TextureHandle>,
+    splash_start_seconds: Option<f64>,
     about_open: bool,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
@@ -236,12 +250,19 @@ impl Default for EditorState {
             timeline_selected_colour_key: None,
             timeline_drag_colour_key: None,
             timeline_add_colour_output: None,
+            timeline_colour_clipboard: None,
             timeline_clipboard: None,
             timeline_selected_keys: BTreeSet::new(),
             timeline_selected_marker: None,
             timeline_drag_marker: None,
             timeline_marker_name: String::new(),
             timeline_marker_name_id: None,
+            timeline_zoom: 1.0,
+            timeline_view_start: 0.0,
+            timeline_snap: true,
+            timeline_snap_seconds: 0.1,
+            splash_texture: None,
+            splash_start_seconds: None,
             about_open: false,
             drag_corner: None,
             drag_grid: None,
@@ -276,12 +297,15 @@ impl EditorState {
         self.timeline_selected_colour_key = None;
         self.timeline_drag_colour_key = None;
         self.timeline_add_colour_output = None;
+        self.timeline_colour_clipboard = None;
         self.timeline_clipboard = None;
         self.timeline_selected_keys.clear();
         self.timeline_selected_marker = None;
         self.timeline_drag_marker = None;
         self.timeline_marker_name.clear();
         self.timeline_marker_name_id = None;
+        self.timeline_zoom = 1.0;
+        self.timeline_view_start = 0.0;
         self.mask_add_mode = false;
         self.surface_name.clear();
         self.layer_name.clear();
@@ -470,6 +494,9 @@ pub enum EditorAction {
     RemoveTimelineTrigger {
         trigger: usize,
     },
+    FireTimelineTrigger {
+        trigger: usize,
+    },
     AddTimelineMarker {
         time: f32,
     },
@@ -501,6 +528,12 @@ pub enum EditorAction {
     RemoveTimelineColourKey {
         track: usize,
         key: usize,
+    },
+    PasteTimelineColourKey {
+        track: usize,
+        time: f32,
+        tint: [f32; 3],
+        interpolation: TimelineInterpolation,
     },
     ResetSurface {
         surface: usize,
@@ -698,6 +731,15 @@ pub fn draw(
     status: &EditorStatus,
 ) -> Vec<EditorAction> {
     let mut actions = Vec::new();
+    let now = ui.input(|input| input.time);
+    let splash_visible = state
+        .splash_start_seconds
+        .is_none_or(|start| now - start < SPLASH_SECONDS);
+    if splash_visible {
+        // The splash is a full-screen modal overlay: disable the editor
+        // underneath so an early click cannot change the project.
+        ui.disable();
+    }
     if let Some(parameter) = state.binding_learn.clone() {
         match capture_hotkey(ui) {
             Some(HotkeyCapture::Cancel) => state.binding_learn = None,
@@ -719,7 +761,10 @@ pub fn draw(
             }
             None => {}
         }
-    } else if !ui.ctx().egui_wants_keyboard_input() && state.media_picker.is_none() {
+    } else if !splash_visible
+        && !ui.ctx().egui_wants_keyboard_input()
+        && state.media_picker.is_none()
+    {
         let mut custom_matched = false;
         for (index, binding) in project.bindings.iter().enumerate() {
             if hotkey_binding_pressed(ui, binding) {
@@ -752,6 +797,35 @@ pub fn draw(
                     actions.push(EditorAction::SetOutputGuide {
                         output: state.selected_output,
                         guide: current.next(),
+                    });
+                }
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::OpenBracket)) {
+                let position = status.transport.position_seconds as f32;
+                if let Some(time) = project
+                    .timeline
+                    .markers
+                    .iter()
+                    .rev()
+                    .find(|marker| marker.time < position - 1.0e-4)
+                    .map(|marker| marker.time)
+                {
+                    actions.push(EditorAction::SeekTransport {
+                        position: f64::from(time),
+                    });
+                }
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::CloseBracket)) {
+                let position = status.transport.position_seconds as f32;
+                if let Some(time) = project
+                    .timeline
+                    .markers
+                    .iter()
+                    .find(|marker| marker.time > position + 1.0e-4)
+                    .map(|marker| marker.time)
+                {
+                    actions.push(EditorAction::SeekTransport {
+                        position: f64::from(time),
                     });
                 }
             }
@@ -850,6 +924,10 @@ pub fn draw(
                 }
             });
             ui.menu_button("Help", |ui| {
+                if ui.button("Show splash").clicked() {
+                    state.splash_start_seconds = Some(ui.input(|input| input.time));
+                    ui.close();
+                }
                 if ui.button("About LPMT").clicked() {
                     state.about_open = true;
                     ui.close();
@@ -1015,6 +1093,70 @@ pub fn draw(
                             }
                         }
                         ui.label("One clock drives every video and output.");
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.heading("Cues");
+                        let mut cues: Vec<(f32, String, CueAction)> = Vec::new();
+                        for (index, marker) in project.timeline.markers.iter().enumerate() {
+                            let name = if marker.name.is_empty() {
+                                format!("Marker {}", index + 1)
+                            } else {
+                                marker.name.clone()
+                            };
+                            cues.push((marker.time, name, CueAction::Marker(index)));
+                        }
+                        for (index, trigger) in project.timeline.triggers.iter().enumerate() {
+                            cues.push((
+                                trigger.time,
+                                format!("Trigger · {}", trigger_command_short(trigger.command)),
+                                CueAction::Trigger(index),
+                            ));
+                        }
+                        cues.sort_by(|left, right| left.0.total_cmp(&right.0));
+                        if cues.is_empty() {
+                            ui.label(
+                                RichText::new(
+                                    "Add markers or triggers in the timeline to build a cue list.",
+                                )
+                                .small()
+                                .color(Color32::from_rgb(132, 144, 166)),
+                            );
+                        } else {
+                            for (time, label, cue) in cues {
+                                ui.horizontal(|ui| {
+                                    if ui
+                                        .small_button("Go")
+                                        .on_hover_text("Seek or fire this cue now")
+                                        .clicked()
+                                    {
+                                        match cue {
+                                            CueAction::Marker(marker) => {
+                                                if let Some(marker) =
+                                                    project.timeline.markers.get(marker)
+                                                {
+                                                    actions.push(EditorAction::SeekTransport {
+                                                        position: f64::from(marker.time),
+                                                    });
+                                                }
+                                            }
+                                            CueAction::Trigger(trigger) => {
+                                                actions.push(EditorAction::FireTimelineTrigger {
+                                                    trigger,
+                                                });
+                                            }
+                                        }
+                                    }
+                                    ui.label(
+                                        RichText::new(format!("{time:.2}s"))
+                                            .monospace()
+                                            .small()
+                                            .color(Color32::from_rgb(130, 142, 164)),
+                                    );
+                                    ui.label(label);
+                                });
+                            }
+                        }
 
                         ui.add_space(12.0);
                         ui.separator();
@@ -2284,8 +2426,117 @@ pub fn draw(
     });
 
     draw_media_picker(ui, state, project, status, stage, &mut actions);
+    draw_splash(ui, state, now, splash_visible);
 
     actions
+}
+
+fn draw_splash(ui: &mut egui::Ui, state: &mut EditorState, now: f64, visible: bool) {
+    if !visible {
+        return;
+    }
+    let start = *state.splash_start_seconds.get_or_insert(now);
+    let elapsed = (now - start).max(0.0) as f32;
+    let dismissible = elapsed > 0.2;
+    let dismissed = ui.input(|input| {
+        input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::PointerButton {
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    ..
+                } | egui::Event::Key { pressed: true, .. }
+            )
+        })
+    });
+    if dismissible && dismissed {
+        state.splash_start_seconds = Some(now - SPLASH_SECONDS);
+        return;
+    }
+
+    if state.splash_texture.is_none() {
+        state.splash_texture = load_splash_texture(ui.ctx());
+    }
+    let Some(texture) = state.splash_texture.as_ref() else {
+        return;
+    };
+
+    let fade_in = (elapsed / 0.25).clamp(0.0, 1.0);
+    let fade_out = ((SPLASH_SECONDS as f32 - elapsed) / 0.45).clamp(0.0, 1.0);
+    let alpha = fade_in * fade_out;
+    let alpha_u8 = (alpha * 255.0) as u8;
+    let screen = ui.ctx().content_rect();
+    let painter = ui.ctx().layer_painter(egui::LayerId::new(
+        egui::Order::Foreground,
+        egui::Id::unique("lpmt-splash"),
+    ));
+    painter.rect_filled(
+        screen,
+        0.0,
+        Color32::from_black_alpha((alpha * 205.0) as u8),
+    );
+
+    let aspect = 970.0 / 458.0;
+    let footer = 56.0;
+    let max_width = (screen.width() * 0.72).min(820.0);
+    let max_height = screen.height() * 0.82;
+    let mut image_width = max_width;
+    let mut image_height = image_width / aspect;
+    if image_height + footer > max_height {
+        image_height = (max_height - footer).max(1.0);
+        image_width = image_height * aspect;
+    }
+    let card = EguiRect::from_center_size(
+        screen.center(),
+        Vec2::new(image_width + 16.0, image_height + footer + 16.0),
+    );
+    painter.rect_filled(
+        card.translate(Vec2::new(0.0, 6.0)),
+        12.0,
+        Color32::from_black_alpha((alpha * 110.0) as u8),
+    );
+    painter.rect_filled(card, 12.0, Color32::from_rgb(13, 17, 24));
+    let image_rect = EguiRect::from_min_size(
+        card.min + Vec2::new(8.0, 8.0),
+        Vec2::new(image_width, image_height),
+    );
+    painter.image(
+        texture.id(),
+        image_rect,
+        EguiRect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+        Color32::from_rgba_unmultiplied(255, 255, 255, alpha_u8),
+    );
+
+    let text_color = Color32::from_rgba_unmultiplied(196, 207, 224, alpha_u8);
+    let dim_color = Color32::from_rgba_unmultiplied(132, 145, 166, alpha_u8);
+    let footer_center = card.center().x;
+    painter.text(
+        Pos2::new(footer_center, image_rect.bottom() + 16.0),
+        Align2::CENTER_TOP,
+        format!(
+            "LPMT 2 · Rust/GPU rewrite · preview {}",
+            env!("CARGO_PKG_VERSION")
+        ),
+        FontId::proportional(11.5),
+        text_color,
+    );
+    painter.text(
+        Pos2::new(footer_center, image_rect.bottom() + 34.0),
+        Align2::CENTER_TOP,
+        "Click or press any key to continue",
+        FontId::proportional(10.5),
+        dim_color,
+    );
+}
+
+fn load_splash_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
+    let image = image::load_from_memory(include_bytes!("../../../assets/lpmt_splash.png"))
+        .ok()?
+        .to_rgba8();
+    let size = [image.width() as usize, image.height() as usize];
+    let pixels = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
+    Some(ctx.load_texture("lpmt-splash", pixels, egui::TextureOptions::LINEAR))
 }
 
 fn draw_media_shelf(
@@ -2470,6 +2721,19 @@ fn draw_timeline(
     let duration = timeline.duration.max(MIN_TIMELINE_DURATION);
     let parameters = project_parameters(project);
     let shift = ui.input(|input| input.modifiers.shift);
+
+    let zoom = state.timeline_zoom.clamp(1.0, 64.0);
+    let span = (duration / zoom).max(0.05).min(duration);
+    let max_view_start = (duration - span).max(0.0);
+    state.timeline_view_start = state.timeline_view_start.clamp(0.0, max_view_start);
+    if span >= duration - 1.0e-4 {
+        state.timeline_view_start = 0.0;
+    }
+    let view = TimelineView {
+        start: state.timeline_view_start,
+        span,
+    };
+    let tick_step = timeline_tick_step(view.span);
 
     if state
         .timeline_selected_track
@@ -2779,7 +3043,11 @@ fn draw_timeline(
             });
         state.timeline_trigger_command = command;
         if ui.button("Add trigger").clicked() {
-            let time = status.transport.position_seconds as f32;
+            let time = snap_timeline_time(
+                state.timeline_snap,
+                state.timeline_snap_seconds,
+                status.transport.position_seconds as f32,
+            );
             let trigger = timeline
                 .triggers
                 .iter()
@@ -2791,7 +3059,11 @@ fn draw_timeline(
             actions.push(EditorAction::AddTimelineTrigger { time, command });
         }
         if ui.button("Add marker").clicked() {
-            let time = status.transport.position_seconds as f32;
+            let time = snap_timeline_time(
+                state.timeline_snap,
+                state.timeline_snap_seconds,
+                status.transport.position_seconds as f32,
+            );
             let marker = timeline
                 .markers
                 .iter()
@@ -3058,6 +3330,38 @@ fn draw_timeline(
                                 }
                             }
                         });
+                    if ui.button("Copy colour key").clicked() {
+                        state.timeline_colour_clipboard = Some(TimelineColourClipboard {
+                            tint: key.tint,
+                            interpolation: key.interpolation,
+                        });
+                    }
+                    let can_paste = state.timeline_colour_clipboard.is_some();
+                    if ui
+                        .add_enabled(can_paste, egui::Button::new("Paste at playhead"))
+                        .clicked()
+                    {
+                        if let Some(clipboard) = state.timeline_colour_clipboard {
+                            let time = status.transport.position_seconds as f32;
+                            let existing = track
+                                .keys
+                                .iter()
+                                .position(|key| (key.time - time).abs() <= 1.0e-4);
+                            let insert_at = track
+                                .keys
+                                .iter()
+                                .position(|key| key.time > time)
+                                .unwrap_or(track.keys.len());
+                            state.timeline_selected_colour_key =
+                                Some(existing.unwrap_or(insert_at));
+                            actions.push(EditorAction::PasteTimelineColourKey {
+                                track: colour_track,
+                                time,
+                                tint: clipboard.tint,
+                                interpolation: clipboard.interpolation,
+                            });
+                        }
+                    }
                     if ui.button("Delete colour key").clicked() {
                         actions.push(EditorAction::RemoveTimelineColourKey {
                             track: colour_track,
@@ -3159,7 +3463,67 @@ fn draw_timeline(
         }
     }
 
-    let tick_step = timeline_tick_step(duration);
+    ui.horizontal_wrapped(|ui| {
+        ui.label(RichText::new("View").strong());
+        let playhead_time = status.transport.position_seconds as f32;
+        let anchor = if view.contains(playhead_time) {
+            playhead_time
+        } else {
+            view.start + view.span * 0.5
+        };
+        if ui
+            .small_button("-")
+            .on_hover_text("Zoom timeline out")
+            .clicked()
+        {
+            zoom_timeline(state, 1.0 / 1.5, anchor, duration);
+        }
+        if ui
+            .small_button("+")
+            .on_hover_text("Zoom timeline in")
+            .clicked()
+        {
+            zoom_timeline(state, 1.5, anchor, duration);
+        }
+        if ui.small_button("Fit").clicked() {
+            state.timeline_zoom = 1.0;
+            state.timeline_view_start = 0.0;
+        }
+        ui.label(format!("{:.1}×", state.timeline_zoom));
+        let max_start_now = (duration - duration / state.timeline_zoom.max(1.0)).max(0.0);
+        ui.add_enabled(
+            max_start_now > 0.0,
+            egui::Slider::new(&mut state.timeline_view_start, 0.0..=max_start_now)
+                .show_value(false),
+        )
+        .on_hover_text("Horizontal timeline scroll");
+        let display_view = TimelineView {
+            start: state.timeline_view_start,
+            span: duration / state.timeline_zoom.max(1.0),
+        };
+        ui.label(format!(
+            "{:.1}–{:.1}s",
+            display_view.start,
+            display_view.end()
+        ));
+        ui.separator();
+        ui.checkbox(&mut state.timeline_snap, "Snap")
+            .on_hover_text("Snap key, trigger and marker times to the grid");
+        ui.add_enabled(
+            state.timeline_snap,
+            egui::DragValue::new(&mut state.timeline_snap_seconds)
+                .range(0.01..=10.0)
+                .speed(0.01)
+                .suffix(" s"),
+        )
+        .on_hover_text("Snap interval");
+        ui.label(
+            RichText::new("Wheel over ruler zooms · Ctrl+wheel over tracks · Shift+wheel pans")
+                .small()
+                .color(Color32::from_rgb(120, 132, 152)),
+        );
+    });
+
     ui.horizontal(|ui| {
         let (_, _) = ui.allocate_exact_size(Vec2::new(LABEL_WIDTH, 20.0), Sense::hover());
         let width = ui.available_width().max(1.0);
@@ -3167,33 +3531,39 @@ fn draw_timeline(
             ui.allocate_exact_size(Vec2::new(width, 20.0), Sense::click_and_drag());
         let painter = ui.painter();
         painter.rect_filled(rect, 2.0, Color32::from_rgb(22, 25, 33));
-        let mut time = 0.0;
-        while time <= duration + 0.0001 {
-            let x = timeline_time_x(rect, time, duration);
-            painter.line_segment(
-                [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
-                Stroke::new(1.0, Color32::from_rgb(48, 53, 66)),
-            );
-            painter.text(
-                Pos2::new(x + 3.0, rect.top() + 2.0),
-                Align2::LEFT_TOP,
-                format!("{time:.1}s"),
-                FontId::proportional(10.0),
-                Color32::from_rgb(130, 140, 160),
-            );
+        let mut time = timeline_first_tick(view, tick_step);
+        while time <= view.end() + 0.0001 {
+            if time >= view.start - 0.0001 {
+                let x = view.x(rect, time);
+                painter.line_segment(
+                    [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
+                    Stroke::new(1.0, Color32::from_rgb(48, 53, 66)),
+                );
+                painter.text(
+                    Pos2::new(x + 3.0, rect.top() + 2.0),
+                    Align2::LEFT_TOP,
+                    format!("{time:.1}s"),
+                    FontId::proportional(10.0),
+                    Color32::from_rgb(130, 140, 160),
+                );
+            }
             time += tick_step;
         }
-        let playhead = timeline_time_x(rect, status.transport.position_seconds as f32, duration);
-        painter.line_segment(
-            [
-                Pos2::new(playhead, rect.top()),
-                Pos2::new(playhead, rect.bottom()),
-            ],
-            Stroke::new(2.0, Color32::from_rgb(255, 120, 90)),
-        );
+        let playhead_time = status.transport.position_seconds as f32;
+        if view.contains(playhead_time) {
+            let playhead = view.x(rect, playhead_time);
+            painter.line_segment(
+                [
+                    Pos2::new(playhead, rect.top()),
+                    Pos2::new(playhead, rect.bottom()),
+                ],
+                Stroke::new(2.0, Color32::from_rgb(255, 120, 90)),
+            );
+        }
+        handle_timeline_wheel(ui, &response, rect, state, duration, view, true);
         if let Some(pointer) = response.interact_pointer_pos() {
             if response.clicked() || response.dragged() {
-                let time = timeline_x_time(rect, pointer.x, duration);
+                let time = view.time(rect, pointer.x);
                 actions.push(EditorAction::SeekTransport {
                     position: f64::from(time),
                 });
@@ -3246,6 +3616,7 @@ fn draw_timeline(
                         Vec2::new(width, LANE_HEIGHT),
                         Sense::click_and_drag(),
                     );
+                    handle_timeline_wheel(ui, &response, lane_rect, state, duration, view, false);
                     let painter = ui.painter();
                     painter.rect_filled(
                         lane_rect,
@@ -3256,16 +3627,18 @@ fn draw_timeline(
                             Color32::from_rgb(20, 23, 30)
                         },
                     );
-                    let mut tick = 0.0;
-                    while tick <= duration + 0.0001 {
-                        let x = timeline_time_x(lane_rect, tick, duration);
-                        painter.line_segment(
-                            [
-                                Pos2::new(x, lane_rect.top()),
-                                Pos2::new(x, lane_rect.bottom()),
-                            ],
-                            Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
-                        );
+                    let mut tick = timeline_first_tick(view, tick_step);
+                    while tick <= view.end() + 0.0001 {
+                        if tick >= view.start - 0.0001 {
+                            let x = view.x(lane_rect, tick);
+                            painter.line_segment(
+                                [
+                                    Pos2::new(x, lane_rect.top()),
+                                    Pos2::new(x, lane_rect.bottom()),
+                                ],
+                                Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                            );
+                        }
                         tick += tick_step;
                     }
 
@@ -3274,72 +3647,30 @@ fn draw_timeline(
                         let normalized = ((value - minimum) / span).clamp(0.0, 1.0);
                         lane_rect.bottom() - 5.0 - normalized * (lane_rect.height() - 10.0)
                     };
-                    let curve_color = Color32::from_rgb(105, 205, 225);
-                    if let Some(first) = track.keys.first() {
-                        painter.line_segment(
-                            [
-                                Pos2::new(lane_rect.left(), value_y(first.value)),
-                                Pos2::new(
-                                    timeline_time_x(lane_rect, first.time, duration),
-                                    value_y(first.value),
-                                ),
-                            ],
-                            Stroke::new(1.5, curve_color),
-                        );
-                    }
-                    for pair in track.keys.windows(2) {
-                        let a = pair[0];
-                        let b = pair[1];
-                        let ax = timeline_time_x(lane_rect, a.time, duration);
-                        let bx = timeline_time_x(lane_rect, b.time, duration);
-                        let ay = value_y(a.value);
-                        let by = value_y(b.value);
-                        match a.interpolation {
-                            TimelineInterpolation::Step => {
-                                painter.line_segment(
-                                    [Pos2::new(ax, ay), Pos2::new(bx, ay)],
-                                    Stroke::new(1.5, curve_color),
-                                );
-                                painter.line_segment(
-                                    [Pos2::new(bx, ay), Pos2::new(bx, by)],
-                                    Stroke::new(1.5, curve_color),
-                                );
-                            }
-                            TimelineInterpolation::Linear
-                            | TimelineInterpolation::Smooth => {
-                                painter.line_segment(
-                                    [Pos2::new(ax, ay), Pos2::new(bx, by)],
-                                    Stroke::new(1.5, curve_color),
-                                );
-                            }
-                        }
-                    }
-                    if let Some(last) = track.keys.last() {
-                        painter.line_segment(
-                            [
-                                Pos2::new(
-                                    timeline_time_x(lane_rect, last.time, duration),
-                                    value_y(last.value),
-                                ),
-                                Pos2::new(lane_rect.right(), value_y(last.value)),
-                            ],
-                            Stroke::new(1.5, curve_color),
-                        );
-                    }
+                    draw_timeline_curve(
+                        painter,
+                        lane_rect,
+                        view,
+                        track,
+                        value_y,
+                        Color32::from_rgb(105, 205, 225),
+                    );
 
-                    let key_points: Vec<Pos2> = track
+                    let key_points: Vec<(usize, Pos2)> = track
                         .keys
                         .iter()
-                        .map(|key| {
-                            Pos2::new(
-                                timeline_time_x(lane_rect, key.time, duration),
-                                value_y(key.value),
+                        .enumerate()
+                        .filter(|(_, key)| view.contains(key.time))
+                        .map(|(index, key)| {
+                            (
+                                index,
+                                Pos2::new(view.x(lane_rect, key.time), value_y(key.value)),
                             )
                         })
                         .collect();
-                    for (key_index, point) in key_points.iter().enumerate() {
+                    for (key_index, point) in &key_points {
                         let selected = state.timeline_selected_track == Some(track_index)
-                            && state.timeline_selected_keys.contains(&key_index);
+                            && state.timeline_selected_keys.contains(key_index);
                         painter.circle_filled(
                             *point,
                             if selected { 6.0 } else { 4.5 },
@@ -3356,25 +3687,23 @@ fn draw_timeline(
                         );
                     }
 
-                    let playhead = timeline_time_x(
-                        lane_rect,
-                        status.transport.position_seconds as f32,
-                        duration,
-                    );
-                    painter.line_segment(
-                        [
-                            Pos2::new(playhead, lane_rect.top()),
-                            Pos2::new(playhead, lane_rect.bottom()),
-                        ],
-                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
-                    );
+                    let playhead_time = status.transport.position_seconds as f32;
+                    if view.contains(playhead_time) {
+                        let playhead = view.x(lane_rect, playhead_time);
+                        painter.line_segment(
+                            [
+                                Pos2::new(playhead, lane_rect.top()),
+                                Pos2::new(playhead, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                        );
+                    }
 
                     let pointer = response.interact_pointer_pos();
                     let hit = pointer.and_then(|pointer| {
                         key_points
                             .iter()
-                            .enumerate()
-                            .map(|(index, point)| (index, point.distance(pointer)))
+                            .map(|(index, point)| (*index, point.distance(pointer)))
                             .filter(|(_, distance)| *distance <= 9.0)
                             .min_by(|left, right| left.1.total_cmp(&right.1))
                             .map(|(index, _)| index)
@@ -3402,7 +3731,11 @@ fn draw_timeline(
                     } else if response.double_clicked() {
                         if let Some(pointer) = pointer {
                             if hit.is_none() {
-                                let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                                 let insert_at = track
                                     .keys
                                     .iter()
@@ -3455,7 +3788,11 @@ fn draw_timeline(
                         {
                             if drag_track == track_index {
                                 if let Some(key) = track.keys.get(drag_key) {
-                                    let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                    let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                                     actions.push(EditorAction::SetTimelineKey {
                                         track: track_index,
                                         key: drag_key,
@@ -3530,6 +3867,7 @@ fn draw_timeline(
                         Vec2::new(width, LANE_HEIGHT),
                         Sense::click_and_drag(),
                     );
+                    handle_timeline_wheel(ui, &response, lane_rect, state, duration, view, false);
                     let painter = ui.painter();
                     painter.rect_filled(
                         lane_rect,
@@ -3540,46 +3878,49 @@ fn draw_timeline(
                             Color32::from_rgb(20, 23, 30)
                         },
                     );
-                    let mut tick = 0.0;
-                    while tick <= duration + 0.0001 {
-                        let x = timeline_time_x(lane_rect, tick, duration);
-                        painter.line_segment(
-                            [
-                                Pos2::new(x, lane_rect.top()),
-                                Pos2::new(x, lane_rect.bottom()),
-                            ],
-                            Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
-                        );
+                    let mut tick = timeline_first_tick(view, tick_step);
+                    while tick <= view.end() + 0.0001 {
+                        if tick >= view.start - 0.0001 {
+                            let x = view.x(lane_rect, tick);
+                            painter.line_segment(
+                                [
+                                    Pos2::new(x, lane_rect.top()),
+                                    Pos2::new(x, lane_rect.bottom()),
+                                ],
+                                Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                            );
+                        }
                         tick += tick_step;
                     }
-                    let playhead = timeline_time_x(
-                        lane_rect,
-                        status.transport.position_seconds as f32,
-                        duration,
-                    );
-                    painter.line_segment(
-                        [
-                            Pos2::new(playhead, lane_rect.top()),
-                            Pos2::new(playhead, lane_rect.bottom()),
-                        ],
-                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
-                    );
+                    let playhead_time = status.transport.position_seconds as f32;
+                    if view.contains(playhead_time) {
+                        let playhead = view.x(lane_rect, playhead_time);
+                        painter.line_segment(
+                            [
+                                Pos2::new(playhead, lane_rect.top()),
+                                Pos2::new(playhead, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                        );
+                    }
 
-                    let key_points: Vec<Pos2> = colour_track
+                    let key_points: Vec<(usize, Pos2)> = colour_track
                         .keys
                         .iter()
-                        .map(|key| {
-                            Pos2::new(
-                                timeline_time_x(lane_rect, key.time, duration),
-                                lane_rect.center().y,
+                        .enumerate()
+                        .filter(|(_, key)| view.contains(key.time))
+                        .map(|(index, key)| {
+                            (
+                                index,
+                                Pos2::new(view.x(lane_rect, key.time), lane_rect.center().y),
                             )
                         })
                         .collect();
-                    for (key_index, point) in key_points.iter().enumerate() {
+                    for (key_index, point) in &key_points {
                         let selected = state.timeline_selected_colour_track
                             == Some(colour_track_index)
-                            && state.timeline_selected_colour_key == Some(key_index);
-                        let key = colour_track.keys[key_index];
+                            && state.timeline_selected_colour_key == Some(*key_index);
+                        let key = colour_track.keys[*key_index];
                         let maximum = key.tint.iter().copied().fold(1.0, f32::max);
                         let colour = Color32::from_rgb(
                             (key.tint[0] / maximum * 255.0).clamp(0.0, 255.0) as u8,
@@ -3609,8 +3950,7 @@ fn draw_timeline(
                     let hit = pointer.and_then(|pointer| {
                         key_points
                             .iter()
-                            .enumerate()
-                            .map(|(index, point)| (index, point.distance(pointer)))
+                            .map(|(index, point)| (*index, point.distance(pointer)))
                             .filter(|(_, distance)| *distance <= 9.0)
                             .min_by(|left, right| left.1.total_cmp(&right.1))
                             .map(|(index, _)| index)
@@ -3630,7 +3970,11 @@ fn draw_timeline(
                     } else if response.double_clicked() {
                         if let Some(pointer) = pointer {
                             if hit.is_none() {
-                                let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                                 let insert_at = colour_track
                                     .keys
                                     .iter()
@@ -3683,7 +4027,11 @@ fn draw_timeline(
                         {
                             if track == colour_track_index {
                                 if let Some(key) = colour_track.keys.get(key_index) {
-                                    let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                    let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                                     actions.push(EditorAction::SetTimelineColourKey {
                                         track: colour_track_index,
                                         key: key_index,
@@ -3739,6 +4087,7 @@ fn draw_timeline(
                     Vec2::new(width, LANE_HEIGHT),
                     Sense::click_and_drag(),
                 );
+                handle_timeline_wheel(ui, &response, lane_rect, state, duration, view, false);
                 let painter = ui.painter();
                 painter.rect_filled(
                     lane_rect,
@@ -3749,43 +4098,46 @@ fn draw_timeline(
                         Color32::from_rgb(22, 23, 28)
                     },
                 );
-                let mut tick = 0.0;
-                while tick <= duration + 0.0001 {
-                    let x = timeline_time_x(lane_rect, tick, duration);
-                    painter.line_segment(
-                        [
-                            Pos2::new(x, lane_rect.top()),
-                            Pos2::new(x, lane_rect.bottom()),
-                        ],
-                        Stroke::new(1.0, Color32::from_rgb(40, 41, 48)),
-                    );
+                let mut tick = timeline_first_tick(view, tick_step);
+                while tick <= view.end() + 0.0001 {
+                    if tick >= view.start - 0.0001 {
+                        let x = view.x(lane_rect, tick);
+                        painter.line_segment(
+                            [
+                                Pos2::new(x, lane_rect.top()),
+                                Pos2::new(x, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.0, Color32::from_rgb(40, 41, 48)),
+                        );
+                    }
                     tick += tick_step;
                 }
-                let playhead = timeline_time_x(
-                    lane_rect,
-                    status.transport.position_seconds as f32,
-                    duration,
-                );
-                painter.line_segment(
-                    [
-                        Pos2::new(playhead, lane_rect.top()),
-                        Pos2::new(playhead, lane_rect.bottom()),
-                    ],
-                    Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
-                );
+                let playhead_time = status.transport.position_seconds as f32;
+                if view.contains(playhead_time) {
+                    let playhead = view.x(lane_rect, playhead_time);
+                    painter.line_segment(
+                        [
+                            Pos2::new(playhead, lane_rect.top()),
+                            Pos2::new(playhead, lane_rect.bottom()),
+                        ],
+                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                    );
+                }
 
-                let trigger_points: Vec<Pos2> = timeline
+                let trigger_points: Vec<(usize, Pos2)> = timeline
                     .triggers
                     .iter()
-                    .map(|trigger| {
-                        Pos2::new(
-                            timeline_time_x(lane_rect, trigger.time, duration),
-                            lane_rect.center().y,
+                    .enumerate()
+                    .filter(|(_, trigger)| view.contains(trigger.time))
+                    .map(|(index, trigger)| {
+                        (
+                            index,
+                            Pos2::new(view.x(lane_rect, trigger.time), lane_rect.center().y),
                         )
                     })
                     .collect();
-                for (trigger_index, point) in trigger_points.iter().enumerate() {
-                    let selected = state.timeline_selected_trigger == Some(trigger_index);
+                for (trigger_index, point) in &trigger_points {
+                    let selected = state.timeline_selected_trigger == Some(*trigger_index);
                     painter.circle_filled(
                         *point,
                         if selected { 6.0 } else { 5.0 },
@@ -3800,7 +4152,7 @@ fn draw_timeline(
                         if selected { 6.0 } else { 5.0 },
                         Stroke::new(1.0, Color32::from_rgb(40, 32, 20)),
                     );
-                    if let Some(trigger) = timeline.triggers.get(trigger_index) {
+                    if let Some(trigger) = timeline.triggers.get(*trigger_index) {
                         painter.text(
                             *point + Vec2::new(9.0, 0.0),
                             Align2::LEFT_CENTER,
@@ -3815,8 +4167,7 @@ fn draw_timeline(
                 let hit = pointer.and_then(|pointer| {
                     trigger_points
                         .iter()
-                        .enumerate()
-                        .map(|(index, point)| (index, point.distance(pointer)))
+                        .map(|(index, point)| (*index, point.distance(pointer)))
                         .filter(|(_, distance)| *distance <= 10.0)
                         .min_by(|left, right| left.1.total_cmp(&right.1))
                         .map(|(index, _)| index)
@@ -3831,7 +4182,11 @@ fn draw_timeline(
                 } else if response.double_clicked() {
                     if let Some(pointer) = pointer {
                         if hit.is_none() {
-                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                             let trigger = timeline
                                 .triggers
                                 .iter()
@@ -3865,7 +4220,11 @@ fn draw_timeline(
                         (state.timeline_drag_trigger, pointer)
                     {
                         if let Some(trigger) = timeline.triggers.get(trigger_index) {
-                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                             actions.push(EditorAction::SetTimelineTrigger {
                                 trigger: trigger_index,
                                 time,
@@ -3919,6 +4278,7 @@ fn draw_timeline(
                     Vec2::new(width, LANE_HEIGHT),
                     Sense::click_and_drag(),
                 );
+                handle_timeline_wheel(ui, &response, lane_rect, state, duration, view, false);
                 let painter = ui.painter();
                 painter.rect_filled(
                     lane_rect,
@@ -3929,43 +4289,46 @@ fn draw_timeline(
                         Color32::from_rgb(20, 23, 30)
                     },
                 );
-                let mut tick = 0.0;
-                while tick <= duration + 0.0001 {
-                    let x = timeline_time_x(lane_rect, tick, duration);
-                    painter.line_segment(
-                        [
-                            Pos2::new(x, lane_rect.top()),
-                            Pos2::new(x, lane_rect.bottom()),
-                        ],
-                        Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
-                    );
+                let mut tick = timeline_first_tick(view, tick_step);
+                while tick <= view.end() + 0.0001 {
+                    if tick >= view.start - 0.0001 {
+                        let x = view.x(lane_rect, tick);
+                        painter.line_segment(
+                            [
+                                Pos2::new(x, lane_rect.top()),
+                                Pos2::new(x, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                        );
+                    }
                     tick += tick_step;
                 }
-                let playhead = timeline_time_x(
-                    lane_rect,
-                    status.transport.position_seconds as f32,
-                    duration,
-                );
-                painter.line_segment(
-                    [
-                        Pos2::new(playhead, lane_rect.top()),
-                        Pos2::new(playhead, lane_rect.bottom()),
-                    ],
-                    Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
-                );
+                let playhead_time = status.transport.position_seconds as f32;
+                if view.contains(playhead_time) {
+                    let playhead = view.x(lane_rect, playhead_time);
+                    painter.line_segment(
+                        [
+                            Pos2::new(playhead, lane_rect.top()),
+                            Pos2::new(playhead, lane_rect.bottom()),
+                        ],
+                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                    );
+                }
 
-                let marker_points: Vec<Pos2> = timeline
+                let marker_points: Vec<(usize, Pos2)> = timeline
                     .markers
                     .iter()
-                    .map(|marker| {
-                        Pos2::new(
-                            timeline_time_x(lane_rect, marker.time, duration),
-                            lane_rect.center().y,
+                    .enumerate()
+                    .filter(|(_, marker)| view.contains(marker.time))
+                    .map(|(index, marker)| {
+                        (
+                            index,
+                            Pos2::new(view.x(lane_rect, marker.time), lane_rect.center().y),
                         )
                     })
                     .collect();
-                for (marker_index, point) in marker_points.iter().enumerate() {
-                    let selected = state.timeline_selected_marker == Some(marker_index);
+                for (marker_index, point) in &marker_points {
+                    let selected = state.timeline_selected_marker == Some(*marker_index);
                     painter.circle_filled(
                         *point,
                         if selected { 6.0 } else { 4.5 },
@@ -3980,7 +4343,7 @@ fn draw_timeline(
                         if selected { 6.0 } else { 4.5 },
                         Stroke::new(1.0, Color32::from_rgb(20, 30, 36)),
                     );
-                    if let Some(marker) = timeline.markers.get(marker_index) {
+                    if let Some(marker) = timeline.markers.get(*marker_index) {
                         painter.text(
                             *point + Vec2::new(9.0, 0.0),
                             Align2::LEFT_CENTER,
@@ -4002,8 +4365,7 @@ fn draw_timeline(
                 let hit = pointer.and_then(|pointer| {
                     marker_points
                         .iter()
-                        .enumerate()
-                        .map(|(index, point)| (index, point.distance(pointer)))
+                        .map(|(index, point)| (*index, point.distance(pointer)))
                         .filter(|(_, distance)| *distance <= 10.0)
                         .min_by(|left, right| left.1.total_cmp(&right.1))
                         .map(|(index, _)| index)
@@ -4019,7 +4381,11 @@ fn draw_timeline(
                 } else if response.double_clicked() {
                     if let Some(pointer) = pointer {
                         if hit.is_none() {
-                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                             let marker = timeline
                                 .markers
                                 .iter()
@@ -4063,7 +4429,11 @@ fn draw_timeline(
                         (state.timeline_drag_marker, pointer)
                     {
                         if let Some(marker) = timeline.markers.get(marker_index) {
-                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            let time = snap_timeline_time(
+                                    state.timeline_snap,
+                                    state.timeline_snap_seconds,
+                                    view.time(lane_rect, pointer.x),
+                                );
                             actions.push(EditorAction::SetTimelineMarker {
                                 marker: marker_index,
                                 time,
@@ -4133,11 +4503,42 @@ fn trigger_command_short(command: TimelineCommand) -> &'static str {
     }
 }
 
-fn timeline_tick_step(duration: f32) -> f32 {
+#[derive(Clone, Copy)]
+enum CueAction {
+    Marker(usize),
+    Trigger(usize),
+}
+
+#[derive(Clone, Copy)]
+struct TimelineView {
+    start: f32,
+    span: f32,
+}
+
+impl TimelineView {
+    fn end(self) -> f32 {
+        self.start + self.span
+    }
+
+    fn contains(self, time: f32) -> bool {
+        time >= self.start - 1.0e-4 && time <= self.end() + 1.0e-4
+    }
+
+    fn x(self, rect: EguiRect, time: f32) -> f32 {
+        rect.left() + ((time - self.start) / self.span.max(1.0e-5)).clamp(0.0, 1.0) * rect.width()
+    }
+
+    fn time(self, rect: EguiRect, x: f32) -> f32 {
+        (self.start + ((x - rect.left()) / rect.width().max(1.0)).clamp(0.0, 1.0) * self.span)
+            .clamp(0.0, self.end())
+    }
+}
+
+fn timeline_tick_step(span: f32) -> f32 {
     const STEPS: [f32; 12] = [
         0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0, 60.0, 120.0, 300.0,
     ];
-    let target = duration / 8.0;
+    let target = span / 8.0;
     STEPS
         .iter()
         .copied()
@@ -4145,12 +4546,129 @@ fn timeline_tick_step(duration: f32) -> f32 {
         .unwrap_or(600.0)
 }
 
-fn timeline_time_x(rect: EguiRect, time: f32, duration: f32) -> f32 {
-    rect.left() + (time / duration.max(1.0e-5)).clamp(0.0, 1.0) * rect.width()
+fn timeline_first_tick(view: TimelineView, step: f32) -> f32 {
+    (view.start / step.max(1.0e-5)).floor() * step
 }
 
-fn timeline_x_time(rect: EguiRect, x: f32, duration: f32) -> f32 {
-    (((x - rect.left()) / rect.width().max(1.0)).clamp(0.0, 1.0) * duration).clamp(0.0, duration)
+fn snap_timeline_time(enabled: bool, step: f32, time: f32) -> f32 {
+    if enabled {
+        (time / step.max(0.01)).round() * step.max(0.01)
+    } else {
+        time
+    }
+}
+
+fn zoom_timeline(state: &mut EditorState, factor: f32, anchor: f32, duration: f32) {
+    let old_zoom = state.timeline_zoom.clamp(1.0, 64.0);
+    let old_span = duration / old_zoom;
+    let anchor_fraction = if old_span > 1.0e-5 {
+        ((anchor - state.timeline_view_start) / old_span).clamp(0.0, 1.0)
+    } else {
+        0.5
+    };
+    let new_zoom = (old_zoom * factor).clamp(1.0, 64.0);
+    let new_span = duration / new_zoom;
+    state.timeline_zoom = new_zoom;
+    state.timeline_view_start =
+        (anchor - anchor_fraction * new_span).clamp(0.0, (duration - new_span).max(0.0));
+}
+
+/// Handle wheel input directly from raw events. Egui folds Ctrl+wheel into
+/// `zoom_delta`, which is awkward to combine with ordinary wheel scrolling;
+/// using the raw events also lets the timeline consume the wheel before the
+/// vertical track list scrolls.
+fn handle_timeline_wheel(
+    ui: &mut egui::Ui,
+    response: &egui::Response,
+    rect: EguiRect,
+    state: &mut EditorState,
+    duration: f32,
+    view: TimelineView,
+    plain_wheel_zooms: bool,
+) {
+    if !response.hovered() {
+        return;
+    }
+    let anchor = response
+        .hover_pos()
+        .map_or(view.start + view.span * 0.5, |pos| view.time(rect, pos.x));
+    let mut zoom = 0.0;
+    let mut pan = 0.0;
+    let mut handled = false;
+    ui.ctx().input(|input| {
+        for event in &input.events {
+            let egui::Event::MouseWheel {
+                unit,
+                delta,
+                modifiers,
+                ..
+            } = event
+            else {
+                continue;
+            };
+            let scale = match unit {
+                egui::MouseWheelUnit::Point => 1.0,
+                egui::MouseWheelUnit::Line => 40.0,
+                egui::MouseWheelUnit::Page => 400.0,
+            };
+            let delta = *delta * scale;
+            if modifiers.shift {
+                pan += if delta.x.abs() > delta.y.abs() {
+                    delta.x
+                } else {
+                    delta.y
+                };
+                handled = true;
+            } else if modifiers.ctrl || modifiers.command || plain_wheel_zooms {
+                zoom += delta.y;
+                handled = true;
+            } else if delta.x.abs() > 0.0 {
+                pan += delta.x;
+                handled = true;
+            }
+        }
+    });
+    if !handled {
+        return;
+    }
+    ui.ctx().input_mut(|input| {
+        input
+            .events
+            .retain(|event| !matches!(event, egui::Event::MouseWheel { .. }));
+        input.smooth_scroll_delta = Vec2::ZERO;
+    });
+    if zoom != 0.0 {
+        zoom_timeline(state, (zoom * 0.0025).exp(), anchor, duration);
+    }
+    if pan != 0.0 {
+        let delta = pan * view.span / rect.width().max(1.0);
+        let max_start = (duration - duration / state.timeline_zoom.max(1.0)).max(0.0);
+        state.timeline_view_start = (state.timeline_view_start - delta).clamp(0.0, max_start);
+    }
+}
+
+fn draw_timeline_curve(
+    painter: &egui::Painter,
+    rect: EguiRect,
+    view: TimelineView,
+    track: &lpmt_core::timeline::TimelineTrack,
+    value_y: impl Fn(f32) -> f32,
+    color: Color32,
+) {
+    if track.keys.is_empty() {
+        return;
+    }
+    let samples = (rect.width() / 2.0).clamp(8.0, 600.0) as usize;
+    let mut points = Vec::with_capacity(samples + 1);
+    for index in 0..=samples {
+        let time = view.start + view.span * index as f32 / samples as f32;
+        if let Some(value) = track.value_at(time) {
+            points.push(Pos2::new(view.x(rect, time), value_y(value)));
+        }
+    }
+    if points.len() >= 2 {
+        painter.add(Shape::line(points, Stroke::new(1.5, color)));
+    }
 }
 
 fn timeline_parameter_label(parameters: &[ParameterDescriptor], path: &str) -> String {
@@ -6115,6 +6633,42 @@ mod tests {
             &project.stages[0].surfaces[0].id,
         );
         assert_eq!(layer_media_index(&pattern, &project), None);
+    }
+
+    #[test]
+    fn timeline_view_maps_only_the_visible_window() {
+        let rect = EguiRect::from_min_size(Pos2::new(10.0, 0.0), Vec2::new(100.0, 20.0));
+        let view = TimelineView {
+            start: 2.0,
+            span: 4.0,
+        };
+        assert_eq!(view.x(rect, 2.0), 10.0);
+        assert_eq!(view.x(rect, 4.0), 60.0);
+        assert_eq!(view.x(rect, 6.0), 110.0);
+        assert_eq!(view.time(rect, 60.0), 4.0);
+        assert!(view.contains(4.0));
+        assert!(!view.contains(1.9));
+        assert!(!view.contains(6.1));
+    }
+
+    #[test]
+    fn timeline_snap_respects_the_interval_and_off_switch() {
+        assert_eq!(snap_timeline_time(true, 0.5, 1.26), 1.5);
+        assert!((snap_timeline_time(true, 0.1, 1.26) - 1.3).abs() < 1.0e-5);
+        assert_eq!(snap_timeline_time(false, 0.5, 1.26), 1.26);
+    }
+
+    #[test]
+    fn zoom_keeps_the_anchor_time_under_the_pointer() {
+        let mut state = EditorState::default();
+        zoom_timeline(&mut state, 2.0, 5.0, 10.0);
+        assert_eq!(state.timeline_zoom, 2.0);
+        assert_eq!(state.timeline_view_start, 2.5);
+
+        zoom_timeline(&mut state, 100.0, 2.5, 10.0);
+        assert_eq!(state.timeline_zoom, 64.0);
+        assert!(state.timeline_view_start >= 0.0);
+        assert!(state.timeline_view_start <= 10.0 - 10.0 / 64.0 + 1.0e-5);
     }
 
     #[test]

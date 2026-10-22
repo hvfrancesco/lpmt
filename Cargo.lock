@@ -1789,6 +1789,7 @@ name = "lpmt-ui"
 version = "0.1.0"
 dependencies = [
  "egui",
+ "image",
  "lpmt-core",
 ]
 

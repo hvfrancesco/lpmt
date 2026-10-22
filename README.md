@@ -97,7 +97,8 @@ shelf; Calibration and Show are separate modes.
 - **Workspace modes:** **F1 Mapping**, **F2 Calibration** and **F3 Show** switch
   between authoring, output calibration and transport/audio. Project open/save
   lives in the top **Project** menu; **Help → About LPMT** shows version,
-  renderer and license information.
+  renderer and license information, and **Help → Show splash** replays the
+  updated LPMT 2 startup splash.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, one-or-more surface assignment and `Normal`, `Add`, `Screen` or
   `Multiply` blending. A single layer can drive several surfaces without
@@ -145,11 +146,17 @@ shelf; Calibration and Show are separate modes.
   keys, which can be copied and pasted at the playhead. Bool tracks use Step
   values. A trigger lane can pause, stop/rewind, restart, switch looping on/off
   or jump to the next/previous marker at a chosen time, and named markers provide
-  seek points with header navigation. The ruler seeks the shared show clock, so
-  playback and scrubbing evaluate the keys in sync. Timeline values are a
-  render-time overlay: playback does not modify the saved parameter values or
-  mark the project dirty. A manual parameter edit while paused temporarily
-  suspends the overlay until the next seek, play or timeline edit.
+  seek points with header navigation. Zoom from **1×** to **64×** with the
+  **-**, **+** and **Fit** controls, drag the view slider to scroll, or use
+  the mouse wheel over the ruler (or **Ctrl+wheel** over any track) to zoom,
+  and **Shift+wheel** to pan. **Snap** quantizes key, trigger and marker edits
+  to a configurable interval. Show mode also lists markers and triggers in a
+  manual **Cues** panel with **Go** buttons.
+  The ruler seeks the shared show clock, so playback and scrubbing evaluate the
+  keys in sync. Timeline values are a render-time overlay: playback does not
+  modify the saved parameter values or mark the project dirty. A manual
+  parameter edit while paused temporarily suspends the overlay until the next
+  seek, play or timeline edit.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -180,9 +187,9 @@ crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
 learn, parameter timeline tracks, transport triggers and named markers are now
 in place. The next timeline work is:
 
-- cue lists and richer command triggers;
-- marker-driven shortcuts and multi-track key selection;
-- colour-track key copy/paste and richer interpolation.
+- richer cue data and additional command triggers;
+- multi-track key selection and multi-key colour editing;
+- richer interpolation and timeline templates.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -429,13 +436,18 @@ invert), press **Add track**, then edit its keys:
   playhead** duplicate all selected keys with their relative timing, clamped to
   the target track's range;
 - click or drag the ruler to seek the shared show clock;
+- use **-**, **+** and **Fit** to zoom the timeline, drag the view slider to
+  scroll horizontally, roll the wheel over the ruler to zoom, use **Ctrl+wheel**
+  over any track to zoom, or **Shift+wheel** to pan;
+- enable **Snap** and set the interval to quantize new and dragged keys,
+  triggers and markers; ruler scrubbing remains continuous;
 - use the normal transport to play, pause, restart and loop the timeline.
 
 Choose an output and press **Add colour track** for a dedicated RGB tint lane.
 Double-click to add colour keys, drag to retime, right-click to remove, and edit
-R/G/B plus Step/Linear/Smooth interpolation in the colour-key row. Colour tracks
-override the output tint channels during playback while remaining a render-time
-overlay.
+R/G/B plus Step/Linear/Smooth interpolation in the colour-key row. Colour keys
+can be copied and pasted at the playhead. Colour tracks override the output tint
+channels during playback while remaining a render-time overlay.
 
 The **Triggers** lane schedules transport commands. Choose **Pause transport**,
 **Stop and rewind**, **Restart transport**, **Loop on**, **Loop off**, **Jump to
@@ -447,8 +459,15 @@ including on a natural loop wrap; scrubbing does not fire them.
 The **Markers** lane holds named seek points. Press **Add marker** at the
 playhead or double-click the lane, then edit the name and time in the marker
 row. Clicking a marker seeks to it; dragging retimes it and right-click removes
-it. **Prev marker** and **Next marker** jump between markers relative to the
-playhead. Markers are saved with the project and participate in undo/redo.
+it. **Prev marker** and **Next marker** — or the `[` and `]` keys when no text
+field has focus — jump between markers relative to the playhead. Markers are
+saved with the project and participate in undo/redo.
+
+The Show sidebar presents a sorted **Cues** list built from the timeline's
+markers and triggers. **Go** seeks to a marker or fires a trigger immediately,
+without waiting for the playhead, which makes the same cue list usable for
+rehearsal and live operation. Trigger cues are runtime actions and do not modify
+the project.
 
 Timeline keys target stable parameter paths, so renaming a layer or surface does
 not break automation. Track and trigger edits are undoable and saved with the

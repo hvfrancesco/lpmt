@@ -827,63 +827,71 @@ impl App {
     fn fire_timeline_triggers(&mut self, from: f32, to: f32) {
         let commands = timeline_trigger_commands(&self.project.timeline.triggers, from, to);
         for command in commands {
-            match command {
-                TimelineCommand::Pause => {
-                    self.clock.pause();
-                    self.status_message = "Timeline trigger: pause".to_owned();
-                    return;
-                }
-                TimelineCommand::Stop => {
-                    self.clock.pause();
-                    self.clock.seek(0.0);
-                    self.status_message = "Timeline trigger: stop and rewind".to_owned();
-                    return;
-                }
-                TimelineCommand::Restart => {
-                    self.clock.seek(0.0);
-                    self.clock.play();
-                    self.status_message = "Timeline trigger: restart".to_owned();
-                    return;
-                }
-                TimelineCommand::LoopOn => {
-                    self.clock.set_looping(true);
-                    self.status_message = "Timeline trigger: loop on".to_owned();
-                }
-                TimelineCommand::LoopOff => {
-                    self.clock.set_looping(false);
-                    self.status_message = "Timeline trigger: loop off".to_owned();
-                }
-                TimelineCommand::NextMarker => {
-                    let position = self.clock.position_seconds() as f32;
-                    if let Some(time) = self
-                        .project
-                        .timeline
-                        .markers
-                        .iter()
-                        .find(|marker| marker.time > position + 1.0e-4)
-                        .map(|marker| marker.time)
-                    {
+            if self.execute_timeline_command(command) {
+                break;
+            }
+        }
+    }
+
+    /// Execute one cue command. Returns true when it changes transport in a way
+    /// that should stop processing later cues in the same time range.
+    fn execute_timeline_command(&mut self, command: TimelineCommand) -> bool {
+        match command {
+            TimelineCommand::Pause => {
+                self.clock.pause();
+                self.status_message = "Timeline trigger: pause".to_owned();
+                true
+            }
+            TimelineCommand::Stop => {
+                self.clock.pause();
+                self.clock.seek(0.0);
+                self.status_message = "Timeline trigger: stop and rewind".to_owned();
+                true
+            }
+            TimelineCommand::Restart => {
+                self.clock.seek(0.0);
+                self.clock.play();
+                self.status_message = "Timeline trigger: restart".to_owned();
+                true
+            }
+            TimelineCommand::LoopOn => {
+                self.clock.set_looping(true);
+                self.status_message = "Timeline trigger: loop on".to_owned();
+                false
+            }
+            TimelineCommand::LoopOff => {
+                self.clock.set_looping(false);
+                self.status_message = "Timeline trigger: loop off".to_owned();
+                false
+            }
+            TimelineCommand::NextMarker => {
+                let position = self.clock.position_seconds() as f32;
+                self.project
+                    .timeline
+                    .markers
+                    .iter()
+                    .find(|marker| marker.time > position + 1.0e-4)
+                    .map(|marker| marker.time)
+                    .is_some_and(|time| {
                         self.clock.seek(f64::from(time));
                         self.status_message = "Timeline trigger: next marker".to_owned();
-                        return;
-                    }
-                }
-                TimelineCommand::PreviousMarker => {
-                    let position = self.clock.position_seconds() as f32;
-                    if let Some(time) = self
-                        .project
-                        .timeline
-                        .markers
-                        .iter()
-                        .rev()
-                        .find(|marker| marker.time < position - 1.0e-4)
-                        .map(|marker| marker.time)
-                    {
+                        true
+                    })
+            }
+            TimelineCommand::PreviousMarker => {
+                let position = self.clock.position_seconds() as f32;
+                self.project
+                    .timeline
+                    .markers
+                    .iter()
+                    .rev()
+                    .find(|marker| marker.time < position - 1.0e-4)
+                    .map(|marker| marker.time)
+                    .is_some_and(|time| {
                         self.clock.seek(f64::from(time));
                         self.status_message = "Timeline trigger: previous marker".to_owned();
-                        return;
-                    }
-                }
+                        true
+                    })
             }
         }
     }
@@ -1859,6 +1867,17 @@ impl App {
                         self.status_message = "Removed timeline trigger".to_owned();
                     }
                 }
+                EditorAction::FireTimelineTrigger { trigger } => {
+                    if let Some(command) = self
+                        .project
+                        .timeline
+                        .triggers
+                        .get(trigger)
+                        .map(|trigger| trigger.command)
+                    {
+                        self.execute_timeline_command(command);
+                    }
+                }
                 EditorAction::AddTimelineMarker { time } => {
                     if self.project.timeline.is_empty() {
                         let duration = self
@@ -2031,6 +2050,35 @@ impl App {
                             self.status_message = "Removed colour key".to_owned();
                         }
                     }
+                }
+                EditorAction::PasteTimelineColourKey {
+                    track,
+                    time,
+                    tint,
+                    interpolation,
+                } => {
+                    if track >= self.project.timeline.colour_tracks.len() {
+                        continue;
+                    }
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let tint = tint.map(|channel| channel.clamp(0.0, 4.0));
+                    let keys = &mut self.project.timeline.colour_tracks[track].keys;
+                    if let Some(existing) = keys
+                        .iter_mut()
+                        .find(|key| (key.time - time).abs() <= 1.0e-4)
+                    {
+                        existing.tint = tint;
+                        existing.interpolation = interpolation;
+                    } else {
+                        keys.push(TimelineColourKey {
+                            time,
+                            tint,
+                            interpolation,
+                        });
+                        self.project.timeline.colour_tracks[track].sort_keys();
+                    }
+                    self.timeline_preview_active = true;
+                    self.status_message = "Pasted colour key".to_owned();
                 }
                 EditorAction::ResetSurface { surface } => {
                     if let Some(surface) = self
@@ -4014,6 +4062,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             "move colour key",
         ),
         RemoveTimelineColourKey { .. } => (HistoryKey::Discrete, "remove colour key"),
+        PasteTimelineColourKey { .. } => (HistoryKey::Discrete, "paste colour key"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
@@ -4075,6 +4124,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | RestartTransport
         | SetTransportLoop { .. }
         | SeekTransport { .. }
+        | FireTimelineTrigger { .. }
         | ReloadMedia
         | SaveProject { .. }
         | SaveProjectDialog
