@@ -2506,6 +2506,24 @@ impl App {
                         layer.crop = crop.clamped();
                     }
                 }
+                EditorAction::SetLayerColor { layer, color } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        layer.color = color.clamped();
+                    }
+                }
+                EditorAction::SetLayerChromaKey { layer, chroma_key } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        layer.chroma_key = chroma_key.clamped();
+                    }
+                }
                 EditorAction::SetLayerSurfaces { layer, surfaces } => {
                     let Some(stage) = self.project.primary_stage() else {
                         continue;
@@ -4358,6 +4376,8 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
         SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
         SetLayerCrop { layer, .. } => (HistoryKey::LayerCrop(*layer), "change layer crop"),
+        SetLayerColor { layer, .. } => (HistoryKey::LayerColor(*layer), "change layer colour"),
+        SetLayerChromaKey { layer, .. } => (HistoryKey::LayerChroma(*layer), "change chroma key"),
         SetLayerSurfaces { .. } => (HistoryKey::Discrete, "change layer surfaces"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
         AddSolidLayer { .. } => (HistoryKey::Discrete, "add solid colour layer"),

@@ -11,8 +11,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use lpmt_core::binding::{MidiBinding, MidiMessageKind, MidiMode, ParameterBinding};
 use lpmt_core::model::{
-    BlendMode, CircleCrop, Crop, Layer, MediaAsset, OutputGroup, OutputId, OutputSpec,
-    OutputTarget, Point2, Project, ProjectId, Rect, ShowAudio, Stage, StageId, Surface,
+    BlendMode, ChromaKey, CircleCrop, Crop, Layer, LayerColor, MediaAsset, OutputGroup, OutputId,
+    OutputSpec, OutputTarget, Point2, Project, ProjectId, Rect, ShowAudio, Stage, StageId, Surface,
     SurfaceMask,
 };
 use lpmt_core::timeline::{
@@ -66,6 +66,16 @@ fn two_surface_show_with_video_timeline_bindings_and_cues_round_trips() {
             center: Point2::new(0.5, 0.5),
             radius: 0.48,
         }),
+    };
+    image_layer.color = LayerColor {
+        tint: [1.0, 0.9, 0.8],
+    };
+    image_layer.chroma_key = ChromaKey {
+        enabled: true,
+        color: [0.0, 1.0, 0.0],
+        tolerance: 0.2,
+        softness: 0.05,
+        spill: 0.3,
     };
     let mut video_layer = Layer::video("layer-overlay", "Video overlay", &surface2_id, &video.id);
     video_layer.opacity = 0.8;
@@ -206,6 +216,8 @@ fn two_surface_show_with_video_timeline_bindings_and_cues_round_trips() {
     assert_eq!(stage.surfaces.len(), 2);
     assert_eq!(stage.layers.len(), 2);
     assert_eq!(stage.surfaces[0].mask.points.len(), 4);
+    assert_eq!(stage.layers[0].color.tint, [1.0, 0.9, 0.8]);
+    assert!(stage.layers[0].chroma_key.is_active());
     assert_eq!(loaded.outputs.len(), 2);
     assert_eq!(loaded.output_groups[0].outputs.len(), 2);
     assert!(loaded.is_media_used(&project.media[1].id));

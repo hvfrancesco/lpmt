@@ -8,9 +8,9 @@ use lpmt_core::binding::{MidiMode, ParameterBinding};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
-    BlendMode, CircleCrop, ColorCorrection, Crop, EdgeBlend, LayerId, MediaAsset, MediaId,
-    MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId,
-    TestPattern, WarpGrid,
+    BlendMode, ChromaKey, CircleCrop, ColorCorrection, Crop, EdgeBlend, LayerColor, LayerId,
+    MediaAsset, MediaId, MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage,
+    Surface, SurfaceId, TestPattern, WarpGrid,
 };
 use lpmt_core::param::{project_parameters, ParameterDescriptor, ParameterKind};
 use lpmt_core::timeline::{
@@ -665,6 +665,14 @@ pub enum EditorAction {
     SetLayerCrop {
         layer: usize,
         crop: Crop,
+    },
+    SetLayerColor {
+        layer: usize,
+        color: LayerColor,
+    },
+    SetLayerChromaKey {
+        layer: usize,
+        chroma_key: ChromaKey,
     },
     SetLayerSurfaces {
         layer: usize,
@@ -5637,6 +5645,93 @@ fn draw_layer_editor(
     }
     if crop_changed {
         actions.push(EditorAction::SetLayerCrop { layer: index, crop });
+    }
+
+    ui.add_space(4.0);
+    ui.separator();
+    ui.label(RichText::new("Layer colour").strong());
+    let mut color = layer.color;
+    let mut color_changed = false;
+    egui::Grid::new(("layer-color", index))
+        .num_columns(2)
+        .spacing([8.0, 4.0])
+        .show(ui, |ui| {
+            for (label, channel) in [("R", 0), ("G", 1), ("B", 2)] {
+                ui.label(label);
+                if ui
+                    .add(egui::Slider::new(&mut color.tint[channel], 0.0..=2.0).fixed_decimals(2))
+                    .changed()
+                {
+                    color_changed = true;
+                }
+                ui.end_row();
+            }
+        });
+    if ui.button("Reset colour").clicked() {
+        color = LayerColor::default();
+        color_changed = true;
+    }
+    if color_changed {
+        actions.push(EditorAction::SetLayerColor {
+            layer: index,
+            color,
+        });
+    }
+
+    ui.add_space(4.0);
+    ui.separator();
+    ui.label(RichText::new("Chroma key").strong());
+    let mut chroma_key = layer.chroma_key;
+    let mut chroma_changed = false;
+    if ui
+        .checkbox(&mut chroma_key.enabled, "Enable chroma key")
+        .changed()
+    {
+        chroma_changed = true;
+    }
+    if chroma_key.enabled {
+        ui.horizontal(|ui| {
+            ui.label("Key colour");
+            if ui.color_edit_button_rgb(&mut chroma_key.color).changed() {
+                chroma_changed = true;
+            }
+        });
+        if ui
+            .add(
+                egui::Slider::new(&mut chroma_key.tolerance, 0.0..=1.0)
+                    .text("Tolerance")
+                    .fixed_decimals(3),
+            )
+            .changed()
+        {
+            chroma_changed = true;
+        }
+        if ui
+            .add(
+                egui::Slider::new(&mut chroma_key.softness, 0.0..=0.5)
+                    .text("Softness")
+                    .fixed_decimals(3),
+            )
+            .changed()
+        {
+            chroma_changed = true;
+        }
+        if ui
+            .add(
+                egui::Slider::new(&mut chroma_key.spill, 0.0..=1.0)
+                    .text("Spill")
+                    .fixed_decimals(2),
+            )
+            .changed()
+        {
+            chroma_changed = true;
+        }
+    }
+    if chroma_changed {
+        actions.push(EditorAction::SetLayerChromaKey {
+            layer: index,
+            chroma_key,
+        });
     }
 
     ui.horizontal_wrapped(|ui| {

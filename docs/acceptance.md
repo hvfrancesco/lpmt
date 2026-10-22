@@ -102,6 +102,31 @@ Notes / blockers:
 All checks passed.
 ```
 
+## M4 — Mapping depth: colourisation and chroma key
+
+Target: layer colourisation and chroma key match the LPMT 1 core workflow.
+
+Checklist:
+
+- [ ] Set RGB tint on an image, a video and a solid layer; reset to neutral and
+      verify preview and output.
+- [ ] Apply a chroma key to a green-screen image or video; tune key colour,
+      tolerance, softness and spill and verify transparent and retained pixels.
+- [ ] Confirm tint/chroma combine correctly with rectangular/circular crops and
+      surface masks.
+- [ ] Check both quad and grid-warp surfaces.
+- [ ] Save/reload and undo/redo tint and chroma changes.
+- [ ] Decide and record whether 3D LUT support is in v1 (decision only). Bézier
+      patches remain deferred.
+
+Result: `PASS / FAIL`
+
+Notes / blockers:
+
+```text
+
+```
+
 ## M5 — Show control
 
 Target: run a timed show via OSC and the timeline with no GUI interaction on the
@@ -180,6 +205,7 @@ All checks passed.
 |---|---|---|---|---|---|---|
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M2 | PASS | Two-surface show, save/reload, video/audio, masks/crops and undo/redo. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
+|  |  |  |  | M4 | PENDING | Colourisation/chroma key acceptance not yet recorded. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
 
 ## Known constraints
@@ -203,7 +229,8 @@ All checks passed.
 ```text
 M2: PASS     Reviewed by: project owner     Date: 2026-10-22
 M3: PASS     Reviewed by: project owner     Date: 2026-10-22
+M4: PENDING  Reviewed by:                       Date:
 M5: PASS     Reviewed by: project owner     Date: 2026-10-22
 
-Blocking issues: None
+Blocking issues: None for M2/M3/M5; M4 acceptance pending.
 ```

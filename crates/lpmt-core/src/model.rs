@@ -659,6 +659,103 @@ pub enum SourceSpec {
     },
 }
 
+/// Per-layer colourisation. The tint is a linear RGB gain; `[1, 1, 1]` is
+/// neutral. Keeping it on the layer lets the same media look different on
+/// different surfaces or outputs.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LayerColor {
+    #[serde(default = "identity_tint")]
+    pub tint: [f32; 3],
+}
+
+impl Default for LayerColor {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+impl LayerColor {
+    pub const IDENTITY: Self = Self {
+        tint: [1.0, 1.0, 1.0],
+    };
+
+    pub fn is_identity(self) -> bool {
+        self == Self::IDENTITY
+    }
+
+    pub fn clamped(self) -> Self {
+        Self {
+            tint: [
+                self.tint[0].clamp(0.0, 4.0),
+                self.tint[1].clamp(0.0, 4.0),
+                self.tint[2].clamp(0.0, 4.0),
+            ],
+        }
+    }
+}
+
+fn default_chroma_color() -> [f32; 3] {
+    [0.0, 1.0, 0.0]
+}
+
+fn default_chroma_tolerance() -> f32 {
+    0.15
+}
+
+fn default_chroma_softness() -> f32 {
+    0.05
+}
+
+/// Simple RGB chroma key with a soft edge and optional spill suppression.
+/// The key colour is compared in the sampled (linear) source space.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ChromaKey {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_chroma_color")]
+    pub color: [f32; 3],
+    #[serde(default = "default_chroma_tolerance")]
+    pub tolerance: f32,
+    #[serde(default = "default_chroma_softness")]
+    pub softness: f32,
+    #[serde(default)]
+    pub spill: f32,
+}
+
+impl Default for ChromaKey {
+    fn default() -> Self {
+        Self::DISABLED
+    }
+}
+
+impl ChromaKey {
+    pub const DISABLED: Self = Self {
+        enabled: false,
+        color: [0.0, 1.0, 0.0],
+        tolerance: 0.15,
+        softness: 0.05,
+        spill: 0.0,
+    };
+
+    pub fn is_active(self) -> bool {
+        self.enabled
+    }
+
+    pub fn clamped(self) -> Self {
+        Self {
+            enabled: self.enabled,
+            color: [
+                self.color[0].clamp(0.0, 1.0),
+                self.color[1].clamp(0.0, 1.0),
+                self.color[2].clamp(0.0, 1.0),
+            ],
+            tolerance: self.tolerance.clamp(0.0, 1.0),
+            softness: self.softness.clamp(0.0, 0.5),
+            spill: self.spill.clamp(0.0, 1.0),
+        }
+    }
+}
+
 /// Content drawn through one or more surfaces. A surface is geometry; a layer
 /// is the image, video or generator that goes through it. Assigning the same
 /// layer to several surfaces lets one content stack cover overlapping or
@@ -675,6 +772,12 @@ pub struct Layer {
     /// Source framing applied before the surface mask.
     #[serde(default)]
     pub crop: Crop,
+    /// Per-layer linear RGB tint.
+    #[serde(default)]
+    pub color: LayerColor,
+    /// Optional chroma key applied before surface masking.
+    #[serde(default)]
+    pub chroma_key: ChromaKey,
     pub opacity: f32,
     pub blend: BlendMode,
     pub visible: bool,
@@ -713,6 +816,8 @@ impl Layer {
                 pattern: TestPattern::Checker,
             },
             crop: Crop::default(),
+            color: LayerColor::default(),
+            chroma_key: ChromaKey::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -731,6 +836,8 @@ impl Layer {
             surface_ids: vec![surface_id.clone()],
             source: SourceSpec::Solid { color },
             crop: Crop::default(),
+            color: LayerColor::default(),
+            chroma_key: ChromaKey::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -751,6 +858,8 @@ impl Layer {
                 media_id: media_id.clone(),
             },
             crop: Crop::default(),
+            color: LayerColor::default(),
+            chroma_key: ChromaKey::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -771,6 +880,8 @@ impl Layer {
                 media_id: media_id.clone(),
             },
             crop: Crop::default(),
+            color: LayerColor::default(),
+            chroma_key: ChromaKey::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -1511,6 +1622,65 @@ mod tests {
                 .map(|circle| circle.radius),
             Some(0.3)
         );
+    }
+
+    #[test]
+    fn layer_colour_and_chroma_round_trip() {
+        let mut project = Project::demo();
+        project.stages[0].layers[0].color = LayerColor {
+            tint: [0.8, 1.1, 0.6],
+        };
+        project.stages[0].layers[0].chroma_key = ChromaKey {
+            enabled: true,
+            color: [0.0, 0.8, 0.1],
+            tolerance: 0.22,
+            softness: 0.08,
+            spill: 0.4,
+        };
+
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+        assert_eq!(round_trip.stages[0].layers[0].color.tint, [0.8, 1.1, 0.6]);
+        assert!(round_trip.stages[0].layers[0].chroma_key.is_active());
+    }
+
+    #[test]
+    fn older_layers_load_with_neutral_colour_and_disabled_chroma() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        for layer in value["stages"][0]["layers"].as_array_mut().unwrap() {
+            let layer = layer.as_object_mut().unwrap();
+            layer.remove("color");
+            layer.remove("chroma_key");
+        }
+
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.stages[0]
+            .layers
+            .iter()
+            .all(|layer| layer.color.is_identity() && !layer.chroma_key.is_active()));
+    }
+
+    #[test]
+    fn layer_colour_and_chroma_clamp() {
+        let color = LayerColor {
+            tint: [-1.0, 2.0, 9.0],
+        }
+        .clamped();
+        assert_eq!(color.tint, [0.0, 2.0, 4.0]);
+
+        let chroma = ChromaKey {
+            enabled: true,
+            color: [-1.0, 2.0, 0.5],
+            tolerance: 3.0,
+            softness: 9.0,
+            spill: -1.0,
+        }
+        .clamped();
+        assert_eq!(chroma.color, [0.0, 1.0, 0.5]);
+        assert_eq!(chroma.tolerance, 1.0);
+        assert_eq!(chroma.softness, 0.5);
+        assert_eq!(chroma.spill, 0.0);
     }
 
     #[test]

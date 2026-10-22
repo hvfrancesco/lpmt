@@ -106,6 +106,10 @@ shelf; Calibration and Show are separate modes.
   `Multiply` blending. A single layer can drive several surfaces without
   duplicating its media or settings. Legacy single-surface project files still
   load.
+- **Layer colour and chroma key:** every layer has an RGB tint and an optional
+  chroma key with key colour, tolerance, softness and spill suppression. Both
+  are applied before surface masking, work in the quad and grid warp paths, and
+  participate in undo/redo and JSON persistence.
 - The demo has two warped surfaces and two layers.
 - Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
   `OutputSpec`, `OutputGroup`) with stable IDs and JSON serialization.
@@ -195,7 +199,7 @@ M2/M3/M5 acceptance was recorded on **2026-10-22** in
 
 The immediate order is:
 
-1. Finish M4 parity with **colourisation and chroma key**, then decide whether
+1. Record the M4 colourisation/chroma-key acceptance check, then decide whether
    3D LUT support is in v1. Bézier patches are explicitly deferred.
 2. Build the **LPMT 1 legacy XML importer** with real fixtures, followed by
    packaging, recovery and performance validation (M7).

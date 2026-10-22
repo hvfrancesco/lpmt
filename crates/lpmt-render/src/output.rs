@@ -14,7 +14,7 @@ use bytemuck::{Pod, Zeroable};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::{CalibrationLut, LUT_SAMPLES};
 use lpmt_core::model::{
-    BlendMode, ColorCorrection, Crop, EdgeBlend, OutputSpec, Rect, Stage, WarpGrid,
+    BlendMode, ColorCorrection, EdgeBlend, Layer, OutputSpec, Rect, Stage, WarpGrid,
 };
 use winit::window::Window;
 
@@ -37,7 +37,41 @@ struct SurfaceEffects {
     crop: vec4<f32>,
     // Circle centre x/y, radius, enabled flag.
     circle: vec4<f32>,
+    // Linear RGB tint, unused alpha.
+    tint: vec4<f32>,
+    // Chroma key colour plus tolerance.
+    chroma: vec4<f32>,
+    // Softness, spill, enabled flag, unused.
+    chroma_extra: vec4<f32>,
 };
+
+fn apply_layer_effects(color: vec4<f32>) -> vec4<f32> {
+    var rgb = color.rgb * @EFFECTS@.tint.rgb;
+    var alpha = color.a;
+
+    if (@EFFECTS@.chroma_extra.z > 0.5) {
+        let key = @EFFECTS@.chroma.rgb;
+        let tolerance = @EFFECTS@.chroma.w;
+        let softness = max(@EFFECTS@.chroma_extra.x, 0.0);
+        let key_distance = max(
+            abs(color.r - key.r),
+            max(abs(color.g - key.g), abs(color.b - key.b)),
+        );
+        var coverage = 1.0;
+        if (key_distance <= tolerance) {
+            coverage = 0.0;
+        } else if (softness > 0.0) {
+            coverage = smoothstep(tolerance, tolerance + softness, key_distance);
+        }
+
+        // Suppress key-colour bleed in pixels near the key edge.
+        let spill = @EFFECTS@.chroma_extra.y * (1.0 - coverage);
+        rgb = max(rgb - key * spill * 0.35, vec3<f32>(0.0));
+        alpha = alpha * coverage;
+    }
+
+    return vec4<f32>(rgb, alpha);
+}
 
 fn crop_visible(uv: vec2<f32>) -> bool {
     let crop = @EFFECTS@.crop;
@@ -108,7 +142,12 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
         discard;
     }
 
-    let color = textureSampleLevel(source_texture, source_sampler, source_uv, 0.0);
+    let color = apply_layer_effects(textureSampleLevel(
+        source_texture,
+        source_sampler,
+        source_uv,
+        0.0,
+    ));
     let coverage = textureSampleLevel(mask_texture, mask_sampler, source_uv, 0.0).r;
     let alpha = color.a * uniforms.opacity * coverage;
     // Premultiplied output lets the fixed-function blend modes implement
@@ -122,17 +161,35 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
 struct SurfaceEffects {
     crop: [f32; 4],
     circle: [f32; 4],
+    tint: [f32; 4],
+    chroma: [f32; 4],
+    chroma_extra: [f32; 4],
 }
 
 impl SurfaceEffects {
-    fn new(crop: Crop) -> Self {
-        let crop = crop.clamped();
+    fn new(layer: &Layer) -> Self {
+        let crop = layer.crop.clamped();
         let circle = crop.circle.map_or([0.0; 4], |circle| {
             [circle.center.x, circle.center.y, circle.radius, 1.0]
         });
+        let color = layer.color.clamped();
+        let chroma = layer.chroma_key.clamped();
         Self {
             crop: [crop.top, crop.right, crop.bottom, crop.left],
             circle,
+            tint: [color.tint[0], color.tint[1], color.tint[2], 0.0],
+            chroma: [
+                chroma.color[0],
+                chroma.color[1],
+                chroma.color[2],
+                chroma.tolerance,
+            ],
+            chroma_extra: [
+                chroma.softness,
+                chroma.spill,
+                if chroma.enabled { 1.0 } else { 0.0 },
+                0.0,
+            ],
         }
     }
 }
@@ -194,7 +251,11 @@ fn fs_main(vertex: VertexOut) -> @location(0) vec4<f32> {
     if (!crop_visible(vertex.uv)) {
         discard;
     }
-    let color = textureSample(source_texture, source_sampler, vertex.uv);
+    let color = apply_layer_effects(textureSample(
+        source_texture,
+        source_sampler,
+        vertex.uv,
+    ));
     let coverage = textureSample(mask_texture, mask_sampler, vertex.uv).r;
     let alpha = color.a * vertex.opacity * coverage;
     return vec4<f32>(color.rgb * alpha, alpha);
@@ -875,7 +936,7 @@ impl StageRenderer {
                 if opacity <= 0.0 {
                     continue;
                 }
-                let effects = SurfaceEffects::new(layer.crop);
+                let effects = SurfaceEffects::new(layer);
                 let mask_bind_group = media.mask_bind_group(gpu, surface)?;
 
                 if let Some(grid) = surface
@@ -1624,12 +1685,15 @@ mod tests {
     fn mask_and_crop_uniform_layout_matches_the_wgsl_structs() {
         assert_eq!(offset_of!(SurfaceEffects, crop), 0);
         assert_eq!(offset_of!(SurfaceEffects, circle), 16);
-        assert_eq!(size_of::<SurfaceEffects>(), 32);
+        assert_eq!(offset_of!(SurfaceEffects, tint), 32);
+        assert_eq!(offset_of!(SurfaceEffects, chroma), 48);
+        assert_eq!(offset_of!(SurfaceEffects, chroma_extra), 64);
+        assert_eq!(size_of::<SurfaceEffects>(), 80);
         assert_eq!(offset_of!(Uniforms, effects), 112);
-        assert_eq!(size_of::<Uniforms>(), 144);
+        assert_eq!(size_of::<Uniforms>(), 192);
         assert_eq!(offset_of!(GridFrameUniforms, view), 0);
         assert_eq!(offset_of!(GridFrameUniforms, effects), 16);
-        assert_eq!(size_of::<GridFrameUniforms>(), 48);
+        assert_eq!(size_of::<GridFrameUniforms>(), 96);
     }
 
     #[test]

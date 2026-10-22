@@ -63,6 +63,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   existing polygon segment instead of being appended, so the outline stays coherent. The explicit
   add mode avoids desktop shortcuts that reserve modifiers for window management. All changes
   participate in undo/redo.
+- **Layer colour and chroma key:** layers support a linear RGB tint and an optional soft chroma
+  key with key colour, tolerance, spill suppression and neutral defaults. Effects are applied in
+  source space before surface masking in both quad and grid paths, persist in JSON and integrate
+  with undo/redo. The inspector exposes the controls next to crop and blend settings.
 - **Project persistence:** JSON save/load in the editor plus `--project <path>` startup loading,
   with native Open/Save-as dialogs and media import/replace/remove. Saves are atomic: the JSON is
   written and flushed to a temporary file in the destination directory, then renamed over the
@@ -161,9 +165,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
   DMX/Art-Net, MIDI hotplug/device selection, the legacy XML importer, packaging and validated
   macOS/Windows builds. Tempo maps and additional cue commands are explicitly post-v1.
-- **Next implementation slice:** M4 colourisation/chroma key, followed by the M7 legacy importer
-  and release work. M2/M3/M5 acceptance was recorded on 2026-10-22 in
-  [`acceptance.md`](acceptance.md).
+- **Next implementation slice:** record M4 colourisation/chroma-key acceptance and decide 3D LUT
+  scope, then build the M7 legacy importer and release work. M2/M3/M5 acceptance was recorded on
+  2026-10-22 in [`acceptance.md`](acceptance.md).
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -758,7 +762,7 @@ dangling.
 | M1 — Minimal renderer | Done | — |
 | M2 — Editor and video | Functionally complete | Run the manual acceptance check, then close |
 | M3 — Multi-output | Functionally complete | Run the manual acceptance check, then close |
-| M4 — Mapping depth | Partial | Finish colourisation/chroma key; decide 3D LUT scope; Bézier deferred |
+| M4 — Mapping depth | Partial | Colourisation/chroma key implemented; record acceptance and decide 3D LUT scope; Bézier deferred |
 | M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
 | M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
 | M7 — Migration/release | Planned | Legacy XML importer, packaging, recovery and performance validation |
@@ -822,7 +826,7 @@ dangling.
 
 - [x] Regular grid warp with 2×2 to 6×6 control cells.
 - [x] Polygon surface masks with invert/feather and rectangular/circular layer crops.
-- [ ] Colourisation and chroma key for LPMT 1 parity. **Next M4 implementation step.**
+- [x] Colourisation and chroma key for LPMT 1 parity.
 - [ ] Advanced blend modes beyond the current Normal/Add/Screen/Multiply set.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
@@ -921,8 +925,8 @@ These are deliberately deferred and must not block milestone acceptance:
 1. M2/M3/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep the
    smoke script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
-3. Implement M4 colourisation and chroma key for LPMT 1 parity, then make and record the 3D LUT
-   scope decision. Keep Bézier deferred.
+3. Record M4 colourisation/chroma-key acceptance, then make and record the 3D LUT scope decision.
+   Keep Bézier deferred.
 4. Build the M7 legacy XML importer with real fixtures, then packaging, recovery and performance
    validation.
 5. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
