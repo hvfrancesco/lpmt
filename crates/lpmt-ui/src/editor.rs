@@ -4,6 +4,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use egui::{Align2, Color32, FontId, Pos2, Rect as EguiRect, RichText, Sense, Shape, Stroke, Vec2};
+use lpmt_core::binding::{MidiMode, ParameterBinding};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
@@ -11,6 +12,7 @@ use lpmt_core::model::{
     MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId,
     TestPattern, WarpGrid,
 };
+use lpmt_core::param::{project_parameters, ParameterKind};
 
 #[derive(Debug, Clone, Default)]
 pub struct EditorStatus {
@@ -33,6 +35,7 @@ pub struct EditorStatus {
     /// Session-only guide mode, parallel to `project.outputs`.
     pub output_guides: Vec<GuideMode>,
     pub osc: OscStatus,
+    pub midi: MidiStatus,
     /// egui native textures for image and video thumbnails.
     pub media_thumbnails: HashMap<MediaId, egui::TextureId>,
 }
@@ -44,6 +47,16 @@ pub struct OscStatus {
     pub messages: u64,
     pub last: String,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MidiStatus {
+    pub supported: bool,
+    pub devices: Vec<String>,
+    pub messages: u64,
+    pub last: String,
+    pub error: Option<String>,
+    pub learning: Option<(String, MidiMode)>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -146,9 +159,16 @@ pub struct EditorState {
     layer_name_id: Option<LayerId>,
     /// Layer whose source is being chosen in the in-app media picker.
     media_picker: Option<usize>,
+    binding_parameter: Option<String>,
+    binding_learn: Option<String>,
+    midi_parameter: Option<String>,
+    midi_mode: MidiMode,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
     drag_mask_point: Option<usize>,
+    /// When set, a primary click in the preview adds a point to the active
+    /// surface mask. This avoids relying on a desktop-reserved modifier.
+    mask_add_mode: bool,
     surface_move: Option<SurfaceMoveDrag>,
     transport_scrub: Option<f32>,
     pub snap_corners: bool,
@@ -173,9 +193,14 @@ impl Default for EditorState {
             surface_name_id: None,
             layer_name_id: None,
             media_picker: None,
+            binding_parameter: None,
+            binding_learn: None,
+            midi_parameter: None,
+            midi_mode: MidiMode::Absolute,
             drag_corner: None,
             drag_grid: None,
             drag_mask_point: None,
+            mask_add_mode: false,
             surface_move: None,
             transport_scrub: None,
             snap_corners: true,
@@ -191,6 +216,11 @@ impl EditorState {
         self.surface_name_id = None;
         self.layer_name_id = None;
         self.media_picker = None;
+        self.binding_parameter = None;
+        self.binding_learn = None;
+        self.midi_parameter = None;
+        self.midi_mode = MidiMode::Absolute;
+        self.mask_add_mode = false;
         self.surface_name.clear();
         self.layer_name.clear();
     }
@@ -316,6 +346,27 @@ pub enum EditorAction {
         column: u16,
         value: Point2,
     },
+    AddBinding {
+        parameter: String,
+        key: String,
+        ctrl: bool,
+        shift: bool,
+        alt: bool,
+    },
+    RemoveBinding {
+        binding: usize,
+    },
+    TriggerBinding {
+        binding: usize,
+    },
+    BeginMidiLearn {
+        parameter: String,
+        mode: MidiMode,
+    },
+    CancelMidiLearn,
+    RemoveMidiBinding {
+        binding: usize,
+    },
     ResetSurface {
         surface: usize,
     },
@@ -355,6 +406,8 @@ pub enum EditorAction {
     AddSurfaceMaskPoint {
         surface: usize,
         point: Point2,
+        /// Polygon insertion index, chosen from the nearest existing segment.
+        insert_at: usize,
     },
     RemoveSurfaceMaskPoint {
         surface: usize,
@@ -510,42 +563,73 @@ pub fn draw(
     status: &EditorStatus,
 ) -> Vec<EditorAction> {
     let mut actions = Vec::new();
-    if !ui.ctx().egui_wants_keyboard_input() && state.media_picker.is_none() {
-        if ui.input(|input| input.key_pressed(egui::Key::Space)) {
-            actions.push(EditorAction::ToggleTransport);
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::Home)) {
-            actions.push(EditorAction::RestartTransport);
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::M)) {
-            state.media_picker = Some(state.selected_layer);
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::F1)) {
-            state.mode = WorkspaceMode::Mapping;
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::F2)) {
-            state.mode = WorkspaceMode::Calibration;
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::F3)) {
-            state.mode = WorkspaceMode::Show;
-        }
-        if ui.input(|input| input.key_pressed(egui::Key::G)) {
-            if let Some(current) = status.output_guides.get(state.selected_output).copied() {
-                actions.push(EditorAction::SetOutputGuide {
-                    output: state.selected_output,
-                    guide: current.next(),
+    if let Some(parameter) = state.binding_learn.clone() {
+        match capture_hotkey(ui) {
+            Some(HotkeyCapture::Cancel) => state.binding_learn = None,
+            Some(HotkeyCapture::Key {
+                key,
+                ctrl,
+                shift,
+                alt,
+            }) => {
+                actions.push(EditorAction::AddBinding {
+                    parameter: parameter.clone(),
+                    key,
+                    ctrl,
+                    shift,
+                    alt,
                 });
+                state.binding_parameter = Some(parameter);
+                state.binding_learn = None;
+            }
+            None => {}
+        }
+    } else if !ui.ctx().egui_wants_keyboard_input() && state.media_picker.is_none() {
+        let mut custom_matched = false;
+        for (index, binding) in project.bindings.iter().enumerate() {
+            if hotkey_binding_pressed(ui, binding) {
+                actions.push(EditorAction::TriggerBinding { binding: index });
+                custom_matched = true;
+                break;
             }
         }
-        if ui.input(|input| input.modifiers.command) {
-            if ui.input(|input| input.key_pressed(egui::Key::Z)) {
-                if ui.input(|input| input.modifiers.shift) {
-                    actions.push(EditorAction::Redo);
-                } else {
-                    actions.push(EditorAction::Undo);
+        if !custom_matched {
+            if ui.input(|input| input.key_pressed(egui::Key::Space)) {
+                actions.push(EditorAction::ToggleTransport);
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::Home)) {
+                actions.push(EditorAction::RestartTransport);
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::M)) {
+                state.media_picker = Some(state.selected_layer);
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::F1)) {
+                state.mode = WorkspaceMode::Mapping;
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::F2)) {
+                state.mode = WorkspaceMode::Calibration;
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::F3)) {
+                state.mode = WorkspaceMode::Show;
+            }
+            if ui.input(|input| input.key_pressed(egui::Key::G)) {
+                if let Some(current) = status.output_guides.get(state.selected_output).copied() {
+                    actions.push(EditorAction::SetOutputGuide {
+                        output: state.selected_output,
+                        guide: current.next(),
+                    });
                 }
-            } else if ui.input(|input| input.key_pressed(egui::Key::Y)) {
-                actions.push(EditorAction::Redo);
+            }
+            if ui.input(|input| input.modifiers.command) {
+                if ui.input(|input| input.key_pressed(egui::Key::Z)) {
+                    if ui.input(|input| input.modifiers.shift) {
+                        actions.push(EditorAction::Redo);
+                    } else {
+                        actions.push(EditorAction::Undo);
+                    }
+                } else if ui.input(|input| input.key_pressed(egui::Key::Y)) {
+                    actions.push(EditorAction::Redo);
+                }
             }
         }
     }
@@ -596,6 +680,9 @@ pub fn draw(
                     .clicked()
                 {
                     state.mode = mode;
+                    if mode != WorkspaceMode::Show {
+                        state.binding_learn = None;
+                    }
                 }
             }
             ui.separator();
@@ -775,6 +862,279 @@ pub fn draw(
                             .small()
                             .color(Color32::from_rgb(132, 144, 166)),
                         );
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.heading("MIDI");
+                        if !status.midi.supported {
+                            ui.colored_label(
+                                Color32::from_rgb(255, 184, 92),
+                                "MIDI input is not available in this build. Rebuild with --features midi.",
+                            );
+                            if let Some(error) = &status.midi.error {
+                                ui.colored_label(Color32::from_rgb(255, 132, 112), error);
+                            }
+                        } else {
+                            if status.midi.devices.is_empty() {
+                                ui.label("No MIDI inputs found.");
+                            } else {
+                                ui.label(format!(
+                                    "Inputs: {}",
+                                    status.midi.devices.join(", ")
+                                ));
+                            }
+                            ui.label(format!(
+                                "{} message(s) received",
+                                status.midi.messages
+                            ));
+                            if !status.midi.last.is_empty() {
+                                ui.label(RichText::new(&status.midi.last).small().monospace());
+                            }
+                            if let Some(error) = &status.midi.error {
+                                ui.colored_label(Color32::from_rgb(255, 132, 112), error);
+                            }
+
+                            let parameters = project_parameters(project);
+                            let previous_kind = state
+                                .midi_parameter
+                                .as_ref()
+                                .and_then(|path| {
+                                    parameters.iter().find(|descriptor| &descriptor.path() == path)
+                                })
+                                .map(|descriptor| descriptor.kind);
+                            let selected_path = state
+                                .midi_parameter
+                                .clone()
+                                .filter(|path| {
+                                    parameters.iter().any(|descriptor| &descriptor.path() == path)
+                                })
+                                .or_else(|| parameters.first().map(|descriptor| descriptor.path()));
+                            let selected_kind = selected_path
+                                .as_ref()
+                                .and_then(|path| {
+                                    parameters.iter().find(|descriptor| &descriptor.path() == path)
+                                })
+                                .map(|descriptor| descriptor.kind);
+                            let modes = midi_modes(selected_kind);
+                            if previous_kind != selected_kind || !modes.contains(&state.midi_mode) {
+                                state.midi_mode = modes.first().copied().unwrap_or(MidiMode::Absolute);
+                            }
+                            state.midi_parameter.clone_from(&selected_path);
+                            if let Some((path, mode)) = &status.midi.learning {
+                                let label = parameters
+                                    .iter()
+                                    .find(|descriptor| &descriptor.path() == path)
+                                    .map_or(path.as_str(), |descriptor| {
+                                        descriptor.label.as_str()
+                                    });
+                                ui.colored_label(
+                                    Color32::from_rgb(255, 210, 90),
+                                    format!(
+                                        "Move a MIDI control or press a note for {label} ({})",
+                                        mode.label()
+                                    ),
+                                );
+                                if ui.button("Cancel MIDI learn").clicked() {
+                                    actions.push(EditorAction::CancelMidiLearn);
+                                }
+                            } else if !parameters.is_empty() {
+                                let selected_label = selected_path
+                                    .as_ref()
+                                    .and_then(|path| {
+                                        parameters
+                                            .iter()
+                                            .find(|descriptor| &descriptor.path() == path)
+                                    })
+                                    .map_or("Select parameter", |descriptor| {
+                                        descriptor.label.as_str()
+                                    });
+                                egui::ComboBox::from_id_salt("midi-parameter")
+                                    .selected_text(selected_label)
+                                    .show_ui(ui, |ui| {
+                                        for descriptor in &parameters {
+                                            let path = descriptor.path();
+                                            let selected =
+                                                selected_path.as_ref() == Some(&path);
+                                            if ui
+                                                .selectable_label(selected, &descriptor.label)
+                                                .clicked()
+                                            {
+                                                state.midi_parameter = Some(path);
+                                            }
+                                        }
+                                    });
+                                if let Some(kind) = selected_kind {
+                                    let mut mode = state.midi_mode;
+                                    ui.horizontal_wrapped(|ui| {
+                                        ui.label("Mode:");
+                                        for candidate in midi_modes(Some(kind)) {
+                                            if ui
+                                                .selectable_label(
+                                                    mode == *candidate,
+                                                    candidate.label(),
+                                                )
+                                                .clicked()
+                                            {
+                                                mode = *candidate;
+                                            }
+                                        }
+                                    });
+                                    state.midi_mode = mode;
+                                    let hint = if kind == ParameterKind::Bool {
+                                        "Toggle reacts to a press; Absolute follows note on/off or the CC threshold."
+                                    } else {
+                                        "Absolute maps 0..127; Relative uses encoder ticks. Note bindings use Absolute."
+                                    };
+                                    ui.label(
+                                        RichText::new(hint)
+                                            .small()
+                                            .color(Color32::from_rgb(132, 144, 166)),
+                                    );
+                                }
+                                if ui
+                                    .add_enabled(
+                                        selected_path.is_some()
+                                            && !status.midi.devices.is_empty(),
+                                        egui::Button::new("Learn MIDI"),
+                                    )
+                                    .clicked()
+                                {
+                                    if let Some(parameter) = selected_path {
+                                        actions.push(EditorAction::BeginMidiLearn {
+                                            parameter,
+                                            mode: state.midi_mode,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        let midi_parameters = project_parameters(project);
+                        for (index, binding) in project.midi_bindings.iter().enumerate() {
+                            let parameter_label = midi_parameters
+                                .iter()
+                                .find(|descriptor| descriptor.path() == binding.parameter)
+                                .map_or_else(
+                                    || binding.parameter.clone(),
+                                    |descriptor| descriptor.label.clone(),
+                                );
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(RichText::new(binding.source_label()).monospace());
+                                ui.label(binding.mode.label());
+                                ui.label("->");
+                                ui.label(parameter_label)
+                                    .on_hover_text(&binding.parameter);
+                                if ui.small_button("Remove").clicked() {
+                                    actions.push(EditorAction::RemoveMidiBinding {
+                                        binding: index,
+                                    });
+                                }
+                            });
+                        }
+                        if project.midi_bindings.is_empty() {
+                            ui.label("No MIDI bindings yet.");
+                        }
+
+                        ui.add_space(12.0);
+                        ui.separator();
+                        ui.heading("Hotkey bindings");
+                        ui.label(
+                            RichText::new(
+                                "Bind keys to bool and transport parameters. Bindings are saved in the project.",
+                            )
+                            .small()
+                            .color(Color32::from_rgb(132, 144, 166)),
+                        );
+                        let toggle_parameters: Vec<_> = project_parameters(project)
+                            .into_iter()
+                            .filter(|descriptor| descriptor.kind == ParameterKind::Bool)
+                            .collect();
+                        if toggle_parameters.is_empty() {
+                            ui.label("No toggleable parameters in this project.");
+                        } else {
+                            let selected_path = state
+                                .binding_parameter
+                                .clone()
+                                .filter(|path| {
+                                    toggle_parameters
+                                        .iter()
+                                        .any(|descriptor| &descriptor.path() == path)
+                                })
+                                .or_else(|| toggle_parameters.first().map(|descriptor| descriptor.path()));
+                            state.binding_parameter.clone_from(&selected_path);
+                            if let Some(path) = &state.binding_learn {
+                                let label = toggle_parameters
+                                    .iter()
+                                    .find(|descriptor| &descriptor.path() == path)
+                                    .map_or(path.as_str(), |descriptor| {
+                                        descriptor.label.as_str()
+                                    });
+                                ui.colored_label(
+                                    Color32::from_rgb(255, 210, 90),
+                                    format!("Press a key for {label} (Esc cancels)"),
+                                );
+                                if ui.button("Cancel learn").clicked() {
+                                    state.binding_learn = None;
+                                }
+                            } else {
+                                let selected_label = selected_path
+                                    .as_ref()
+                                    .and_then(|path| {
+                                        toggle_parameters
+                                            .iter()
+                                            .find(|descriptor| &descriptor.path() == path)
+                                    })
+                                    .map_or("Select parameter", |descriptor| {
+                                        descriptor.label.as_str()
+                                    });
+                                egui::ComboBox::from_id_salt("binding-parameter")
+                                    .selected_text(selected_label)
+                                    .show_ui(ui, |ui| {
+                                        for descriptor in &toggle_parameters {
+                                            let path = descriptor.path();
+                                            let selected =
+                                                selected_path.as_ref() == Some(&path);
+                                            if ui
+                                                .selectable_label(selected, &descriptor.label)
+                                                .clicked()
+                                            {
+                                                state.binding_parameter = Some(path);
+                                            }
+                                        }
+                                    });
+                                if ui
+                                    .add_enabled(
+                                        selected_path.is_some(),
+                                        egui::Button::new("Learn key"),
+                                    )
+                                    .clicked()
+                                {
+                                    state.binding_learn = selected_path;
+                                }
+                            }
+                        }
+
+                        for (index, binding) in project.bindings.iter().enumerate() {
+                            let parameter_label = project_parameters(project)
+                                .into_iter()
+                                .find(|descriptor| descriptor.path() == binding.parameter)
+                                .map_or_else(
+                                    || binding.parameter.clone(),
+                                    |descriptor| descriptor.label,
+                                );
+                            ui.horizontal_wrapped(|ui| {
+                                ui.label(RichText::new(binding.shortcut_label()).monospace());
+                                ui.label("->");
+                                ui.label(parameter_label)
+                                    .on_hover_text(&binding.parameter);
+                                if ui.small_button("Remove").clicked() {
+                                    actions.push(EditorAction::RemoveBinding { binding: index });
+                                }
+                            });
+                        }
+                        if project.bindings.is_empty() {
+                            ui.label("No bindings yet.");
+                        }
 
                         ui.add_space(12.0);
                         ui.separator();
@@ -1198,6 +1558,10 @@ pub fn draw(
             });
     }
 
+    if state.mode != WorkspaceMode::Mapping {
+        state.mask_add_mode = false;
+    }
+
     if state.mode == WorkspaceMode::Mapping {
         egui::Panel::bottom("lpmt-media-shelf")
             .resizable(true)
@@ -1486,9 +1850,11 @@ pub fn draw(
 
         // Click a surface to make it active. Shift-click toggles membership in
         // the selection; dragging a selected surface moves the whole selection.
-        // Alt-click adds a mask point; right-click removes one.
+        // Add-points mode or Ctrl-click adds a mask point; right-click removes
+        // one.
         let shift = ui.input(|input| input.modifiers.shift);
-        let alt = ui.input(|input| input.modifiers.alt);
+        let ctrl = ui.input(|input| input.modifiers.ctrl);
+        let add_mask_point = state.mask_add_mode || ctrl;
         let mut mask_click_handled = false;
         if response.secondary_clicked() {
             if let (Some(surface), Some(pointer)) = (
@@ -1506,18 +1872,23 @@ pub fn draw(
                 }
             }
         }
-        if response.clicked() && !mask_click_handled && alt {
+        if response.clicked() && !mask_click_handled && add_mask_point {
             if let (Some(surface), Some(pointer)) = (
                 stage.surfaces.get(state.selected_surface),
                 response.interact_pointer_pos(),
             ) {
-                if surface.mask.enabled {
-                    if let Some(uv) =
-                        stage_to_surface_uv(surface, preview_to_stage(preview, pointer))
-                    {
+                let stage_point = preview_to_stage(preview, pointer);
+                if surface.mask.enabled
+                    && point_in_surface(surface, stage_point)
+                    && nearest_mask_point(preview, surface, pointer, 14.0).is_none()
+                {
+                    if let Some(uv) = stage_to_surface_uv(surface, stage_point) {
+                        let insert_at = nearest_mask_segment(preview, surface, pointer)
+                            .map_or(surface.mask.points.len(), |segment| segment + 1);
                         actions.push(EditorAction::AddSurfaceMaskPoint {
                             surface: state.selected_surface,
                             point: uv,
+                            insert_at,
                         });
                         mask_click_handled = true;
                     }
@@ -1704,7 +2075,11 @@ pub fn draw(
             preview.left_bottom() + Vec2::new(8.0, -6.0),
             Align2::LEFT_BOTTOM,
             if state.mode == WorkspaceMode::Mapping {
-                "Click to edit · Shift-click multi-select · drag surface · Alt-click adds a mask point"
+                if state.mask_add_mode {
+                    "Click to add a mask point · right-click a point to remove · Shift-click multi-select"
+                } else {
+                    "Click to edit · Shift-click multi-select · drag surface · Ctrl-click adds a mask point"
+                }
             } else {
                 "Read-only preview · press F1 for Mapping"
             },
@@ -2621,6 +2996,9 @@ fn draw_surface_settings(
             enabled: mask_enabled,
         });
     }
+    if !mask_enabled {
+        state.mask_add_mode = false;
+    }
     if mask_enabled {
         let mut invert = surface.mask.invert;
         if ui.checkbox(&mut invert, "Invert mask").changed() {
@@ -2643,13 +3021,28 @@ fn draw_surface_settings(
                 feather,
             });
         }
-        ui.label(
-            RichText::new(format!(
-                "{} point(s) · Alt-click preview to add · right-click a point to remove",
+        let mut add_points = state.mask_add_mode;
+        if ui
+            .checkbox(&mut add_points, "Add points in preview")
+            .changed()
+        {
+            state.mask_add_mode = add_points;
+        }
+        let hint = if state.mask_add_mode {
+            format!(
+                "{} point(s) · Click the preview to add a point · right-click a point to remove",
                 surface.mask.points.len()
-            ))
-            .small()
-            .color(Color32::from_rgb(132, 144, 166)),
+            )
+        } else {
+            format!(
+                "{} point(s) · Ctrl-click or enable Add points · right-click a point to remove",
+                surface.mask.points.len()
+            )
+        };
+        ui.label(
+            RichText::new(hint)
+                .small()
+                .color(Color32::from_rgb(132, 144, 166)),
         );
         ui.horizontal_wrapped(|ui| {
             if ui.button("Rectangle mask").clicked() {
@@ -2658,6 +3051,7 @@ fn draw_surface_settings(
                 });
             }
             if ui.button("Clear mask").clicked() {
+                state.mask_add_mode = false;
                 actions.push(EditorAction::ClearSurfaceMask {
                     surface: state.selected_surface,
                 });
@@ -2749,6 +3143,107 @@ fn draw_surface_settings(
             });
         }
     });
+}
+
+fn midi_modes(kind: Option<ParameterKind>) -> &'static [MidiMode] {
+    const BOOL_MODES: [MidiMode; 2] = [MidiMode::Toggle, MidiMode::Absolute];
+    const VALUE_MODES: [MidiMode; 2] = [MidiMode::Absolute, MidiMode::Relative];
+    match kind {
+        Some(ParameterKind::Bool) => &BOOL_MODES,
+        _ => &VALUE_MODES,
+    }
+}
+
+enum HotkeyCapture {
+    Cancel,
+    Key {
+        key: String,
+        ctrl: bool,
+        shift: bool,
+        alt: bool,
+    },
+}
+
+fn capture_hotkey(ui: &egui::Ui) -> Option<HotkeyCapture> {
+    let mut captured = None;
+    ui.input(|input| {
+        for event in &input.events {
+            let egui::Event::Key {
+                key,
+                pressed: true,
+                repeat,
+                modifiers,
+                ..
+            } = event
+            else {
+                continue;
+            };
+            if *repeat {
+                continue;
+            }
+            if *key == egui::Key::Escape {
+                captured = Some(HotkeyCapture::Cancel);
+                break;
+            }
+            if is_modifier_key(*key) {
+                continue;
+            }
+            captured = Some(HotkeyCapture::Key {
+                key: format!("{key:?}").to_ascii_lowercase(),
+                ctrl: modifiers.ctrl || modifiers.command,
+                shift: modifiers.shift,
+                alt: modifiers.alt,
+            });
+            break;
+        }
+    });
+    captured
+}
+
+fn hotkey_binding_pressed(ui: &egui::Ui, binding: &ParameterBinding) -> bool {
+    let mut pressed = false;
+    ui.input(|input| {
+        for event in &input.events {
+            let egui::Event::Key {
+                key,
+                pressed: true,
+                repeat,
+                modifiers,
+                ..
+            } = event
+            else {
+                continue;
+            };
+            if *repeat || is_modifier_key(*key) {
+                continue;
+            }
+            let name = format!("{key:?}").to_ascii_lowercase();
+            if binding.matches_key(
+                &name,
+                modifiers.ctrl || modifiers.command,
+                modifiers.shift,
+                modifiers.alt,
+            ) {
+                pressed = true;
+                break;
+            }
+        }
+    });
+    pressed
+}
+
+fn is_modifier_key(key: egui::Key) -> bool {
+    matches!(
+        key,
+        egui::Key::ShiftLeft
+            | egui::Key::ShiftRight
+            | egui::Key::ControlLeft
+            | egui::Key::ControlRight
+            | egui::Key::AltLeft
+            | egui::Key::AltRight
+            | egui::Key::SuperLeft
+            | egui::Key::SuperRight
+    )
 }
 
 fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
@@ -3143,6 +3638,42 @@ fn nearest_mask_point(
         .map(|(index, _)| index)
 }
 
+fn nearest_mask_segment(preview: EguiRect, surface: &Surface, pointer: Pos2) -> Option<usize> {
+    let count = surface.mask.points.len();
+    if count < 2 {
+        return None;
+    }
+    let mut best: Option<(usize, f32)> = None;
+    for segment in 0..count {
+        let Some(a) = surface_uv_to_stage(surface, surface.mask.points[segment]) else {
+            continue;
+        };
+        let Some(b) = surface_uv_to_stage(surface, surface.mask.points[(segment + 1) % count])
+        else {
+            continue;
+        };
+        let distance = distance_to_segment(
+            pointer,
+            stage_to_preview(preview, a),
+            stage_to_preview(preview, b),
+        );
+        if best.is_none_or(|(_, best_distance)| distance < best_distance) {
+            best = Some((segment, distance));
+        }
+    }
+    best.map(|(segment, _)| segment)
+}
+
+fn distance_to_segment(point: Pos2, a: Pos2, b: Pos2) -> f32 {
+    let ab = b - a;
+    let length_squared = ab.x * ab.x + ab.y * ab.y;
+    if length_squared <= f32::EPSILON {
+        return point.distance(a);
+    }
+    let t = (((point.x - a.x) * ab.x + (point.y - a.y) * ab.y) / length_squared).clamp(0.0, 1.0);
+    Pos2::new(a.x + ab.x * t, a.y + ab.y * t).distance(point)
+}
+
 fn polygon_center(points: &[Pos2]) -> Pos2 {
     if points.is_empty() {
         return Pos2::ZERO;
@@ -3235,6 +3766,15 @@ fn point_in_polygon(point: Pos2, polygon: &[Pos2]) -> bool {
     inside
 }
 
+fn point_in_surface(surface: &Surface, point: Point2) -> bool {
+    let polygon: Vec<Pos2> = surface
+        .corners
+        .iter()
+        .map(|corner| Pos2::new(corner.x, corner.y))
+        .collect();
+    point_in_polygon(Pos2::new(point.x, point.y), &polygon)
+}
+
 fn nearest_surface_snap(
     preview: EguiRect,
     surfaces: &[Surface],
@@ -3280,6 +3820,58 @@ fn nearest_corner(points: &[Pos2], pointer: Pos2, threshold: f32) -> Option<usiz
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn midi_modes_match_the_parameter_kind() {
+        assert_eq!(
+            midi_modes(Some(ParameterKind::Bool)),
+            &[MidiMode::Toggle, MidiMode::Absolute][..]
+        );
+        assert_eq!(
+            midi_modes(Some(ParameterKind::Float)),
+            &[MidiMode::Absolute, MidiMode::Relative][..]
+        );
+        assert_eq!(
+            midi_modes(Some(ParameterKind::Text)),
+            &[MidiMode::Absolute, MidiMode::Relative][..]
+        );
+    }
+
+    #[test]
+    fn nearest_mask_segment_follows_polygon_order() {
+        let mut surface = Surface::full_stage("surface", "Surface");
+        surface.mask.points = vec![
+            Point2::new(0.1, 0.1),
+            Point2::new(0.9, 0.1),
+            Point2::new(0.9, 0.9),
+            Point2::new(0.1, 0.9),
+        ];
+        let preview = EguiRect::from_min_size(Pos2::ZERO, Vec2::new(100.0, 100.0));
+        assert_eq!(
+            nearest_mask_segment(preview, &surface, Pos2::new(50.0, 10.0)),
+            Some(0)
+        );
+        assert_eq!(
+            nearest_mask_segment(preview, &surface, Pos2::new(90.0, 50.0)),
+            Some(1)
+        );
+        assert_eq!(
+            nearest_mask_segment(preview, &surface, Pos2::new(50.0, 90.0)),
+            Some(2)
+        );
+        assert_eq!(
+            nearest_mask_segment(preview, &surface, Pos2::new(10.0, 50.0)),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn point_in_surface_respects_the_quad() {
+        let surface = Surface::full_stage("surface", "Surface");
+        assert!(point_in_surface(&surface, Point2::new(0.5, 0.5)));
+        assert!(!point_in_surface(&surface, Point2::new(1.2, 0.5)));
+        assert!(!point_in_surface(&surface, Point2::new(-0.1, 0.5)));
+    }
 
     #[test]
     fn point_in_polygon_handles_inside_and_outside_points() {

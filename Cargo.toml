@@ -26,6 +26,7 @@ env_logger = "0.11"
 ffmpeg-next = { version = "9.0", default-features = false, features = ["format", "software-scaling"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 log = "0.4"
+midir = "0.11"
 pollster = "1.0"
 rfd = "0.17"
 rodio = { version = "0.23", default-features = false, features = ["playback", "mp3", "mp4", "flac", "vorbis", "wav"] }

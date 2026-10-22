@@ -58,8 +58,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   surface UV so they follow the warp. Mask coverage is rasterized on the CPU into a cached,
   device-wide coverage texture and sampled by both the quad and grid shaders. Layers support
   rectangular edge insets and an optional circular source crop. The editor edits mask points
-  directly in the live preview (Alt-click add, right-click remove, drag to move) and exposes crop
-  controls in the layer card. All changes participate in undo/redo.
+  directly in the live preview (Add-points mode or Ctrl-click add, right-click remove, drag to
+  move) and exposes crop controls in the layer card. New points are inserted next to the nearest
+  existing polygon segment instead of being appended, so the outline stays coherent. The explicit
+  add mode avoids desktop shortcuts that reserve modifiers for window management. All changes
+  participate in undo/redo.
 - **Project persistence:** JSON save/load in the editor plus `--project <path>` startup loading,
   with native Open/Save-as dialogs and media import/replace/remove. Saves are atomic: the JSON is
   written and flushed to a temporary file in the destination directory, then renamed over the
@@ -100,13 +103,17 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   tear-free `Fifo`. On a single display, output windows stay closed by default (the live preview
   is used instead) so a Wayland compositor cannot stack them over the editor; **Open now** opts in
   explicitly.
-- **Control foundation and OSC:** `lpmt-core::param` defines stable IDs and paths for layer,
+- **Control foundation, OSC and MIDI:** `lpmt-core::param` defines stable IDs and paths for layer,
   surface, output, audio and transport parameters, plus a project parameter inventory. The
   `lpmt-control` crate runs a background UDP OSC listener (default `127.0.0.1:9000`, override with
   `LPMT_OSC_ADDR`), accepts messages and bundles, and maps numeric/bool/text arguments onto the same
   editor actions used by the UI. Show mode reports listener status, message count and the last
-  accepted or rejected address. Bindings are session-only; persisted bindings, MIDI, DMX and the
-  timeline are next.
+  accepted or rejected address. Configurable hotkey bindings can be learned in Show mode, are
+  stored in the project and toggle bool/transport parameters through the same paths. The optional
+  `midi` feature adds a `midir` listener; Show mode learns CC/note sources into persisted bindings
+  with absolute, relative and toggle modes, and maps them through the same parameter actions. Toggle
+  gives pads and buttons latching control of bool parameters. OSC addresses remain session-only;
+  DMX and the timeline are next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -143,10 +150,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, MIDI/DMX bindings, persisted bindings/generic learn, the
+  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, the
   timeline, the legacy XML importer, packaging and validated macOS/Windows builds.
-- **Next implementation slice:** M5.1 show control — MIDI and configurable hotkeys on the parameter/
-  binding layer, persisted bindings, then the timeline with numeric/colour/trigger tracks.
+- **Next implementation slice:** the timeline with numeric curves, colour tracks and timed
+  triggers targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -400,7 +407,7 @@ own thread only if measurements show UI stalls affecting output.
 | `Output` | Presentation target: display/window/sink, view region of a stage, resolution, colour, blend zones |
 | `OutputGroup` | Outputs that are edge-blended and frame-synchronized together |
 | `Timeline` | Transport plus tracks of numbers, colours and triggers |
-| `ParameterBinding` | Maps OSC/MIDI/DMX/hotkey input to a parameter path |
+| `ParameterBinding` / `MidiBinding` | Maps hotkey or MIDI input to a parameter path |
 
 ### 6.2 Why separate Surface and Layer?
 
@@ -606,9 +613,12 @@ the decoder backend, not the platform.
 
 - **OSC:** map addresses to parameter paths and trigger commands. Ship a legacy compatibility map
   for LPMT 1 addresses (`/active/...`, `/corners/...`, etc.) during migration.
-- **MIDI:** map notes/CC/pitch bend to parameters; absolute and relative modes; generic learn.
+- **MIDI:** map notes and CC to parameters through optional `midir` inputs; absolute values, relative
+  encoders, latching Toggle mode for bool parameters and Show-mode learn are implemented. Pitch bend
+  is parsed and reported but not yet bindable; hotplug and per-device selection remain later work.
 - **DMX/Art-Net:** later, using the same binding model.
-- **Keyboard:** bindings are commands or parameter increments; no giant `keyPressed` switch.
+- **Keyboard:** persisted bindings target stable parameter paths. Show-mode hotkey learn currently
+  toggles bool/transport parameters; increments and command bindings follow on the same layer.
 - **Timeline:** curves and triggers write parameters/commands through the same API.
 - **Remote UI:** optional WebSocket/JSON API for tablets and browser control.
 
@@ -773,8 +783,10 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 - [x] Stable parameter IDs/paths and a project parameter inventory.
 - [x] OSC listener with numeric/bool/text arguments, bundles and Show-mode status.
-- [ ] MIDI and DMX bindings, generic learn, configurable hotkeys.
-- [ ] Persisted parameter bindings.
+- [x] Configurable hotkey bindings with Show-mode learn.
+- [x] Persisted parameter bindings, including undo/redo and project reload.
+- [x] MIDI CC/note bindings with absolute, relative and toggle modes plus Show-mode learn.
+- [ ] DMX/Art-Net bindings on the same parameter layer.
 - [ ] Timeline with curves, colours and triggers targeting parameters.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 

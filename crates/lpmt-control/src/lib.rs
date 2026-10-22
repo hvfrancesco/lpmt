@@ -14,6 +14,9 @@ use anyhow::{Context, Result};
 use lpmt_core::param::{ParameterId, ParameterValue};
 use rosc::{OscMessage, OscPacket, OscType};
 
+mod midi;
+pub use midi::{MidiEvent, MidiListener};
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum OscEvent {
     Parameter {

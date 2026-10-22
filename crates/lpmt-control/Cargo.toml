@@ -6,8 +6,13 @@ license.workspace = true
 rust-version.workspace = true
 description = "OSC, MIDI and show-control adapters for LPMT"
 
+[features]
+default = []
+midi = ["dep:midir"]
+
 [dependencies]
 anyhow.workspace = true
 log.workspace = true
 lpmt-core = { path = "../lpmt-core" }
+midir = { workspace = true, optional = true }
 rosc = "0.11"

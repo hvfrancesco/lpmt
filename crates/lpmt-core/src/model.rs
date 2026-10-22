@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::binding::{MidiBinding, ParameterBinding};
 use crate::homography::{Homography, HomographyError};
 use crate::lut::CalibrationLut;
 
@@ -950,6 +951,12 @@ pub struct Project {
     pub media: Vec<MediaAsset>,
     #[serde(default)]
     pub audio: ShowAudio,
+    /// Persisted hotkey bindings for stable parameter paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bindings: Vec<ParameterBinding>,
+    /// Persisted MIDI bindings for stable parameter paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub midi_bindings: Vec<MidiBinding>,
 }
 
 impl Project {
@@ -1084,6 +1091,8 @@ impl Project {
             output_groups: vec![group],
             media: vec![media, video, car],
             audio: ShowAudio::default(),
+            bindings: Vec::new(),
+            midi_bindings: Vec::new(),
         }
     }
 }
@@ -1114,6 +1123,44 @@ mod tests {
         value.as_object_mut().unwrap().remove("output_groups");
         let project: Project = serde_json::from_value(value).unwrap();
         assert!(project.output_groups.is_empty());
+    }
+
+    #[test]
+    fn older_projects_load_without_bindings() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        value.as_object_mut().unwrap().remove("bindings");
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.bindings.is_empty());
+    }
+
+    #[test]
+    fn bindings_round_trip_with_the_project() {
+        let mut project = Project::demo();
+        project.bindings.push(ParameterBinding::new(
+            "layer/layer-1/visible",
+            "v",
+            false,
+            false,
+            false,
+        ));
+        project.midi_bindings.push(MidiBinding::new(
+            "layer/layer-1/opacity",
+            0,
+            crate::binding::MidiMessageKind::ControlChange,
+            7,
+            crate::binding::MidiMode::Absolute,
+        ));
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+    }
+
+    #[test]
+    fn older_projects_load_without_midi_bindings() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        value.as_object_mut().unwrap().remove("midi_bindings");
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.midi_bindings.is_empty());
     }
 
     #[test]

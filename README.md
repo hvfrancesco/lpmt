@@ -15,9 +15,10 @@ undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
 guides, multi-surface mapping, quad/grid warp, polygon masks, rectangular and
-circular crops, thumbnail media picking and an OSC control surface. Mapping uses
-an inline editable hierarchy beside the live preview with a bottom media shelf;
-Calibration and Show are separate modes.
+circular crops, thumbnail media picking, an OSC control surface, persisted
+hotkey bindings and optional MIDI learn. Mapping uses an inline editable
+hierarchy beside the live preview with a bottom media shelf; Calibration and
+Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -39,11 +40,13 @@ Calibration and Show are separate modes.
   surface centres horizontally or vertically. Multi-surface moves are one
   coalesced undo step.
 - **Surface masks and layer crops:** each surface can use an editable polygon
-  mask with invert and feather. Alt-click the preview to add a point,
-  right-click a point to remove it, and drag points to reshape the mask. Each
-  layer can apply top/right/bottom/left and circular source crops. Mask coverage
-  is rasterized once per change into a shared texture, so preview and every
-  output use the same data without slowing the render path.
+  mask with invert and feather. Enable **Add points in preview** and click the
+  preview, or Ctrl-click, to add a point; new points are inserted next to the
+  nearest existing polygon segment. Right-click a point to remove it and drag
+  points to reshape the mask. Each layer can apply
+  top/right/bottom/left and circular source crops. Mask coverage is rasterized
+  once per change into a shared texture, so preview and every output use the
+  same data without slowing the render path.
 - **Quad and grid warp:** each surface starts as a four-corner quad and can
   switch to a regular 2×2 to 6×6 control grid. Grid points are dragged directly
   in the preview, with coalesced undo. The four corners always remain available:
@@ -117,8 +120,18 @@ Calibration and Show are separate modes.
   layers, surfaces, outputs, show audio and transport. OSC changes go through
   the same parameter/action path as the editor and participate in undo/redo
   where they affect project state. The Show mode reports the listener address,
-  message count and last accepted or rejected message. Bindings are session-only
-  for now.
+  message count and last accepted or rejected message. OSC addresses are
+  session-only for now.
+- **Hotkey bindings:** Show mode can learn a key for any bool or transport
+  parameter. Bindings are persisted in the project, undoable and take precedence
+  over built-in shortcuts.
+- **MIDI control:** an optional `midi` build feature enumerates MIDI inputs and
+  feeds CC and note messages into the same parameter layer. Show mode learns a
+  CC or note for the selected parameter, persists the binding in the project and
+  supports absolute, relative and toggle modes. Absolute values map `0..127`
+  onto the parameter range; relative mode follows encoder ticks; toggle mode
+  turns a pad or button into a latching control. Project changes made through
+  MIDI use the same actions and undo/redo path as the editor.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -145,12 +158,12 @@ Calibration and Show are separate modes.
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
-crops, stable parameter paths and OSC control are now in place. The next
-implementation slice is **M5.1 show control**:
+crops, stable parameter paths, OSC control, persisted hotkey bindings and MIDI
+learn are now in place. The next implementation slice is the **timeline**:
 
-- MIDI and configurable hotkeys on the same parameter/binding layer;
-- persisted bindings and generic learn;
-- a timeline with numeric curves, colour tracks and triggers.
+- numeric parameter curves;
+- colour tracks;
+- timed triggers and transport cues.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -163,11 +176,15 @@ Requirements:
 
 - Rust 1.95 or newer.
 - Linux with Vulkan (or another `wgpu` backend), Wayland or X11.
+- Optional MIDI on Linux uses ALSA; install `libasound2-dev` and `pkg-config`.
+  The default build stays image-only; enable MIDI with `--features midi`.
 - On macOS and Windows the same workspace is intended to build unchanged; those
   platforms are not validated yet.
 
 ```bash
 cargo run -p lpmt-app
+# with MIDI input
+cargo run -p lpmt-app --features midi
 # open a saved show directly
 cargo run -p lpmt-app -- --project show.json
 ```
@@ -335,15 +352,54 @@ oscsend localhost 9000 /lpmt/transport/playing i 1
 ```
 
 The **Show** mode displays the listener address, received message count and the
-last accepted or rejected message. Bindings are currently session-only;
-persisted bindings, generic learn, MIDI and the timeline are the next control
-milestone.
+last accepted or rejected message. OSC addresses are session-only; the timeline
+is the next control milestone.
+
+### MIDI control
+
+MIDI is an optional build feature. With `--features midi`, Show mode enumerates
+the available input ports and reports the message count and last message. To
+bind a controller, choose a parameter, choose a mode, press **Learn MIDI**, then
+move a CC or press a note. The source is stored in the project; learning the same
+channel/CC or channel/note again replaces that binding.
+
+- **Bool parameters** offer **Toggle** and **Absolute**. Toggle reacts to a pad
+  or button press: a fresh Note On toggles, Note Off and repeated Note On while
+  held are ignored, and a CC toggles on the rising edge across 64. Absolute
+  follows note on/off, or the CC value around the midpoint.
+- **Float and text parameters** offer **Absolute** and **Relative**. Absolute
+  maps `0..127` across the parameter range; Relative applies an increment or
+  decrement using the usual `1..63` / `65..127` encoder convention. A note
+  learned in Relative mode falls back to Absolute, since note deltas are not
+  meaningful.
+- Transport playing/looping and the show position are addressable too; position
+  mapping uses the current show duration.
+- Knobs are the natural source for float and text parameters; pads and buttons
+  are the natural source for Toggle.
+
+MIDI inputs are enumerated at startup, so connect controllers before opening the
+app. Bindings are saved with the project and changes made through MIDI are
+undoable like the equivalent editor action.
+
+### Hotkey bindings
+
+Show mode has a **Hotkey bindings** section for bool and transport parameters.
+Pick a parameter, press **Learn key**, then press the shortcut you want. `Esc`
+cancels learning. Bindings are stored in the project, participate in undo/redo
+and survive reopening the show. Learning a shortcut that is already bound
+replaces the old assignment.
+
+Custom bindings take precedence over the built-in shortcuts. They currently
+toggle bool parameters (surface and layer visibility, masks, output enabled,
+show audio mute) and the transport playing/looping state. MIDI bindings and the
+future timeline use the same stable parameter paths.
 
 Useful commands:
 
 ```bash
 cargo test --workspace
 cargo test -p lpmt-app --features video,audio
+cargo test -p lpmt-app --features midi
 cargo fmt --all
 cargo clippy --workspace --all-targets
 ```
@@ -365,7 +421,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 | `lpmt-render` | `wgpu` device setup, shared media textures, calibration and output rendering |
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
 | `lpmt-media` | Image decoding plus optional `ffmpeg-next` video and `rodio` audio playback; capture next |
-| `lpmt-control` | OSC listener; MIDI, DMX and hotkey adapters next |
+| `lpmt-control` | OSC and optional MIDI listeners; DMX next |
 | `lpmt-import-legacy` | Future LPMT 1 XML importer |
 | `lpmt-app` | Window/event-loop composition and application state |
 
@@ -383,10 +439,12 @@ keeps the deformation for later; use **Reset grid** to rebuild the mesh and
 **Reset to full stage** for a complete reset. With **Snap corners** enabled, a
 dragged quad corner locks onto another surface's nearest corner.
 Enable **Polygon mask** in a surface card to cut a feathered, optionally inverted
-polygon out of that surface. Alt-click the preview to add a mask point,
-right-click a point to remove it, and drag the orange handles to reshape it. The
-layer card also exposes **Source crop**: four edge insets plus an optional
-circular crop. Both are undone/redone with the rest of the project.
+polygon out of that surface. Turn on **Add points in preview** and click the
+preview to add a mask point, or use Ctrl-click as a shortcut. The new point is
+inserted into the polygon next to the nearest existing segment, so the outline
+stays coherent. Right-click a point to remove it and drag the orange handles to
+reshape it. The layer card also exposes **Source crop**: four edge insets plus
+an optional circular crop. Both are undone/redone with the rest of the project.
 Shift-click surfaces, or drag a selected surface, to edit several at once; align
 and distribute actions appear under the surface list. The active layer card
 contains its name, thumbnail source, **Choose media…** button,

@@ -20,7 +20,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{Context, Result};
-use lpmt_control::{OscEvent, OscListener};
+use lpmt_control::{MidiEvent, MidiListener, OscEvent, OscListener};
+use lpmt_core::binding::{MidiBinding, MidiMessageKind, MidiMode, ParameterBinding};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
@@ -28,7 +29,7 @@ use lpmt_core::model::{
     OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask, TestPattern,
     MASK_POINT_LIMIT,
 };
-use lpmt_core::param::{EdgeSide, ParameterId, ParameterValue};
+use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue};
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
 use lpmt_render::output::{OutputRenderer, PreviewRenderer};
@@ -82,6 +83,17 @@ struct App {
     osc_messages: u64,
     osc_last: String,
     osc_error: Option<String>,
+    midi: Option<MidiListener>,
+    midi_devices: Vec<String>,
+    midi_messages: u64,
+    midi_last: String,
+    midi_error: Option<String>,
+    midi_learn: Option<MidiLearn>,
+    /// Last high/low state per CC source, used for edge-triggered Toggle mode.
+    midi_cc_high: HashMap<(u8, u8), bool>,
+    /// Last pressed/released state per note source, used so only a fresh
+    /// Note On toggles and a Note Off never toggles.
+    midi_note_down: HashMap<(u8, u8), bool>,
     clock: ShowClock,
     last_clock_seek: u64,
     last_clock_loop: u64,
@@ -93,6 +105,12 @@ struct App {
     last_frame: Instant,
     fps: f32,
     frame_ms: f32,
+}
+
+#[derive(Clone)]
+struct MidiLearn {
+    parameter: String,
+    mode: MidiMode,
 }
 
 struct EditorWindow {
@@ -142,6 +160,19 @@ impl App {
                 (None, Some(error.to_string()))
             }
         };
+        let (midi, midi_devices, midi_error) = match MidiListener::open() {
+            Ok(listener) => {
+                let devices = listener.devices().to_vec();
+                if !listener.is_supported() {
+                    log::info!("MIDI support not built (enable the midi feature)");
+                }
+                (Some(listener), devices, None)
+            }
+            Err(error) => {
+                log::warn!("MIDI listener unavailable: {error:#}");
+                (None, Vec::new(), Some(error.to_string()))
+            }
+        };
         let mut app = Self {
             gpu,
             media,
@@ -164,6 +195,14 @@ impl App {
             osc_messages: 0,
             osc_last: String::new(),
             osc_error,
+            midi,
+            midi_devices,
+            midi_messages: 0,
+            midi_last: String::new(),
+            midi_error,
+            midi_learn: None,
+            midi_cc_high: HashMap::new(),
+            midi_note_down: HashMap::new(),
             clock: ShowClock::new(),
             last_clock_seek: 0,
             last_clock_loop: 0,
@@ -715,6 +754,258 @@ impl App {
         }
     }
 
+    fn poll_midi(&mut self) {
+        let events = self
+            .midi
+            .as_ref()
+            .map(MidiListener::drain)
+            .unwrap_or_default();
+        for event in events {
+            self.handle_midi_event(event);
+        }
+    }
+
+    fn handle_midi_event(&mut self, event: MidiEvent) {
+        self.midi_messages = self.midi_messages.saturating_add(1);
+        self.midi_last = event.description();
+        if let Some((channel, message, number, value)) = midi_source(&event) {
+            if let Some(learn) = self.midi_learn.clone() {
+                if message == MidiMessageKind::Note && value == 0 {
+                    // A note-off while learning does not define a binding.
+                } else {
+                    // Relative note deltas are ambiguous; a note can still be
+                    // absolute (momentary) or toggle (latching).
+                    let mode =
+                        if message == MidiMessageKind::Note && learn.mode == MidiMode::Relative {
+                            MidiMode::Absolute
+                        } else {
+                            learn.mode
+                        };
+                    let binding =
+                        MidiBinding::new(learn.parameter.clone(), channel, message, number, mode);
+                    let before = self.project.clone();
+                    if let Some(existing) = self
+                        .project
+                        .midi_bindings
+                        .iter_mut()
+                        .find(|existing| existing.matches(channel, message, number))
+                    {
+                        *existing = binding.clone();
+                    } else {
+                        self.project.midi_bindings.push(binding.clone());
+                    }
+                    if before != self.project {
+                        self.history
+                            .record(before, HistoryKey::Discrete, "learn MIDI binding");
+                        self.history.break_coalescing();
+                    }
+                    if message == MidiMessageKind::ControlChange {
+                        self.midi_cc_high.remove(&(channel, number));
+                    }
+                    self.midi_learn = None;
+                    self.midi_error = None;
+                    self.status_message = format!(
+                        "MIDI learned {} for {}",
+                        binding.source_label(),
+                        learn.parameter
+                    );
+                    return;
+                }
+            }
+            self.apply_midi_source(channel, message, number, value);
+        }
+    }
+
+    fn apply_midi_source(&mut self, channel: u8, message: MidiMessageKind, number: u8, value: u8) {
+        let previous_high = self
+            .midi_cc_high
+            .get(&(channel, number))
+            .copied()
+            .unwrap_or(false);
+        let previous_note_down = self
+            .midi_note_down
+            .get(&(channel, number))
+            .copied()
+            .unwrap_or(false);
+        let (toggle_edge, high, note_down) =
+            midi_toggle_edge(message, value, previous_high, previous_note_down);
+        if message == MidiMessageKind::ControlChange {
+            self.midi_cc_high.insert((channel, number), high);
+        } else {
+            self.midi_note_down.insert((channel, number), note_down);
+        }
+
+        let bindings: Vec<MidiBinding> = self
+            .project
+            .midi_bindings
+            .iter()
+            .filter(|binding| binding.matches(channel, message, number))
+            .cloned()
+            .collect();
+        for binding in bindings {
+            match self.apply_midi_binding(&binding, value, toggle_edge) {
+                Ok(()) => self.midi_error = None,
+                Err(error) => {
+                    self.midi_error = Some(error.clone());
+                    log::warn!("MIDI rejected {}: {error}", binding.source_label());
+                }
+            }
+        }
+    }
+
+    fn apply_midi_binding(
+        &mut self,
+        binding: &MidiBinding,
+        value: u8,
+        toggle_edge: bool,
+    ) -> Result<(), String> {
+        let parameter =
+            ParameterId::parse(&binding.parameter).map_err(|error| error.to_string())?;
+        let duration = self.clock.duration_seconds();
+        let value = match binding.mode {
+            MidiMode::Absolute => absolute_midi_value(&parameter, value, duration)?,
+            MidiMode::Relative => {
+                if parameter.kind() == ParameterKind::Bool {
+                    return Err(format!(
+                        "{}: relative MIDI is not supported for bool parameters",
+                        parameter.path()
+                    ));
+                }
+                let current = self.current_parameter_value(&parameter)?;
+                relative_midi_value(&parameter, &current, value, duration)?
+            }
+            MidiMode::Toggle => {
+                if parameter.kind() != ParameterKind::Bool {
+                    return Err(format!(
+                        "{}: Toggle MIDI is only supported for bool parameters",
+                        parameter.path()
+                    ));
+                }
+                if toggle_edge {
+                    self.toggle_parameter(&parameter)?;
+                }
+                return Ok(());
+            }
+        };
+        self.apply_parameter_value(&parameter, value)
+    }
+
+    fn apply_parameter_value(
+        &mut self,
+        parameter: &ParameterId,
+        value: ParameterValue,
+    ) -> Result<(), String> {
+        match parameter {
+            ParameterId::TransportPlaying => {
+                let playing = require_bool(&value, &parameter.path())?;
+                if playing != self.clock.is_playing() {
+                    if playing {
+                        self.clock.play();
+                    } else {
+                        self.clock.pause();
+                    }
+                }
+                Ok(())
+            }
+            ParameterId::TransportLooping => {
+                self.clock
+                    .set_looping(require_bool(&value, &parameter.path())?);
+                Ok(())
+            }
+            ParameterId::TransportPosition => {
+                self.clock
+                    .seek(f64::from(require_float(&value, &parameter.path())?));
+                Ok(())
+            }
+            _ => {
+                let actions = self.project_actions_for_parameter(parameter, &value)?;
+                if !actions.is_empty() {
+                    self.apply_actions(actions);
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn current_parameter_value(&self, parameter: &ParameterId) -> Result<ParameterValue, String> {
+        let path = parameter.path();
+        let stage = self.project.primary_stage();
+        match parameter {
+            ParameterId::SurfaceOpacity(id) => stage
+                .and_then(|stage| stage.surface(id))
+                .map(|surface| ParameterValue::Float(surface.opacity))
+                .ok_or_else(|| format!("{path}: surface not found")),
+            ParameterId::SurfaceVisible(id) => stage
+                .and_then(|stage| stage.surface(id))
+                .map(|surface| ParameterValue::Bool(surface.visible))
+                .ok_or_else(|| format!("{path}: surface not found")),
+            ParameterId::SurfaceMaskEnabled(id) => stage
+                .and_then(|stage| stage.surface(id))
+                .map(|surface| ParameterValue::Bool(surface.mask.enabled))
+                .ok_or_else(|| format!("{path}: surface not found")),
+            ParameterId::SurfaceMaskInvert(id) => stage
+                .and_then(|stage| stage.surface(id))
+                .map(|surface| ParameterValue::Bool(surface.mask.invert))
+                .ok_or_else(|| format!("{path}: surface not found")),
+            ParameterId::SurfaceMaskFeather(id) => stage
+                .and_then(|stage| stage.surface(id))
+                .map(|surface| ParameterValue::Float(surface.mask.feather))
+                .ok_or_else(|| format!("{path}: surface not found")),
+            ParameterId::LayerOpacity(id) => stage
+                .and_then(|stage| stage.layers.iter().find(|layer| &layer.id == id))
+                .map(|layer| ParameterValue::Float(layer.opacity))
+                .ok_or_else(|| format!("{path}: layer not found")),
+            ParameterId::LayerVisible(id) => stage
+                .and_then(|stage| stage.layers.iter().find(|layer| &layer.id == id))
+                .map(|layer| ParameterValue::Bool(layer.visible))
+                .ok_or_else(|| format!("{path}: layer not found")),
+            ParameterId::LayerBlend(id) => stage
+                .and_then(|stage| stage.layers.iter().find(|layer| &layer.id == id))
+                .map(|layer| ParameterValue::Text(layer.blend.label().to_ascii_lowercase()))
+                .ok_or_else(|| format!("{path}: layer not found")),
+            ParameterId::OutputEnabled(id) => self
+                .project
+                .output(id)
+                .map(|output| ParameterValue::Bool(output.enabled))
+                .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::OutputBrightness(id) => self
+                .project
+                .output(id)
+                .map(|output| ParameterValue::Float(output.color.brightness))
+                .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::OutputContrast(id) => self
+                .project
+                .output(id)
+                .map(|output| ParameterValue::Float(output.color.contrast))
+                .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::OutputGamma(id) => self
+                .project
+                .output(id)
+                .map(|output| ParameterValue::Float(output.color.gamma))
+                .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::OutputEdgeBlend(id, side) => self
+                .project
+                .output(id)
+                .map(|output| {
+                    let value = match side {
+                        EdgeSide::Left => output.edge_blend.left,
+                        EdgeSide::Right => output.edge_blend.right,
+                        EdgeSide::Top => output.edge_blend.top,
+                        EdgeSide::Bottom => output.edge_blend.bottom,
+                    };
+                    ParameterValue::Float(value)
+                })
+                .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::ShowAudioVolume => Ok(ParameterValue::Float(self.project.audio.volume)),
+            ParameterId::ShowAudioMuted => Ok(ParameterValue::Bool(self.project.audio.muted)),
+            ParameterId::TransportPlaying => Ok(ParameterValue::Bool(self.clock.is_playing())),
+            ParameterId::TransportPosition => {
+                Ok(ParameterValue::Float(self.clock.position_seconds() as f32))
+            }
+            ParameterId::TransportLooping => Ok(ParameterValue::Bool(self.clock.is_looping())),
+        }
+    }
+
     fn handle_osc_parameter(
         &mut self,
         parameter: ParameterId,
@@ -899,6 +1190,43 @@ impl App {
         Ok(actions)
     }
 
+    fn toggle_parameter(&mut self, parameter: &ParameterId) -> Result<(), String> {
+        match parameter {
+            ParameterId::TransportPlaying => {
+                if self.clock.is_playing() {
+                    self.clock.pause();
+                } else {
+                    self.clock.play();
+                }
+                Ok(())
+            }
+            ParameterId::TransportLooping => {
+                self.clock.set_looping(!self.clock.is_looping());
+                Ok(())
+            }
+            _ if parameter.kind() == ParameterKind::Bool => {
+                let current = self.current_bool_parameter(parameter)?;
+                let actions =
+                    self.project_actions_for_parameter(parameter, &ParameterValue::Bool(!current))?;
+                if !actions.is_empty() {
+                    self.apply_actions(actions);
+                }
+                Ok(())
+            }
+            _ => Err(format!(
+                "{}: hotkeys currently toggle only bool/transport parameters",
+                parameter.path()
+            )),
+        }
+    }
+
+    fn current_bool_parameter(&self, parameter: &ParameterId) -> Result<bool, String> {
+        match self.current_parameter_value(parameter)? {
+            ParameterValue::Bool(value) => Ok(value),
+            _ => Err(format!("{}: parameter is not a bool", parameter.path())),
+        }
+    }
+
     fn surface_index(&self, id: &SurfaceId) -> Option<usize> {
         self.project
             .primary_stage()
@@ -999,6 +1327,90 @@ impl App {
                         .and_then(|stage| stage.surfaces.get_mut(surface))
                     {
                         surface.set_grid_point(row, column, value);
+                    }
+                }
+                EditorAction::AddBinding {
+                    parameter,
+                    key,
+                    ctrl,
+                    shift,
+                    alt,
+                } => {
+                    let Ok(parameter_id) = ParameterId::parse(&parameter) else {
+                        self.status_message = format!("Unknown parameter path: {parameter}");
+                        continue;
+                    };
+                    if parameter_id.kind() != ParameterKind::Bool {
+                        self.status_message =
+                            "Hotkeys currently bind only bool/transport parameters".to_owned();
+                        continue;
+                    }
+                    let binding = ParameterBinding::new(parameter.clone(), key, ctrl, shift, alt);
+                    if let Some(existing) = self.project.bindings.iter_mut().find(|existing| {
+                        existing.matches_key(&binding.key, binding.ctrl, binding.shift, binding.alt)
+                    }) {
+                        *existing = binding.clone();
+                    } else {
+                        self.project.bindings.push(binding.clone());
+                    }
+                    self.status_message = format!(
+                        "Bound {} to {}",
+                        binding.shortcut_label(),
+                        parameter_id.path()
+                    );
+                }
+                EditorAction::RemoveBinding { binding } => {
+                    if binding < self.project.bindings.len() {
+                        let removed = self.project.bindings.remove(binding);
+                        self.status_message =
+                            format!("Removed binding {}", removed.shortcut_label());
+                    }
+                }
+                EditorAction::TriggerBinding { binding } => {
+                    let Some(binding) = self.project.bindings.get(binding).cloned() else {
+                        continue;
+                    };
+                    let Ok(parameter) = ParameterId::parse(&binding.parameter) else {
+                        self.status_message =
+                            format!("Binding points at unknown parameter: {}", binding.parameter);
+                        continue;
+                    };
+                    if let Err(error) = self.toggle_parameter(&parameter) {
+                        self.status_message = error;
+                    }
+                }
+                EditorAction::BeginMidiLearn { parameter, mode } => {
+                    let Ok(parameter_id) = ParameterId::parse(&parameter) else {
+                        self.status_message = format!("Unknown parameter path: {parameter}");
+                        continue;
+                    };
+                    if self.midi_devices.is_empty() {
+                        self.status_message = "No MIDI inputs available".to_owned();
+                        continue;
+                    }
+                    let mode = match parameter_id.kind() {
+                        ParameterKind::Bool => match mode {
+                            MidiMode::Absolute => MidiMode::Absolute,
+                            MidiMode::Relative | MidiMode::Toggle => MidiMode::Toggle,
+                        },
+                        ParameterKind::Float | ParameterKind::Text => match mode {
+                            MidiMode::Toggle => MidiMode::Absolute,
+                            MidiMode::Absolute | MidiMode::Relative => mode,
+                        },
+                    };
+                    self.midi_learn = Some(MidiLearn { parameter, mode });
+                    self.status_message =
+                        format!("Waiting for MIDI input for {}", parameter_id.path());
+                }
+                EditorAction::CancelMidiLearn => {
+                    self.midi_learn = None;
+                    self.status_message = "MIDI learn cancelled".to_owned();
+                }
+                EditorAction::RemoveMidiBinding { binding } => {
+                    if binding < self.project.midi_bindings.len() {
+                        let removed = self.project.midi_bindings.remove(binding);
+                        self.status_message =
+                            format!("Removed MIDI binding {}", removed.source_label());
                     }
                 }
                 EditorAction::ResetSurface { surface } => {
@@ -1137,7 +1549,11 @@ impl App {
                         *point = value.clamp_unit();
                     }
                 }
-                EditorAction::AddSurfaceMaskPoint { surface, point } => {
+                EditorAction::AddSurfaceMaskPoint {
+                    surface,
+                    point,
+                    insert_at,
+                } => {
                     if let Some(surface) = self
                         .project
                         .primary_stage_mut()
@@ -1147,7 +1563,8 @@ impl App {
                             self.status_message =
                                 format!("A mask can have at most {MASK_POINT_LIMIT} points");
                         } else {
-                            surface.mask.points.push(point.clamp_unit());
+                            let insert_at = insert_at.min(surface.mask.points.len());
+                            surface.mask.points.insert(insert_at, point.clamp_unit());
                         }
                     }
                 }
@@ -1859,6 +2276,9 @@ impl App {
             || project.audio != self.project.audio
             || used_media_ids(&project) != used_media_ids(&self.project);
         self.project = project;
+        self.midi_learn = None;
+        self.midi_cc_high.clear();
+        self.midi_note_down.clear();
         self.ui_state.reset_text_buffers();
         let surface_count = self
             .project
@@ -1883,7 +2303,14 @@ impl App {
             .selected_group
             .min(self.project.output_groups.len().saturating_sub(1));
         self.ui_state.cancel_drag();
-        self.pending_output_sync = true;
+        if self.monitors.len() < 2 {
+            // Keep the single-display policy after undo/redo: outputs stay
+            // closed so they cannot cover the editor.
+            self.outputs.clear();
+            self.pending_output_sync = false;
+        } else {
+            self.pending_output_sync = true;
+        }
         if media_changed {
             self.reload_media();
         }
@@ -2076,6 +2503,9 @@ impl App {
         self.project = project;
         self.saved_project = self.project.clone();
         self.history.clear();
+        self.midi_learn = None;
+        self.midi_cc_high.clear();
+        self.midi_note_down.clear();
         self.output_guides.clear();
         self.ui_state.project_path = path.display().to_string();
         self.media_base = path
@@ -2175,6 +2605,17 @@ impl App {
                 messages: self.osc_messages,
                 last: self.osc_last.clone(),
                 error: self.osc_error.clone(),
+            },
+            midi: editor::MidiStatus {
+                supported: self.midi.as_ref().is_some_and(MidiListener::is_supported),
+                devices: self.midi_devices.clone(),
+                messages: self.midi_messages,
+                last: self.midi_last.clone(),
+                error: self.midi_error.clone(),
+                learning: self
+                    .midi_learn
+                    .as_ref()
+                    .map(|learn| (learn.parameter.clone(), learn.mode)),
             },
             output_guides: self
                 .project
@@ -2362,6 +2803,7 @@ impl ApplicationHandler for App {
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         self.tick();
         self.poll_osc();
+        self.poll_midi();
 
         if self.pending_output_sync {
             self.pending_output_sync = false;
@@ -2549,6 +2991,142 @@ fn choose_monitor(
         .cloned()
 }
 
+fn midi_toggle_edge(
+    message: MidiMessageKind,
+    value: u8,
+    previous_high: bool,
+    previous_note_down: bool,
+) -> (bool, bool, bool) {
+    match message {
+        MidiMessageKind::Note => {
+            let down = value > 0;
+            (down && !previous_note_down, previous_high, down)
+        }
+        MidiMessageKind::ControlChange => {
+            let high = value >= 64;
+            (high && !previous_high, high, previous_note_down)
+        }
+    }
+}
+
+fn midi_source(event: &MidiEvent) -> Option<(u8, MidiMessageKind, u8, u8)> {
+    match event {
+        MidiEvent::ControlChange {
+            channel,
+            controller,
+            value,
+        } => Some((
+            *channel,
+            MidiMessageKind::ControlChange,
+            *controller,
+            *value,
+        )),
+        MidiEvent::NoteOn {
+            channel,
+            note,
+            velocity,
+        } => Some((*channel, MidiMessageKind::Note, *note, *velocity)),
+        MidiEvent::NoteOff { channel, note } => Some((*channel, MidiMessageKind::Note, *note, 0)),
+        MidiEvent::PitchBend { .. } => None,
+    }
+}
+
+fn absolute_midi_value(
+    parameter: &ParameterId,
+    value: u8,
+    duration: Option<f64>,
+) -> Result<ParameterValue, String> {
+    let normalized = f32::from(value) / 127.0;
+    match parameter.kind() {
+        ParameterKind::Bool => Ok(ParameterValue::Bool(value >= 64)),
+        ParameterKind::Float => {
+            if matches!(parameter, ParameterId::TransportPosition) {
+                let duration = duration
+                    .ok_or_else(|| format!("{}: transport has no duration", parameter.path()))?;
+                return Ok(ParameterValue::Float(normalized * duration as f32));
+            }
+            let (minimum, maximum) = parameter
+                .range()
+                .ok_or_else(|| format!("{}: parameter has no range", parameter.path()))?;
+            Ok(ParameterValue::Float(
+                minimum + normalized * (maximum - minimum),
+            ))
+        }
+        ParameterKind::Text => {
+            let index =
+                ((usize::from(value) * BlendMode::ALL.len()) / 128).min(BlendMode::ALL.len() - 1);
+            Ok(ParameterValue::Text(
+                BlendMode::ALL[index].label().to_ascii_lowercase(),
+            ))
+        }
+    }
+}
+
+fn relative_midi_value(
+    parameter: &ParameterId,
+    current: &ParameterValue,
+    value: u8,
+    duration: Option<f64>,
+) -> Result<ParameterValue, String> {
+    let direction = match value {
+        0..=63 => -1.0,
+        65..=127 => 1.0,
+        _ => 0.0,
+    };
+    if direction == 0.0 {
+        return Ok(current.clone());
+    }
+    match parameter.kind() {
+        ParameterKind::Float => {
+            let (minimum, maximum) = if matches!(parameter, ParameterId::TransportPosition) {
+                let duration = duration
+                    .ok_or_else(|| format!("{}: transport has no duration", parameter.path()))?;
+                (0.0, duration as f32)
+            } else {
+                parameter
+                    .range()
+                    .ok_or_else(|| format!("{}: parameter has no range", parameter.path()))?
+            };
+            let current = current
+                .as_f32()
+                .ok_or_else(|| format!("{}: current value is not numeric", parameter.path()))?;
+            let magnitude = if value < 64 {
+                f32::from(64 - value) / 64.0
+            } else {
+                f32::from(value - 64) / 63.0
+            };
+            let step = (maximum - minimum) * (0.01 + 0.04 * magnitude);
+            Ok(ParameterValue::Float(
+                (current + direction * step).clamp(minimum, maximum),
+            ))
+        }
+        ParameterKind::Text => {
+            let current = current
+                .as_text()
+                .and_then(BlendMode::parse)
+                .ok_or_else(|| {
+                    format!("{}: current value is not a blend mode", parameter.path())
+                })?;
+            let index = BlendMode::ALL
+                .iter()
+                .position(|mode| *mode == current)
+                .unwrap_or(0);
+            let next = if direction > 0.0 {
+                (index + 1) % BlendMode::ALL.len()
+            } else {
+                (index + BlendMode::ALL.len() - 1) % BlendMode::ALL.len()
+            };
+            Ok(ParameterValue::Text(
+                BlendMode::ALL[next].label().to_ascii_lowercase(),
+            ))
+        }
+        ParameterKind::Bool => Err(format!(
+            "{}: relative MIDI is not supported for bool parameters",
+            parameter.path()
+        )),
+    }
+}
+
 fn require_float(value: &ParameterValue, path: &str) -> Result<f32, String> {
     value
         .as_f32()
@@ -2587,6 +3165,11 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             HistoryKey::SurfaceGridPoint(*surface, *row, *column),
             "move grid point",
         ),
+        AddBinding { .. } => (HistoryKey::Discrete, "add hotkey binding"),
+        RemoveBinding { .. } => (HistoryKey::Discrete, "remove hotkey binding"),
+        TriggerBinding { .. } => return None,
+        BeginMidiLearn { .. } | CancelMidiLearn => return None,
+        RemoveMidiBinding { .. } => (HistoryKey::Discrete, "remove MIDI binding"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
@@ -2781,6 +3364,127 @@ mod tests {
         assert_eq!(
             selected_surface_ids(stage, &[]),
             [stage.surfaces[0].id.clone()]
+        );
+    }
+
+    #[test]
+    fn absolute_midi_maps_bool_float_text_and_transport() {
+        assert_eq!(
+            absolute_midi_value(&ParameterId::ShowAudioMuted, 64, None).unwrap(),
+            ParameterValue::Bool(true)
+        );
+        assert_eq!(
+            absolute_midi_value(&ParameterId::ShowAudioMuted, 63, None).unwrap(),
+            ParameterValue::Bool(false)
+        );
+        let opacity = absolute_midi_value(
+            &ParameterId::SurfaceOpacity(SurfaceId::new("surface-1")),
+            127,
+            None,
+        )
+        .unwrap();
+        assert_eq!(opacity, ParameterValue::Float(1.0));
+        assert_eq!(
+            absolute_midi_value(&ParameterId::LayerBlend(LayerId::new("layer-1")), 0, None,)
+                .unwrap(),
+            ParameterValue::Text("normal".to_owned())
+        );
+        assert_eq!(
+            absolute_midi_value(&ParameterId::LayerBlend(LayerId::new("layer-1")), 127, None,)
+                .unwrap(),
+            ParameterValue::Text("multiply".to_owned())
+        );
+        assert_eq!(
+            absolute_midi_value(&ParameterId::TransportPosition, 127, Some(12.0)).unwrap(),
+            ParameterValue::Float(12.0)
+        );
+    }
+
+    #[test]
+    fn relative_midi_steps_and_clamps_values() {
+        let opacity = ParameterId::SurfaceOpacity(SurfaceId::new("surface-1"));
+        let up = relative_midi_value(&opacity, &ParameterValue::Float(0.5), 65, None)
+            .unwrap()
+            .as_f32()
+            .unwrap();
+        assert!(up > 0.5 && up < 0.52);
+        assert_eq!(
+            relative_midi_value(&opacity, &ParameterValue::Float(1.0), 127, None).unwrap(),
+            ParameterValue::Float(1.0)
+        );
+        assert_eq!(
+            relative_midi_value(
+                &ParameterId::LayerBlend(LayerId::new("layer-1")),
+                &ParameterValue::Text("normal".to_owned()),
+                65,
+                None,
+            )
+            .unwrap(),
+            ParameterValue::Text("add".to_owned())
+        );
+        assert!(relative_midi_value(
+            &ParameterId::ShowAudioMuted,
+            &ParameterValue::Bool(false),
+            65,
+            None,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn midi_toggle_reacts_to_fresh_note_on_and_cc_rising_edges() {
+        // A fresh Note On toggles; repeated Note On while held and Note Off
+        // do not. This also collapses duplicate messages from echoed ports.
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::Note, 100, false, false),
+            (true, false, true)
+        );
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::Note, 100, false, true),
+            (false, false, true)
+        );
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::Note, 0, false, true),
+            (false, false, false)
+        );
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::ControlChange, 127, false, false),
+            (true, true, false)
+        );
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::ControlChange, 127, true, false),
+            (false, true, false)
+        );
+        assert_eq!(
+            midi_toggle_edge(MidiMessageKind::ControlChange, 0, true, false),
+            (false, false, false)
+        );
+    }
+
+    #[test]
+    fn midi_events_expose_binding_sources() {
+        assert_eq!(
+            midi_source(&MidiEvent::ControlChange {
+                channel: 1,
+                controller: 7,
+                value: 99,
+            }),
+            Some((1, MidiMessageKind::ControlChange, 7, 99))
+        );
+        assert_eq!(
+            midi_source(&MidiEvent::NoteOn {
+                channel: 2,
+                note: 60,
+                velocity: 100,
+            }),
+            Some((2, MidiMessageKind::Note, 60, 100))
+        );
+        assert_eq!(
+            midi_source(&MidiEvent::NoteOff {
+                channel: 2,
+                note: 60,
+            }),
+            Some((2, MidiMessageKind::Note, 60, 0))
         );
     }
 

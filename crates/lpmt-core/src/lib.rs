@@ -3,6 +3,7 @@
 //! This crate is deliberately independent of rendering, windowing, codecs and
 //! UI. It is the authoritative description of a project.
 
+pub mod binding;
 pub mod guide;
 pub mod homography;
 pub mod lut;
