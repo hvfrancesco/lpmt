@@ -116,7 +116,7 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   curves and bool state tracks from the shared show clock in the Show panel, with transport triggers,
   named markers, a persisted cue stack and a render-time overlay so playback does not dirty the
   project. OSC addresses remain session-only; DMX, tempo maps and additional cue commands are
-  next.
+  post-v1 backlog items.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -158,11 +158,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, tempo
-  maps and additional command triggers, the legacy XML importer, packaging and validated
-  macOS/Windows builds.
-- **Next implementation slice:** tempo maps and additional command triggers, all targeting the
-  stable parameter paths.
+  slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
+  DMX/Art-Net, MIDI hotplug/device selection, the legacy XML importer, packaging and validated
+  macOS/Windows builds. Tempo maps and additional cue commands are explicitly post-v1.
+- **Next implementation slice:** close M2/M3/M5 acceptance, then M4 colourisation/chroma key,
+  followed by the M7 legacy importer and release work.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -674,7 +674,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
   parameter edits while paused suspend the overlay until the next seek/play/timeline edit.
 - Undoable timeline edits and project persistence.
 
-Still planned:
+Post-v1 backlog (M5 is feature-frozen until acceptance):
 
 - Tempo maps and additional command triggers.
 - Per-stage timelines or independent cue stacks, MTC/LTC input, OSC timecode.
@@ -747,6 +747,21 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ## 14. Milestones
 
+Milestones close only when their acceptance check is recorded. An unchecked item is either required
+for the current milestone or explicitly moved to a later milestone/post-v1 backlog; it is not left
+dangling.
+
+| Milestone | Status | Current action |
+|---|---|---|
+| M0 — Bootstrap | Done, CI run pending | Record a hosted CI run when available |
+| M1 — Minimal renderer | Done | — |
+| M2 — Editor and video | Functionally complete | Run the manual acceptance check, then close |
+| M3 — Multi-output | Functionally complete | Run the manual acceptance check, then close |
+| M4 — Mapping depth | Partial | Finish colourisation/chroma key; decide 3D LUT scope; Bézier deferred |
+| M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
+| M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
+| M7 — Migration/release | Planned | Legacy XML importer, packaging, recovery and performance validation |
+
 ### M0 — Bootstrap and spikes
 
 - [x] Rust workspace.
@@ -787,10 +802,9 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Shared show clock and video drift resync, including paused-scrub preview frames.
 - [x] Project show-audio track on the shared clock, with volume/mute and loop restart (optional
       `audio` feature).
-- [ ] Per-layer audio mix bus and device selection.
-- [ ] Hardware decode and per-output video timing.
 - [x] Live preview viewport separate from output, with corner snapping.
-- Acceptance: create a two-surface show from scratch, save, reload, play video.
+- [ ] Acceptance (manual): create a two-surface show from scratch, save, reload and play video.
+      Per-layer audio mixing and hardware decode moved to M6; they are not M2 gates.
 
 ### M3 — Multi-output and edge blending
 
@@ -799,19 +813,22 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Output groups and a shared frame barrier.
 - [x] Explicit display assignment per output.
 - [x] Per-output pacing diagnostics and missed-present reporting.
-- Acceptance: two overlapping 1080p outputs with a blended seam; confidence monitor unaffected.
+- [ ] Acceptance (manual): two overlapping 1080p outputs with a blended seam; confidence monitor
+      unaffected.
 
 ### M4 — Mapping depth
 
 - [x] Regular grid warp with 2×2 to 6×6 control cells.
 - [x] Polygon surface masks with invert/feather and rectangular/circular layer crops.
-- [ ] Bézier-compatible patches.
-- [ ] Colourisation, chroma key and advanced blend modes.
+- [ ] Colourisation and chroma key for LPMT 1 parity. **Next M4 implementation step.**
+- [ ] Advanced blend modes beyond the current Normal/Add/Screen/Multiply set.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
 - [x] Multi-select, whole-surface drag, align and distribute.
-- [ ] 3D LUTs and broader calibration diagnostics.
-- Acceptance: feature parity with LPMT 1’s core mapping and masking, except Bézier patches.
+- [ ] Decide 3D LUT scope for v1; broader calibration diagnostics follow that decision.
+- [ ] Bézier-compatible patches. **Deferred post-v1.**
+- [ ] Acceptance (manual): mapping, masks, crops, colourisation and chroma key match LPMT 1’s core
+      workflow. Bézier and 3D LUT may be documented omissions.
 
 ### M5 — Show control
 
@@ -829,21 +846,40 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Configurable time/beat/bar snap driven by BPM, beats-per-bar and denominator.
 - [x] Multi-track key selection with path-based copy/paste.
 - [x] Cue follow delays that advance the stack after a configurable interval.
-- [ ] Tempo maps and additional command triggers.
-- [ ] DMX/Art-Net bindings on the same parameter layer.
-- Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
+- [ ] Acceptance (manual): run a timed show via OSC and timeline with no GUI on outputs.
+- M5 is **feature-frozen** until that acceptance check is recorded. Tempo maps, additional cue
+  commands and DMX/Art-Net are post-v1 work, not reasons to postpone acceptance.
 
 ### M6 — Media breadth and sync
 
-- Slideshows, cameras, capture devices, shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
-- Optional output-group barrier and remote sync prototype.
-- Acceptance: live camera + video + shared source in one show; repeatable resync.
+- [ ] Slideshow/media-folder source.
+- [ ] Camera and capture-device source abstraction with a Linux first backend.
+- [ ] Shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
+- [ ] Per-layer audio mix bus and device selection (moved from M2).
+- [ ] Hardware decode and per-output video timing (moved from M2).
+- [ ] Optional output-group barrier and remote-sync prototype.
+- [ ] Acceptance: live camera + video + shared source in one show; repeatable resync.
 
 ### M7 — Migration and release candidate
 
-- Legacy XML importer with fixtures.
-- Packaging for target platforms, crash/recovery UX, performance validation.
-- Acceptance: import a real LPMT 1 show and run it with documented differences.
+- [ ] Legacy XML importer with real LPMT 1 fixtures.
+- [ ] Packaging for target platforms.
+- [ ] Crash/recovery UX and project backup path.
+- [ ] Performance and long-run validation.
+- [ ] Acceptance: import a real LPMT 1 show and run it with documented differences.
+
+### Post-v1 backlog
+
+These are deliberately deferred and must not block milestone acceptance:
+
+- tempo maps and time-varying tempo;
+- additional cue commands and richer interpolation;
+- DMX/Art-Net input/output mappings;
+- MTC/LTC and OSC timecode input;
+- per-stage timelines and independent cue stacks;
+- Bézier-compatible patches;
+- 3D LUTs if the M4 decision defers them;
+- distributed rendering and remote sync beyond the M6 prototype.
 
 ---
 
@@ -879,11 +915,18 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 
 ## 17. Immediate next steps
 
-1. Review and accept (or amend) the **Stage + Outputs** topology.
-2. Run the M0 spikes: multi-window `wgpu`, `egui` integration, video decode, 2-output presentation.
-3. Freeze a minimal v1 data-model schema and write fixtures from a real LPMT 1 project.
-4. Build the M1 vertical slice: image → surface → warp → output window.
-5. Use that slice to validate memory, frame time and operator workflow before adding features.
+1. Run and record the manual acceptance checks for M2, M3 and M5. Fix only blockers found by those
+   checks; do not add new M5 features while they are pending.
+2. Freeze M5 feature work. Move tempo maps, additional cue commands and DMX to the post-v1 backlog.
+3. Implement M4 colourisation and chroma key for LPMT 1 parity, then make and record the 3D LUT
+   scope decision. Keep Bézier deferred.
+4. Build the M7 legacy XML importer with real fixtures, then packaging, recovery and performance
+   validation.
+5. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
+   decode.
+6. Only then revisit the post-v1 backlog.
 
-The guiding rule: **rebuild the concepts, not the code**. LPMT’s domain model and show workflow are
-the valuable part; the old rendering and control implementation are the part to leave behind.
+The guiding rule remains **rebuild the concepts, not the code**, but the delivery rule is now
+**close milestone acceptance before extending a feature area**. LPMT’s domain model and show
+workflow are the valuable part; milestone breadth and migration are what make the rewrite
+trustworthy.

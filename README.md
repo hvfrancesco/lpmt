@@ -185,20 +185,25 @@ shelf; Calibration and Show are separate modes.
 
 ### Next session
 
-The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
-patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
-crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
-learn, parameter timeline tracks, transport triggers, named markers and a
-persisted cue stack are now in place. The next timeline work is:
+The editor, multi-output rendering, mapping/masking, calibration, OSC/MIDI
+control, timeline automation and cue stack are now substantially implemented.
+The project is no longer planning the next timeline feature by default:
+milestone acceptance and breadth take priority over adding more M5 depth.
 
-- tempo maps;
-- additional cue commands and richer interpolation;
-- timeline templates and per-stage timelines.
+The immediate order is:
 
-Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
-the shared clock; a per-layer mix bus and hardware decode remain later work. The
-legacy XML importer remains planned; the full roadmap is in
-[`docs/rewrite-rfc.md`](docs/rewrite-rfc.md).
+1. Run and record the manual acceptance checks for M2, M3 and M5.
+2. Finish M4 parity with **colourisation and chroma key**, then decide whether
+   3D LUT support is in v1. Bézier patches are explicitly deferred.
+3. Build the **LPMT 1 legacy XML importer** with real fixtures, followed by
+   packaging, recovery and performance validation (M7).
+4. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
+   per-layer audio mixing and hardware decode.
+5. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
+   and per-stage timelines.
+
+Milestone status, deferred scope and acceptance evidence are tracked in the
+[rewrite RFC](docs/rewrite-rfc.md#14-milestones).
 
 ## Build and run
 
