@@ -18,15 +18,17 @@ pub enum TimelineInterpolation {
     Step,
     #[default]
     Linear,
+    Smooth,
 }
 
 impl TimelineInterpolation {
-    pub const ALL: [Self; 2] = [Self::Linear, Self::Step];
+    pub const ALL: [Self; 3] = [Self::Linear, Self::Smooth, Self::Step];
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Step => "Step",
             Self::Linear => "Linear",
+            Self::Smooth => "Smooth",
         }
     }
 }
@@ -78,6 +80,10 @@ impl TimelineTrack {
                 return Some(match a.interpolation {
                     TimelineInterpolation::Step => a.value,
                     TimelineInterpolation::Linear => a.value + (b.value - a.value) * t,
+                    TimelineInterpolation::Smooth => {
+                        let eased = t * t * (3.0 - 2.0 * t);
+                        a.value + (b.value - a.value) * eased
+                    }
                 });
             }
         }
@@ -118,6 +124,13 @@ pub struct TimelineTrigger {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimelineMarker {
+    pub time: f32,
+    #[serde(default)]
+    pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Timeline {
     #[serde(default = "default_duration")]
     pub duration: f32,
@@ -125,6 +138,8 @@ pub struct Timeline {
     pub tracks: Vec<TimelineTrack>,
     #[serde(default)]
     pub triggers: Vec<TimelineTrigger>,
+    #[serde(default)]
+    pub markers: Vec<TimelineMarker>,
 }
 
 fn default_duration() -> f32 {
@@ -137,13 +152,14 @@ impl Default for Timeline {
             duration: DEFAULT_TIMELINE_DURATION,
             tracks: Vec::new(),
             triggers: Vec::new(),
+            markers: Vec::new(),
         }
     }
 }
 
 impl Timeline {
     pub fn is_empty(&self) -> bool {
-        self.tracks.is_empty() && self.triggers.is_empty()
+        self.tracks.is_empty() && self.triggers.is_empty() && self.markers.is_empty()
     }
 
     pub fn is_active(&self) -> bool {
@@ -172,10 +188,18 @@ impl Timeline {
             trigger.time = trigger.time.clamp(0.0, self.duration);
         }
         self.sort_triggers();
+        for marker in &mut self.markers {
+            marker.time = marker.time.clamp(0.0, self.duration);
+        }
+        self.sort_markers();
     }
 
     pub fn sort_triggers(&mut self) {
         self.triggers.sort_by(|a, b| a.time.total_cmp(&b.time));
+    }
+
+    pub fn sort_markers(&mut self) {
+        self.markers.sort_by(|a, b| a.time.total_cmp(&b.time));
     }
 
     pub fn track_index(&self, parameter: &str) -> Option<usize> {
@@ -245,6 +269,28 @@ mod tests {
     }
 
     #[test]
+    fn smooth_interpolation_eases_between_keys() {
+        let track = TimelineTrack {
+            parameter: "layer/layer-1/opacity".to_owned(),
+            keys: vec![
+                TimelineKey {
+                    time: 0.0,
+                    value: 0.0,
+                    interpolation: TimelineInterpolation::Smooth,
+                },
+                TimelineKey {
+                    time: 1.0,
+                    value: 1.0,
+                    interpolation: TimelineInterpolation::Linear,
+                },
+            ],
+        };
+        let quarter = track.value_at(0.25).unwrap();
+        assert!((quarter - 0.15625).abs() < 1.0e-5);
+        assert!((track.value_at(0.5).unwrap() - 0.5).abs() < 1.0e-5);
+    }
+
+    #[test]
     fn tracks_are_sampled_by_stable_parameter_path() {
         let mut timeline = Timeline::default();
         let index = timeline.add_track("layer/layer-1/opacity");
@@ -275,12 +321,25 @@ mod tests {
                     command: TimelineCommand::LoopOn,
                 },
             ],
+            markers: vec![
+                TimelineMarker {
+                    time: 3.0,
+                    name: "B".to_owned(),
+                },
+                TimelineMarker {
+                    time: -2.0,
+                    name: "A".to_owned(),
+                },
+            ],
         };
         timeline.normalize();
         assert!(timeline.is_active());
         assert_eq!(timeline.triggers[0].time, 1.0);
         assert_eq!(timeline.triggers[1].time, 4.0);
         assert_eq!(timeline.triggers[2].time, 5.0);
+        assert_eq!(timeline.markers[0].name, "A");
+        assert_eq!(timeline.markers[0].time, 0.0);
+        assert_eq!(timeline.markers[1].name, "B");
     }
 
     #[test]
@@ -303,6 +362,7 @@ mod tests {
                 ],
             }],
             triggers: Vec::new(),
+            markers: Vec::new(),
         };
         timeline.normalize();
         assert_eq!(timeline.tracks[0].keys[0].time, 0.0);

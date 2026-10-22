@@ -16,7 +16,7 @@ presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
 guides, multi-surface mapping, quad/grid warp, polygon masks, rectangular and
 circular crops, thumbnail media picking, an OSC control surface, persisted
-hotkey bindings, optional MIDI learn and a numeric parameter timeline. Mapping
+hotkey bindings, optional MIDI learn and a parameter timeline with tracks, triggers and markers. Mapping
 uses an inline editable hierarchy beside the live preview with a bottom media
 shelf; Calibration and Show are separate modes.
 
@@ -136,9 +136,11 @@ shelf; Calibration and Show are separate modes.
   parameters such as surface/layer opacity, output brightness/contrast/gamma and
   edge blending, plus bool state tracks for surface/layer visibility and mask
   enable/invert. Double-click a lane to add a key, drag keys to move them,
-  right-click to remove, and choose Step or Linear interpolation for floats;
-  bool tracks use Step values. A trigger lane can pause the transport or switch
-  looping on/off at a chosen time. The ruler seeks the shared show clock, so
+  right-click to remove, and choose Step, Linear or Smooth interpolation for
+  floats; keys can be copied and pasted at the playhead. Bool tracks use Step
+  values. A trigger lane can pause the transport or switch looping on/off at a
+  chosen time, and named markers provide seek points. The ruler seeks the shared
+  show clock, so
   playback and scrubbing evaluate the keys in sync. Timeline values are a
   render-time overlay: playback does not modify the saved parameter values or
   mark the project dirty. A manual parameter edit while paused temporarily
@@ -170,12 +172,12 @@ shelf; Calibration and Show are separate modes.
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
 crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
-learn, parameter timeline tracks and basic transport triggers are now in place.
-The next timeline work is:
+learn, parameter timeline tracks, transport triggers and named markers are now
+in place. The next timeline work is:
 
 - colour tracks for output look changes;
 - richer command triggers and cue lists;
-- easing curves, copy/paste and timeline markers.
+- multi-key copy/paste and marker-driven shortcuts.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -365,7 +367,7 @@ oscsend localhost 9000 /lpmt/transport/playing i 1
 
 The **Show** mode displays the listener address, received message count and the
 last accepted or rejected message. OSC addresses are session-only; timeline
-colour and trigger tracks are the next control milestone.
+colour tracks and richer command triggers are the next control milestone.
 
 ### MIDI control
 
@@ -415,8 +417,10 @@ invert), press **Add track**, then edit its keys:
 - **double-click** a lane to add a key at that time;
 - **drag** a key to move it between its neighbours;
 - **right-click** a key to remove it;
-- select a key to edit its time and value; float keys offer **Step**/**Linear**
-  interpolation, while bool keys are Step-only on/off states;
+- select a key to edit its time and value; float keys offer **Step**/**Linear**/
+  **Smooth** interpolation, while bool keys are Step-only on/off states;
+- **Copy key** and **Paste at playhead** duplicate a key's value and
+  interpolation, clamped to the target track's range;
 - click or drag the ruler to seek the shared show clock;
 - use the normal transport to play, pause, restart and loop the timeline.
 
@@ -425,6 +429,11 @@ The **Triggers** lane schedules transport commands. Choose **Pause transport**,
 playhead, or double-click the trigger lane. Drag a trigger marker to retime it
 and right-click to remove it. Triggers fire while the clock is playing, including
 on a natural loop wrap; scrubbing does not fire them.
+
+The **Markers** lane holds named seek points. Press **Add marker** at the
+playhead or double-click the lane, then edit the name and time in the marker
+row. Clicking a marker seeks to it; dragging retimes it and right-click removes
+it. Markers are saved with the project and participate in undo/redo.
 
 Timeline keys target stable parameter paths, so renaming a layer or surface does
 not break automation. Track and trigger edits are undoable and saved with the

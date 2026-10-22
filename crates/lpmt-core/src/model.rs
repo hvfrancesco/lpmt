@@ -1105,7 +1105,9 @@ impl Project {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::timeline::{TimelineCommand, TimelineInterpolation, TimelineKey, TimelineTrigger};
+    use crate::timeline::{
+        TimelineCommand, TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
+    };
 
     #[test]
     fn demo_project_is_serializable() {
@@ -1189,6 +1191,10 @@ mod tests {
         project.timeline.triggers.push(TimelineTrigger {
             time: 8.0,
             command: TimelineCommand::Pause,
+        });
+        project.timeline.markers.push(TimelineMarker {
+            time: 4.0,
+            name: "Verse".to_owned(),
         });
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();

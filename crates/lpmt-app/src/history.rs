@@ -31,6 +31,7 @@ pub(crate) enum HistoryKey {
     OutputColor(usize),
     TimelineKey(usize, usize),
     TimelineTrigger(usize),
+    TimelineMarker(usize),
     TimelineDuration,
     Discrete,
 }

@@ -144,6 +144,12 @@ struct SurfaceMoveDrag {
     originals: Vec<(usize, [Point2; 4])>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct TimelineKeyClipboard {
+    value: f32,
+    interpolation: TimelineInterpolation,
+}
+
 #[derive(Debug)]
 pub struct EditorState {
     pub mode: WorkspaceMode,
@@ -173,6 +179,11 @@ pub struct EditorState {
     timeline_selected_trigger: Option<usize>,
     timeline_drag_trigger: Option<usize>,
     timeline_trigger_command: TimelineCommand,
+    timeline_clipboard: Option<TimelineKeyClipboard>,
+    timeline_selected_marker: Option<usize>,
+    timeline_drag_marker: Option<usize>,
+    timeline_marker_name: String,
+    timeline_marker_name_id: Option<usize>,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
     drag_mask_point: Option<usize>,
@@ -214,6 +225,11 @@ impl Default for EditorState {
             timeline_selected_trigger: None,
             timeline_drag_trigger: None,
             timeline_trigger_command: TimelineCommand::Pause,
+            timeline_clipboard: None,
+            timeline_selected_marker: None,
+            timeline_drag_marker: None,
+            timeline_marker_name: String::new(),
+            timeline_marker_name_id: None,
             drag_corner: None,
             drag_grid: None,
             drag_mask_point: None,
@@ -243,6 +259,11 @@ impl EditorState {
         self.timeline_add_parameter = None;
         self.timeline_selected_trigger = None;
         self.timeline_drag_trigger = None;
+        self.timeline_clipboard = None;
+        self.timeline_selected_marker = None;
+        self.timeline_drag_marker = None;
+        self.timeline_marker_name.clear();
+        self.timeline_marker_name_id = None;
         self.mask_add_mode = false;
         self.surface_name.clear();
         self.layer_name.clear();
@@ -400,6 +421,12 @@ pub enum EditorAction {
         track: usize,
         time: f32,
     },
+    AddTimelineKeyValue {
+        track: usize,
+        time: f32,
+        value: f32,
+        interpolation: TimelineInterpolation,
+    },
     SetTimelineKey {
         track: usize,
         key: usize,
@@ -425,6 +452,17 @@ pub enum EditorAction {
     },
     RemoveTimelineTrigger {
         trigger: usize,
+    },
+    AddTimelineMarker {
+        time: f32,
+    },
+    SetTimelineMarker {
+        marker: usize,
+        time: f32,
+        name: String,
+    },
+    RemoveTimelineMarker {
+        marker: usize,
     },
     ResetSurface {
         surface: usize,
@@ -2378,6 +2416,31 @@ fn draw_timeline(
     {
         state.timeline_drag_trigger = None;
     }
+    if state
+        .timeline_selected_marker
+        .is_some_and(|marker| marker >= timeline.markers.len())
+    {
+        state.timeline_selected_marker = None;
+        state.timeline_marker_name_id = None;
+    }
+    if state
+        .timeline_drag_marker
+        .is_some_and(|marker| marker >= timeline.markers.len())
+    {
+        state.timeline_drag_marker = None;
+    }
+    if state.timeline_selected_marker.is_some()
+        && (state.timeline_selected_track.is_some() || state.timeline_selected_trigger.is_some())
+    {
+        state.timeline_selected_marker = None;
+        state.timeline_marker_name_id = None;
+    }
+    if let Some(marker) = state.timeline_selected_marker {
+        if state.timeline_marker_name_id != Some(marker) {
+            state.timeline_marker_name = timeline.markers[marker].name.clone();
+            state.timeline_marker_name_id = Some(marker);
+        }
+    }
 
     ui.add_space(4.0);
     ui.horizontal_wrapped(|ui| {
@@ -2467,6 +2530,29 @@ fn draw_timeline(
                 state.timeline_selected_track = None;
                 state.timeline_selected_key = None;
             }
+            if let Some(clipboard) = state.timeline_clipboard {
+                if ui.button("Paste key at playhead").clicked() {
+                    let time = status.transport.position_seconds as f32;
+                    let insert_at = timeline
+                        .tracks
+                        .get(track)
+                        .map(|track| {
+                            track
+                                .keys
+                                .iter()
+                                .position(|key| key.time > time)
+                                .unwrap_or(track.keys.len())
+                        })
+                        .unwrap_or(0);
+                    state.timeline_selected_key = Some(insert_at);
+                    actions.push(EditorAction::AddTimelineKeyValue {
+                        track,
+                        time,
+                        value: clipboard.value,
+                        interpolation: clipboard.interpolation,
+                    });
+                }
+            }
         }
 
         ui.separator();
@@ -2495,6 +2581,20 @@ fn draw_timeline(
             state.timeline_selected_track = None;
             state.timeline_selected_key = None;
             actions.push(EditorAction::AddTimelineTrigger { time, command });
+        }
+        if ui.button("Add marker").clicked() {
+            let time = status.transport.position_seconds as f32;
+            let marker = timeline
+                .markers
+                .iter()
+                .position(|marker| marker.time > time)
+                .unwrap_or(timeline.markers.len());
+            state.timeline_selected_marker = Some(marker);
+            state.timeline_marker_name_id = None;
+            state.timeline_selected_track = None;
+            state.timeline_selected_key = None;
+            state.timeline_selected_trigger = None;
+            actions.push(EditorAction::AddTimelineMarker { time });
         }
     });
 
@@ -2584,6 +2684,35 @@ fn draw_timeline(
                             });
                         }
                     }
+                    if ui.button("Copy key").clicked() {
+                        state.timeline_clipboard = Some(TimelineKeyClipboard {
+                            value: key.value,
+                            interpolation: key.interpolation,
+                        });
+                    }
+                    let can_paste = state.timeline_clipboard.is_some();
+                    if ui
+                        .add_enabled(can_paste, egui::Button::new("Paste at playhead"))
+                        .clicked()
+                    {
+                        if let Some(clipboard) = state.timeline_clipboard {
+                            let time = status.transport.position_seconds as f32;
+                            let insert_at = track
+                                .keys
+                                .iter()
+                                .position(|key| key.time > time)
+                                .unwrap_or(track.keys.len());
+                            state.timeline_selected_track = Some(track_index);
+                            state.timeline_selected_key = Some(insert_at);
+                            state.timeline_selected_trigger = None;
+                            actions.push(EditorAction::AddTimelineKeyValue {
+                                track: track_index,
+                                time,
+                                value: clipboard.value,
+                                interpolation: clipboard.interpolation,
+                            });
+                        }
+                    }
                     if ui.button("Delete key").clicked() {
                         actions.push(EditorAction::RemoveTimelineKey {
                             track: track_index,
@@ -2641,6 +2770,44 @@ fn draw_timeline(
                     trigger: trigger_index,
                     time,
                     command,
+                });
+            }
+        }
+    }
+
+    if let Some(marker_index) = state.timeline_selected_marker {
+        if let Some(marker) = timeline.markers.get(marker_index).cloned() {
+            let mut time = marker.time;
+            let mut name = state.timeline_marker_name.clone();
+            ui.horizontal_wrapped(|ui| {
+                ui.label(RichText::new("Marker").strong());
+                ui.label("time");
+                ui.add(
+                    egui::DragValue::new(&mut time)
+                        .range(0.0..=duration)
+                        .speed(0.01)
+                        .suffix(" s"),
+                );
+                ui.label("name");
+                ui.add(
+                    egui::TextEdit::singleline(&mut name)
+                        .desired_width(180.0)
+                        .hint_text("Marker name"),
+                );
+                if ui.button("Delete marker").clicked() {
+                    actions.push(EditorAction::RemoveTimelineMarker {
+                        marker: marker_index,
+                    });
+                    state.timeline_selected_marker = None;
+                    state.timeline_marker_name_id = None;
+                }
+            });
+            if time != marker.time || name != marker.name {
+                state.timeline_marker_name.clone_from(&name);
+                actions.push(EditorAction::SetTimelineMarker {
+                    marker: marker_index,
+                    time,
+                    name,
                 });
             }
         }
@@ -2791,7 +2958,8 @@ fn draw_timeline(
                                     Stroke::new(1.5, curve_color),
                                 );
                             }
-                            TimelineInterpolation::Linear => {
+                            TimelineInterpolation::Linear
+                            | TimelineInterpolation::Smooth => {
                                 painter.line_segment(
                                     [Pos2::new(ax, ay), Pos2::new(bx, by)],
                                     Stroke::new(1.5, curve_color),
@@ -3113,11 +3281,212 @@ fn draw_timeline(
                 }
             });
 
-            if timeline.tracks.is_empty() && timeline.triggers.is_empty() {
+            let selected_marker = state.timeline_selected_marker.is_some();
+            ui.horizontal(|ui| {
+                let (label_rect, label_response) = ui.allocate_exact_size(
+                    Vec2::new(LABEL_WIDTH, LANE_HEIGHT),
+                    Sense::click(),
+                );
+                ui.painter().rect_filled(
+                    label_rect,
+                    3.0,
+                    if selected_marker {
+                        Color32::from_rgb(35, 50, 62)
+                    } else {
+                        Color32::from_rgb(30, 34, 43)
+                    },
+                );
+                ui.painter().text(
+                    Pos2::new(label_rect.left() + 7.0, label_rect.center().y),
+                    Align2::LEFT_CENTER,
+                    "Markers",
+                    FontId::proportional(12.0),
+                    if selected_marker {
+                        Color32::WHITE
+                    } else {
+                        Color32::from_rgb(165, 195, 215)
+                    },
+                );
+                if label_response.clicked() {
+                    state.timeline_selected_marker = None;
+                    state.timeline_marker_name_id = None;
+                    state.timeline_selected_track = None;
+                    state.timeline_selected_key = None;
+                    state.timeline_selected_trigger = None;
+                    state.timeline_drag_marker = None;
+                }
+
+                let width = ui.available_width().max(1.0);
+                let (lane_rect, response) = ui.allocate_exact_size(
+                    Vec2::new(width, LANE_HEIGHT),
+                    Sense::click_and_drag(),
+                );
+                let painter = ui.painter();
+                painter.rect_filled(
+                    lane_rect,
+                    3.0,
+                    if selected_marker {
+                        Color32::from_rgb(24, 30, 36)
+                    } else {
+                        Color32::from_rgb(20, 23, 30)
+                    },
+                );
+                let mut tick = 0.0;
+                while tick <= duration + 0.0001 {
+                    let x = timeline_time_x(lane_rect, tick, duration);
+                    painter.line_segment(
+                        [
+                            Pos2::new(x, lane_rect.top()),
+                            Pos2::new(x, lane_rect.bottom()),
+                        ],
+                        Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                    );
+                    tick += tick_step;
+                }
+                let playhead = timeline_time_x(
+                    lane_rect,
+                    status.transport.position_seconds as f32,
+                    duration,
+                );
+                painter.line_segment(
+                    [
+                        Pos2::new(playhead, lane_rect.top()),
+                        Pos2::new(playhead, lane_rect.bottom()),
+                    ],
+                    Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                );
+
+                let marker_points: Vec<Pos2> = timeline
+                    .markers
+                    .iter()
+                    .map(|marker| {
+                        Pos2::new(
+                            timeline_time_x(lane_rect, marker.time, duration),
+                            lane_rect.center().y,
+                        )
+                    })
+                    .collect();
+                for (marker_index, point) in marker_points.iter().enumerate() {
+                    let selected = state.timeline_selected_marker == Some(marker_index);
+                    painter.circle_filled(
+                        *point,
+                        if selected { 6.0 } else { 4.5 },
+                        if selected {
+                            Color32::from_rgb(255, 210, 90)
+                        } else {
+                            Color32::from_rgb(150, 200, 230)
+                        },
+                    );
+                    painter.circle_stroke(
+                        *point,
+                        if selected { 6.0 } else { 4.5 },
+                        Stroke::new(1.0, Color32::from_rgb(20, 30, 36)),
+                    );
+                    if let Some(marker) = timeline.markers.get(marker_index) {
+                        painter.text(
+                            *point + Vec2::new(9.0, 0.0),
+                            Align2::LEFT_CENTER,
+                            short_label(
+                                if marker.name.is_empty() {
+                                    "Marker"
+                                } else {
+                                    marker.name.as_str()
+                                },
+                                18,
+                            ),
+                            FontId::proportional(10.0),
+                            Color32::from_rgb(165, 200, 220),
+                        );
+                    }
+                }
+
+                let pointer = response.interact_pointer_pos();
+                let hit = pointer.and_then(|pointer| {
+                    marker_points
+                        .iter()
+                        .enumerate()
+                        .map(|(index, point)| (index, point.distance(pointer)))
+                        .filter(|(_, distance)| *distance <= 10.0)
+                        .min_by(|left, right| left.1.total_cmp(&right.1))
+                        .map(|(index, _)| index)
+                });
+
+                if response.secondary_clicked() {
+                    if let Some(marker) = hit {
+                        actions.push(EditorAction::RemoveTimelineMarker { marker });
+                        state.timeline_selected_marker = None;
+                        state.timeline_marker_name_id = None;
+                        state.timeline_drag_marker = None;
+                    }
+                } else if response.double_clicked() {
+                    if let Some(pointer) = pointer {
+                        if hit.is_none() {
+                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            let marker = timeline
+                                .markers
+                                .iter()
+                                .position(|marker| marker.time > time)
+                                .unwrap_or(timeline.markers.len());
+                            state.timeline_selected_marker = Some(marker);
+                            state.timeline_marker_name_id = None;
+                            state.timeline_selected_track = None;
+                            state.timeline_selected_key = None;
+                            state.timeline_selected_trigger = None;
+                            actions.push(EditorAction::AddTimelineMarker { time });
+                        }
+                    }
+                } else if response.clicked() {
+                    state.timeline_selected_marker = hit;
+                    state.timeline_marker_name_id = None;
+                    state.timeline_selected_track = None;
+                    state.timeline_selected_key = None;
+                    state.timeline_selected_trigger = None;
+                    if let Some(marker) = hit {
+                        if let Some(marker) = timeline.markers.get(marker) {
+                            actions.push(EditorAction::SeekTransport {
+                                position: f64::from(marker.time),
+                            });
+                        }
+                    }
+                }
+
+                if response.drag_started() {
+                    if let Some(marker) = hit {
+                        state.timeline_selected_marker = Some(marker);
+                        state.timeline_marker_name_id = None;
+                        state.timeline_selected_track = None;
+                        state.timeline_selected_key = None;
+                        state.timeline_selected_trigger = None;
+                        state.timeline_drag_marker = Some(marker);
+                    }
+                }
+                if response.dragged() {
+                    if let (Some(marker_index), Some(pointer)) =
+                        (state.timeline_drag_marker, pointer)
+                    {
+                        if let Some(marker) = timeline.markers.get(marker_index) {
+                            let time = timeline_x_time(lane_rect, pointer.x, duration);
+                            actions.push(EditorAction::SetTimelineMarker {
+                                marker: marker_index,
+                                time,
+                                name: marker.name.clone(),
+                            });
+                        }
+                    }
+                }
+                if response.drag_stopped() {
+                    state.timeline_drag_marker = None;
+                }
+            });
+
+            if timeline.tracks.is_empty()
+                && timeline.triggers.is_empty()
+                && timeline.markers.is_empty()
+            {
                 ui.add_space(8.0);
                 ui.label(
                     RichText::new(
-                        "No timeline tracks or triggers yet. Choose a parameter above or add a trigger.",
+                        "No timeline tracks, triggers or markers yet. Choose a parameter or add an item.",
                     )
                     .small()
                     .color(Color32::from_rgb(132, 144, 166)),

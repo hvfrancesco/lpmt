@@ -113,9 +113,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   `midi` feature adds a `midir` listener; Show mode learns CC/note sources into persisted bindings
   with absolute, relative and toggle modes, and maps them through the same parameter actions. Toggle
   gives pads and buttons latching control of bool parameters. A parameter timeline evaluates float
-  curves and bool state tracks from the shared show clock in the Show panel; values are a render-time
-  overlay so playback does not dirty the project. OSC addresses remain session-only; DMX and
-  colour tracks and richer command triggers are next.
+  curves and bool state tracks from the shared show clock in the Show panel, with transport triggers,
+  named markers and a render-time overlay so playback does not dirty the project. OSC addresses
+  remain session-only; DMX, colour tracks and richer command triggers are next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -153,10 +153,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, timeline
-  colour tracks, richer command triggers/cue lists and easing, the legacy XML importer, packaging
-  and validated macOS/Windows builds.
-- **Next implementation slice:** timeline colour tracks, richer command triggers and easing curves,
-  all targeting the stable parameter paths.
+  colour tracks, richer command triggers/cue lists and multi-key copy/paste, the legacy XML
+  importer, packaging and validated macOS/Windows builds.
+- **Next implementation slice:** timeline colour tracks, richer command triggers and multi-key
+  copy/paste, all targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -642,9 +642,11 @@ This replaces the old pattern where every OSC address knew the internals of the 
 Timeline should be core functionality, not an addon. The current v1 implements:
 
 - One global project timeline driven by the shared show clock.
-- Float tracks targeting stable parameter paths, with Step and Linear interpolation.
+- Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
+- Single-key copy/paste at the playhead, with range clamping on the target track.
 - Bool state tracks for surface/layer visibility and mask enable/invert, using on/off Step keys.
 - A trigger lane for transport pause and loop on/off commands, fired while playing and on loop wrap.
+- Named seek markers with click-to-seek, retiming, rename and undo support.
 - Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, manage
   triggers, seek from the ruler, and resize the timeline duration.
 - Deterministic evaluation: playback and scrubbing sample the same clock used by video and audio.
@@ -655,7 +657,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 Still planned:
 
 - Colour tracks for output look/LUT changes and richer command triggers/cue lists.
-- BPM, time signature, snap-to-grid, markers and copy/paste.
+- BPM, time signature, snap-to-grid and multi-key copy/paste.
 - Per-stage timelines or cue lists, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
@@ -799,7 +801,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] MIDI CC/note bindings with absolute, relative and toggle modes plus Show-mode learn.
 - [x] Float and bool-state timeline tracks with scrubbing and render-time playback.
 - [x] Basic timed transport triggers (pause and loop on/off).
-- [ ] Timeline colour tracks, richer command triggers, easing and keyframe copy/paste.
+- [x] Smooth easing, single-key copy/paste and named timeline markers.
+- [ ] Timeline colour tracks, richer command triggers and multi-key copy/paste.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 

@@ -31,7 +31,7 @@ use lpmt_core::model::{
 };
 use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue};
 use lpmt_core::timeline::{
-    Timeline, TimelineCommand, TimelineInterpolation, TimelineKey, TimelineTrigger,
+    Timeline, TimelineCommand, TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
@@ -1627,6 +1627,51 @@ impl App {
                     self.timeline_preview_active = true;
                     self.status_message = format!("Added timeline key at {time:.2}s");
                 }
+                EditorAction::AddTimelineKeyValue {
+                    track,
+                    time,
+                    value,
+                    interpolation,
+                } => {
+                    let Some(track_ref) = self.project.timeline.tracks.get(track) else {
+                        continue;
+                    };
+                    let Ok(parameter) = ParameterId::parse(&track_ref.parameter) else {
+                        continue;
+                    };
+                    if !timeline_parameter_allowed(&parameter) {
+                        continue;
+                    }
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let (minimum, maximum) =
+                        timeline_value_range(&self.project.timeline, &parameter)
+                            .unwrap_or((0.0, 1.0));
+                    let (value, interpolation) = if parameter.kind() == ParameterKind::Bool {
+                        (
+                            if value >= 0.5 { 1.0 } else { 0.0 },
+                            TimelineInterpolation::Step,
+                        )
+                    } else {
+                        (value.clamp(minimum, maximum), interpolation)
+                    };
+                    let keys = &mut self.project.timeline.tracks[track].keys;
+                    if let Some(existing) = keys
+                        .iter_mut()
+                        .find(|key| (key.time - time).abs() <= 1.0e-4)
+                    {
+                        existing.value = value;
+                        existing.interpolation = interpolation;
+                    } else {
+                        keys.push(TimelineKey {
+                            time,
+                            value,
+                            interpolation,
+                        });
+                        self.project.timeline.tracks[track].sort_keys();
+                    }
+                    self.timeline_preview_active = true;
+                    self.status_message = "Pasted timeline key".to_owned();
+                }
                 EditorAction::SetTimelineKey {
                     track,
                     key,
@@ -1736,6 +1781,56 @@ impl App {
                         self.project.timeline.triggers.remove(trigger);
                         self.sync_clock_duration();
                         self.status_message = "Removed timeline trigger".to_owned();
+                    }
+                }
+                EditorAction::AddTimelineMarker { time } => {
+                    if self.project.timeline.is_empty() {
+                        let duration = self
+                            .clock
+                            .duration_seconds()
+                            .map_or(10.0, |duration| duration as f32);
+                        self.project.timeline.duration = duration;
+                    }
+                    self.project.timeline.normalize();
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let name = format!(
+                        "Marker {}",
+                        self.project.timeline.markers.len().saturating_add(1)
+                    );
+                    self.project.timeline.markers.push(TimelineMarker {
+                        time,
+                        name: name.clone(),
+                    });
+                    self.project.timeline.sort_markers();
+                    self.sync_clock_duration();
+                    self.status_message = format!("Added {name} at {time:.2}s");
+                }
+                EditorAction::SetTimelineMarker { marker, time, name } => {
+                    if marker >= self.project.timeline.markers.len() {
+                        continue;
+                    }
+                    let minimum_time = if marker > 0 {
+                        self.project.timeline.markers[marker - 1].time + 1.0e-4
+                    } else {
+                        0.0
+                    };
+                    let maximum_time = if marker + 1 < self.project.timeline.markers.len() {
+                        self.project.timeline.markers[marker + 1].time - 1.0e-4
+                    } else {
+                        self.project.timeline.duration
+                    };
+                    let marker_ref = &mut self.project.timeline.markers[marker];
+                    marker_ref.time = time.clamp(
+                        minimum_time.min(maximum_time),
+                        maximum_time.max(minimum_time),
+                    );
+                    marker_ref.name = name;
+                }
+                EditorAction::RemoveTimelineMarker { marker } => {
+                    if marker < self.project.timeline.markers.len() {
+                        self.project.timeline.markers.remove(marker);
+                        self.sync_clock_duration();
+                        self.status_message = "Removed timeline marker".to_owned();
                     }
                 }
                 EditorAction::ResetSurface { surface } => {
@@ -3673,6 +3768,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         AddTimelineTrack { .. } => (HistoryKey::Discrete, "add timeline track"),
         RemoveTimelineTrack { .. } => (HistoryKey::Discrete, "remove timeline track"),
         AddTimelineKey { .. } => (HistoryKey::Discrete, "add timeline key"),
+        AddTimelineKeyValue { .. } => (HistoryKey::Discrete, "paste timeline key"),
         SetTimelineKey { track, key, .. } => {
             (HistoryKey::TimelineKey(*track, *key), "move timeline key")
         }
@@ -3684,6 +3780,11 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             "move timeline trigger",
         ),
         RemoveTimelineTrigger { .. } => (HistoryKey::Discrete, "remove timeline trigger"),
+        AddTimelineMarker { .. } => (HistoryKey::Discrete, "add timeline marker"),
+        SetTimelineMarker { marker, .. } => {
+            (HistoryKey::TimelineMarker(*marker), "move timeline marker")
+        }
+        RemoveTimelineMarker { .. } => (HistoryKey::Discrete, "remove timeline marker"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
