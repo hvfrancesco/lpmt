@@ -138,9 +138,9 @@ shelf; Calibration and Show are separate modes.
   enable/invert. Double-click a lane to add a key, drag keys to move them,
   right-click to remove, and choose Step, Linear or Smooth interpolation for
   floats; keys can be copied and pasted at the playhead. Bool tracks use Step
-  values. A trigger lane can pause the transport or switch looping on/off at a
-  chosen time, and named markers provide seek points. The ruler seeks the shared
-  show clock, so
+  values. A trigger lane can pause, stop/rewind, restart or switch looping on/off
+  at a chosen time, and named markers provide seek points with previous/next
+  navigation. The ruler seeks the shared show clock, so
   playback and scrubbing evaluate the keys in sync. Timeline values are a
   render-time overlay: playback does not modify the saved parameter values or
   mark the project dirty. A manual parameter edit while paused temporarily
@@ -425,15 +425,17 @@ invert), press **Add track**, then edit its keys:
 - use the normal transport to play, pause, restart and loop the timeline.
 
 The **Triggers** lane schedules transport commands. Choose **Pause transport**,
-**Loop on**, or **Loop off** in the header, press **Add trigger** at the
-playhead, or double-click the trigger lane. Drag a trigger marker to retime it
-and right-click to remove it. Triggers fire while the clock is playing, including
-on a natural loop wrap; scrubbing does not fire them.
+**Stop and rewind**, **Restart transport**, **Loop on**, or **Loop off** in the
+header, press **Add trigger** at the playhead, or double-click the trigger lane.
+Drag a trigger marker to retime it and right-click to remove it. Triggers fire
+while the clock is playing, including on a natural loop wrap; scrubbing does not
+fire them.
 
 The **Markers** lane holds named seek points. Press **Add marker** at the
 playhead or double-click the lane, then edit the name and time in the marker
 row. Clicking a marker seeks to it; dragging retimes it and right-click removes
-it. Markers are saved with the project and participate in undo/redo.
+it. **Prev marker** and **Next marker** jump between markers relative to the
+playhead. Markers are saved with the project and participate in undo/redo.
 
 Timeline keys target stable parameter paths, so renaming a layer or surface does
 not break automation. Track and trigger edits are undoable and saved with the

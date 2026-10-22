@@ -832,6 +832,18 @@ impl App {
                     self.status_message = "Timeline trigger: pause".to_owned();
                     return;
                 }
+                TimelineCommand::Stop => {
+                    self.clock.pause();
+                    self.clock.seek(0.0);
+                    self.status_message = "Timeline trigger: stop and rewind".to_owned();
+                    return;
+                }
+                TimelineCommand::Restart => {
+                    self.clock.seek(0.0);
+                    self.clock.play();
+                    self.status_message = "Timeline trigger: restart".to_owned();
+                    return;
+                }
                 TimelineCommand::LoopOn => {
                     self.clock.set_looping(true);
                     self.status_message = "Timeline trigger: loop on".to_owned();

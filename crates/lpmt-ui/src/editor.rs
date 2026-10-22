@@ -2596,6 +2596,38 @@ fn draw_timeline(
             state.timeline_selected_trigger = None;
             actions.push(EditorAction::AddTimelineMarker { time });
         }
+        let playhead = status.transport.position_seconds as f32;
+        let previous = timeline
+            .markers
+            .iter()
+            .rev()
+            .find(|marker| marker.time < playhead - 1.0e-4)
+            .map(|marker| marker.time);
+        let next = timeline
+            .markers
+            .iter()
+            .find(|marker| marker.time > playhead + 1.0e-4)
+            .map(|marker| marker.time);
+        if ui
+            .add_enabled(previous.is_some(), egui::Button::new("Prev marker"))
+            .clicked()
+        {
+            if let Some(time) = previous {
+                actions.push(EditorAction::SeekTransport {
+                    position: f64::from(time),
+                });
+            }
+        }
+        if ui
+            .add_enabled(next.is_some(), egui::Button::new("Next marker"))
+            .clicked()
+        {
+            if let Some(time) = next {
+                actions.push(EditorAction::SeekTransport {
+                    position: f64::from(time),
+                });
+            }
+        }
     });
 
     if let Some((track_index, key_index)) = state
@@ -3498,6 +3530,8 @@ fn draw_timeline(
 fn trigger_command_short(command: TimelineCommand) -> &'static str {
     match command {
         TimelineCommand::Pause => "Pause",
+        TimelineCommand::Stop => "Stop",
+        TimelineCommand::Restart => "Restart",
         TimelineCommand::LoopOn => "Loop+",
         TimelineCommand::LoopOff => "Loop-",
     }

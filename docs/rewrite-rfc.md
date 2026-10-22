@@ -645,8 +645,10 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 - Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
 - Single-key copy/paste at the playhead, with range clamping on the target track.
 - Bool state tracks for surface/layer visibility and mask enable/invert, using on/off Step keys.
-- A trigger lane for transport pause and loop on/off commands, fired while playing and on loop wrap.
-- Named seek markers with click-to-seek, retiming, rename and undo support.
+- A trigger lane for pause, stop/rewind, restart and loop on/off commands, fired while playing and on
+  loop wrap.
+- Named seek markers with click-to-seek, previous/next navigation, retiming, rename and undo
+  support.
 - Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, manage
   triggers, seek from the ruler, and resize the timeline duration.
 - Deterministic evaluation: playback and scrubbing sample the same clock used by video and audio.
@@ -800,7 +802,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Persisted parameter bindings, including undo/redo and project reload.
 - [x] MIDI CC/note bindings with absolute, relative and toggle modes plus Show-mode learn.
 - [x] Float and bool-state timeline tracks with scrubbing and render-time playback.
-- [x] Basic timed transport triggers (pause and loop on/off).
+- [x] Timed transport triggers (pause, stop/rewind, restart and loop on/off).
 - [x] Smooth easing, single-key copy/paste and named timeline markers.
 - [ ] Timeline colour tracks, richer command triggers and multi-key copy/paste.
 - [ ] DMX/Art-Net bindings on the same parameter layer.

@@ -101,16 +101,26 @@ impl TimelineTrack {
 #[serde(rename_all = "snake_case")]
 pub enum TimelineCommand {
     Pause,
+    Stop,
+    Restart,
     LoopOn,
     LoopOff,
 }
 
 impl TimelineCommand {
-    pub const ALL: [Self; 3] = [Self::Pause, Self::LoopOn, Self::LoopOff];
+    pub const ALL: [Self; 5] = [
+        Self::Pause,
+        Self::Stop,
+        Self::Restart,
+        Self::LoopOn,
+        Self::LoopOff,
+    ];
 
     pub const fn label(self) -> &'static str {
         match self {
             Self::Pause => "Pause transport",
+            Self::Stop => "Stop and rewind",
+            Self::Restart => "Restart transport",
             Self::LoopOn => "Loop on",
             Self::LoopOff => "Loop off",
         }
