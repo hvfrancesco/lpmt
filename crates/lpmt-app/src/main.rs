@@ -39,6 +39,7 @@ use lpmt_render::media::MediaCache;
 use lpmt_render::output::{OutputRenderer, PreviewRenderer};
 use lpmt_ui::editor::{
     self, EditorAction, EditorState, EditorStatus, OutputPacing, SurfaceGeometryEdit,
+    TimelineClipboardEntry,
 };
 use video_runtime::VideoRuntime;
 use winit::application::ApplicationHandler;
@@ -1707,48 +1708,8 @@ impl App {
                     self.timeline_preview_active = true;
                     self.status_message = format!("Added timeline key at {time:.2}s");
                 }
-                EditorAction::PasteTimelineKeys { track, time, keys } => {
-                    let Some(track_ref) = self.project.timeline.tracks.get(track) else {
-                        continue;
-                    };
-                    let Ok(parameter) = ParameterId::parse(&track_ref.parameter) else {
-                        continue;
-                    };
-                    if !timeline_parameter_allowed(&parameter) {
-                        continue;
-                    }
-                    let base_time = time.clamp(0.0, self.project.timeline.duration);
-                    let (minimum, maximum) =
-                        timeline_value_range(&self.project.timeline, &parameter)
-                            .unwrap_or((0.0, 1.0));
-                    let count = keys.len();
-                    let destination = &mut self.project.timeline.tracks[track].keys;
-                    for key in keys {
-                        let time =
-                            (base_time + key.time).clamp(0.0, self.project.timeline.duration);
-                        let (value, interpolation) = if parameter.kind() == ParameterKind::Bool {
-                            (
-                                if key.value >= 0.5 { 1.0 } else { 0.0 },
-                                TimelineInterpolation::Step,
-                            )
-                        } else {
-                            (key.value.clamp(minimum, maximum), key.interpolation)
-                        };
-                        if let Some(existing) = destination
-                            .iter_mut()
-                            .find(|existing| (existing.time - time).abs() <= 1.0e-4)
-                        {
-                            existing.value = value;
-                            existing.interpolation = interpolation;
-                        } else {
-                            destination.push(TimelineKey {
-                                time,
-                                value,
-                                interpolation,
-                            });
-                        }
-                    }
-                    self.project.timeline.tracks[track].sort_keys();
+                EditorAction::PasteTimelineKeys { time, entries } => {
+                    let count = paste_timeline_keys(&mut self.project.timeline, time, &entries);
                     self.timeline_preview_active = true;
                     self.status_message = if count == 1 {
                         "Pasted timeline key".to_owned()
@@ -2051,34 +2012,34 @@ impl App {
                         }
                     }
                 }
-                EditorAction::PasteTimelineColourKey {
-                    track,
-                    time,
-                    tint,
-                    interpolation,
-                } => {
+                EditorAction::PasteTimelineColourKeys { track, time, keys } => {
                     if track >= self.project.timeline.colour_tracks.len() {
                         continue;
                     }
-                    let time = time.clamp(0.0, self.project.timeline.duration);
-                    let tint = tint.map(|channel| channel.clamp(0.0, 4.0));
-                    let keys = &mut self.project.timeline.colour_tracks[track].keys;
-                    if let Some(existing) = keys
-                        .iter_mut()
-                        .find(|key| (key.time - time).abs() <= 1.0e-4)
-                    {
-                        existing.tint = tint;
-                        existing.interpolation = interpolation;
-                    } else {
-                        keys.push(TimelineColourKey {
-                            time,
-                            tint,
-                            interpolation,
-                        });
-                        self.project.timeline.colour_tracks[track].sort_keys();
+                    let base_time = time.clamp(0.0, self.project.timeline.duration);
+                    let count = keys.len();
+                    let destination = &mut self.project.timeline.colour_tracks[track].keys;
+                    for mut key in keys {
+                        key.time =
+                            (base_time + key.time).clamp(0.0, self.project.timeline.duration);
+                        key.tint = key.tint.map(|channel| channel.clamp(0.0, 4.0));
+                        if let Some(existing) = destination
+                            .iter_mut()
+                            .find(|existing| (existing.time - key.time).abs() <= 1.0e-4)
+                        {
+                            existing.tint = key.tint;
+                            existing.interpolation = key.interpolation;
+                        } else {
+                            destination.push(key);
+                        }
                     }
+                    self.project.timeline.colour_tracks[track].sort_keys();
                     self.timeline_preview_active = true;
-                    self.status_message = "Pasted colour key".to_owned();
+                    self.status_message = if count == 1 {
+                        "Pasted colour key".to_owned()
+                    } else {
+                        format!("Pasted {count} colour keys")
+                    };
                 }
                 EditorAction::ResetSurface { surface } => {
                     if let Some(surface) = self
@@ -3799,6 +3760,54 @@ fn apply_timeline_value_to_project(project: &mut Project, parameter: &ParameterI
     }
 }
 
+fn paste_timeline_keys(
+    timeline: &mut Timeline,
+    base_time: f32,
+    entries: &[TimelineClipboardEntry],
+) -> usize {
+    let base_time = base_time.clamp(0.0, timeline.duration);
+    let mut pasted = 0;
+    for entry in entries {
+        let Ok(parameter) = ParameterId::parse(&entry.parameter) else {
+            continue;
+        };
+        if !timeline_parameter_allowed(&parameter) {
+            continue;
+        }
+        let (minimum, maximum) = timeline_value_range(timeline, &parameter).unwrap_or((0.0, 1.0));
+        let track = timeline.add_track(entry.parameter.clone());
+        let time = (base_time + entry.key.time).clamp(0.0, timeline.duration);
+        let (value, interpolation) = if parameter.kind() == ParameterKind::Bool {
+            (
+                if entry.key.value >= 0.5 { 1.0 } else { 0.0 },
+                TimelineInterpolation::Step,
+            )
+        } else {
+            (
+                entry.key.value.clamp(minimum, maximum),
+                entry.key.interpolation,
+            )
+        };
+        let destination = &mut timeline.tracks[track].keys;
+        if let Some(existing) = destination
+            .iter_mut()
+            .find(|existing| (existing.time - time).abs() <= 1.0e-4)
+        {
+            existing.value = value;
+            existing.interpolation = interpolation;
+        } else {
+            destination.push(TimelineKey {
+                time,
+                value,
+                interpolation,
+            });
+        }
+        timeline.tracks[track].sort_keys();
+        pasted += 1;
+    }
+    pasted
+}
+
 fn timeline_trigger_commands(
     triggers: &[TimelineTrigger],
     from: f32,
@@ -4062,7 +4071,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             "move colour key",
         ),
         RemoveTimelineColourKey { .. } => (HistoryKey::Discrete, "remove colour key"),
-        PasteTimelineColourKey { .. } => (HistoryKey::Discrete, "paste colour key"),
+        PasteTimelineColourKeys { .. } => (HistoryKey::Discrete, "paste colour keys"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
@@ -4259,6 +4268,45 @@ mod tests {
             selected_surface_ids(stage, &[]),
             [stage.surfaces[0].id.clone()]
         );
+    }
+
+    #[test]
+    fn pasted_keys_restore_their_source_tracks() {
+        let mut timeline = Timeline::default();
+        let entries = [
+            TimelineClipboardEntry {
+                parameter: "layer/layer-1/opacity".to_owned(),
+                key: TimelineKey {
+                    time: 0.0,
+                    value: 0.5,
+                    interpolation: TimelineInterpolation::Linear,
+                },
+            },
+            TimelineClipboardEntry {
+                parameter: "surface/surface-1/visible".to_owned(),
+                key: TimelineKey {
+                    time: 2.0,
+                    value: 1.0,
+                    interpolation: TimelineInterpolation::Smooth,
+                },
+            },
+        ];
+        assert_eq!(paste_timeline_keys(&mut timeline, 3.0, &entries), 2);
+        let opacity = timeline
+            .tracks
+            .iter()
+            .find(|track| track.parameter == "layer/layer-1/opacity")
+            .unwrap();
+        assert_eq!(opacity.keys[0].time, 3.0);
+        assert_eq!(opacity.keys[0].value, 0.5);
+        let visible = timeline
+            .tracks
+            .iter()
+            .find(|track| track.parameter == "surface/surface-1/visible")
+            .unwrap();
+        assert_eq!(visible.keys[0].time, 5.0);
+        assert_eq!(visible.keys[0].value, 1.0);
+        assert_eq!(visible.keys[0].interpolation, TimelineInterpolation::Step);
     }
 
     #[test]

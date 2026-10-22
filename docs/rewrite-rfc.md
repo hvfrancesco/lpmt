@@ -161,8 +161,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, richer
   cue metadata/command triggers, the legacy XML importer, packaging and validated macOS/Windows
   builds.
-- **Next implementation slice:** richer cue data and command triggers, plus multi-track key
-  selection, all targeting the stable parameter paths.
+- **Next implementation slice:** richer cue data, additional command triggers and BPM-based
+  timing, all targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -650,10 +650,11 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 - One global project timeline driven by the shared show clock.
 - Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
   Output RGB tint channels use the same mechanism.
-- Dedicated output colour tracks with RGB keys, editing, playback overlay and colour-key
-  copy/paste at the playhead.
-- Multi-key selection with shift-click and copy/paste at the playhead, preserving relative timing
-  with range clamping on the target track.
+- Dedicated output colour tracks with RGB keys, editing, playback overlay, multi-key shift
+  selection and copy/paste at the playhead.
+- Multi-track key selection with shift-click and copy/paste at the playhead. Keys carry their stable
+  parameter path, so paste restores each key to its source track, recreating missing tracks and
+  clamping values to each parameter's range.
 - Bool state tracks for surface/layer visibility and mask enable/invert, using on/off Step keys.
 - A trigger lane for pause, stop/rewind, restart, loop on/off and marker-jump commands, fired while
   playing and on loop wrap.
@@ -673,7 +674,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 Still planned:
 
 - Richer cue metadata and additional command triggers.
-- BPM, time signature and multi-track key selection.
+- BPM, time signature and a musical snap grid.
 - Per-stage timelines or independent cue stacks, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
@@ -818,10 +819,11 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Float and bool-state timeline tracks with scrubbing and render-time playback.
 - [x] Timed transport triggers (pause, stop/rewind, restart, loop on/off and marker jumps).
 - [x] Smooth easing, multi-key copy/paste and named timeline markers.
-- [x] Per-output RGB tint parameters, dedicated output colour tracks and colour-key copy/paste.
+- [x] Per-output RGB tint parameters, dedicated output colour tracks and multi-key colour copy/paste.
 - [x] Marker `[`/`]` keyboard navigation.
 - [x] Manual marker/trigger cue list with per-cue Go actions.
 - [x] Configurable snap-to-grid for timeline edits.
+- [x] Multi-track key selection with path-based copy/paste.
 - [ ] Rich cue metadata and additional command triggers.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.

@@ -143,7 +143,8 @@ shelf; Calibration and Show are separate modes.
   state tracks for surface/layer visibility and mask enable/invert. Double-click
   a lane to add a key, drag keys to move them, right-click to remove, and choose
   Step, Linear or Smooth interpolation. Shift-click selects multiple numeric
-  keys, which can be copied and pasted at the playhead. Bool tracks use Step
+  keys across tracks; copy and paste restores each key to its source parameter
+  track at the playhead. Bool tracks use Step
   values. A trigger lane can pause, stop/rewind, restart, switch looping on/off
   or jump to the next/previous marker at a chosen time, and named markers provide
   seek points with header navigation. Zoom from **1×** to **64×** with the
@@ -188,7 +189,7 @@ learn, parameter timeline tracks, transport triggers and named markers are now
 in place. The next timeline work is:
 
 - richer cue data and additional command triggers;
-- multi-track key selection and multi-key colour editing;
+- BPM, bars and a musical snap grid;
 - richer interpolation and timeline templates.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
@@ -432,9 +433,10 @@ invert), press **Add track**, then edit its keys:
 - **right-click** a key to remove it;
 - select a key to edit its time and value; float keys offer **Step**/**Linear**/
   **Smooth** interpolation, while bool keys are Step-only on/off states;
-- **Shift-click** keys to extend the selection; **Copy** and **Paste at
-  playhead** duplicate all selected keys with their relative timing, clamped to
-  the target track's range;
+- **Shift-click** keys on any track to extend the selection; **Copy** and
+  **Paste at playhead** preserve relative timing and restore each key to its
+  source parameter track, recreating missing tracks and clamping values to each
+  parameter's range;
 - click or drag the ruler to seek the shared show clock;
 - use **-**, **+** and **Fit** to zoom the timeline, drag the view slider to
   scroll horizontally, roll the wheel over the ruler to zoom, use **Ctrl+wheel**
@@ -445,9 +447,10 @@ invert), press **Add track**, then edit its keys:
 
 Choose an output and press **Add colour track** for a dedicated RGB tint lane.
 Double-click to add colour keys, drag to retime, right-click to remove, and edit
-R/G/B plus Step/Linear/Smooth interpolation in the colour-key row. Colour keys
-can be copied and pasted at the playhead. Colour tracks override the output tint
-channels during playback while remaining a render-time overlay.
+R/G/B plus Step/Linear/Smooth interpolation in the colour-key row. Shift-click
+colour keys to extend the selection; copy and paste preserve their relative
+timing at the playhead. Colour tracks override the output tint channels during
+playback while remaining a render-time overlay.
 
 The **Triggers** lane schedules transport commands. Choose **Pause transport**,
 **Stop and rewind**, **Restart transport**, **Loop on**, **Loop off**, **Jump to
