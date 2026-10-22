@@ -1273,6 +1273,7 @@ mod tests {
             note: "Hold for applause".to_owned(),
             color: [0.9, 0.3, 0.2],
             commands: vec![TimelineCommand::Pause, TimelineCommand::LoopOff],
+            auto: false,
         });
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();

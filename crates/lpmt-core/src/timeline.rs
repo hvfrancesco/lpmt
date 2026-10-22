@@ -224,6 +224,9 @@ pub struct TimelineCue {
     pub color: [f32; 3],
     #[serde(default)]
     pub commands: Vec<TimelineCommand>,
+    /// Fire this cue automatically when playback reaches `time`.
+    #[serde(default)]
+    pub auto: bool,
 }
 
 fn default_cue_colour() -> [f32; 3] {
@@ -569,6 +572,7 @@ mod tests {
                     note: String::new(),
                     color: [1.0, 0.5, 0.0],
                     commands: vec![TimelineCommand::Pause],
+                    auto: false,
                 },
                 TimelineCue {
                     id: 2,
@@ -577,6 +581,7 @@ mod tests {
                     note: String::new(),
                     color: [0.0, 0.5, 1.0],
                     commands: vec![TimelineCommand::LoopOn, TimelineCommand::Restart],
+                    auto: true,
                 },
             ],
             ..Timeline::default()

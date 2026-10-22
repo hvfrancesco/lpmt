@@ -191,7 +191,7 @@ crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
 learn, parameter timeline tracks, transport triggers, named markers and a
 persisted cue stack are now in place. The next timeline work is:
 
-- tempo maps and cue follow/auto modes;
+- tempo maps and cue follow delays;
 - additional cue commands and richer interpolation;
 - timeline templates and per-stage timelines.
 
@@ -476,10 +476,11 @@ saved with the project and participate in undo/redo.
 The Show sidebar holds a persisted **Cues** stack. Add a cue at the playhead,
 then edit its name, note, colour and any combination of transport commands.
 **Go** fires that cue immediately; **Prev cue** and **Next cue** select by cue
-time relative to the playhead. Cue metadata and command lists are saved with the
-project and undoable, while firing a cue is a runtime action and does not dirty
-the project. Timeline markers and triggers remain available as automatic
-events.
+time relative to the playhead. Enable **Auto at cue time** to fire a cue while
+playback crosses its time, including loop wraps; scrubbing does not fire it.
+Cue metadata and command lists are saved with the project and undoable, while
+firing a cue is a runtime action and does not dirty the project. Timeline
+markers and triggers remain available as automatic events.
 
 Timeline keys target stable parameter paths, so renaming a layer or surface does
 not break automation. Track and trigger edits are undoable and saved with the

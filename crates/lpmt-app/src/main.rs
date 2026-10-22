@@ -31,8 +31,8 @@ use lpmt_core::model::{
 };
 use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue, TintChannel};
 use lpmt_core::timeline::{
-    Timeline, TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineInterpolation,
-    TimelineKey, TimelineMarker, TimelineTrigger,
+    Timeline, TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineCue,
+    TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
@@ -813,6 +813,9 @@ impl App {
         }
         if now >= self.timeline_last_playhead {
             self.fire_timeline_triggers(self.timeline_last_playhead + 1.0e-4, now);
+            if self.clock.is_playing() {
+                self.fire_timeline_cues(self.timeline_last_playhead + 1.0e-4, now);
+            }
         } else {
             let duration = self.project.timeline.duration;
             self.fire_timeline_triggers(self.timeline_last_playhead + 1.0e-4, duration);
@@ -821,6 +824,12 @@ impl App {
                 return;
             }
             self.fire_timeline_triggers(0.0, now);
+            if self.clock.is_playing() {
+                self.fire_timeline_cues(self.timeline_last_playhead + 1.0e-4, duration);
+                if self.clock.is_playing() {
+                    self.fire_timeline_cues(0.0, now);
+                }
+            }
         }
         self.timeline_last_playhead = self.clock.position_seconds() as f32;
     }
@@ -829,6 +838,19 @@ impl App {
         let commands = timeline_trigger_commands(&self.project.timeline.triggers, from, to);
         for command in commands {
             if self.execute_timeline_command(command) {
+                break;
+            }
+        }
+    }
+
+    fn fire_timeline_cues(&mut self, from: f32, to: f32) {
+        let cues = timeline_cue_commands(&self.project.timeline.cues, from, to);
+        for commands in cues {
+            let mut transport_changed = false;
+            for command in commands {
+                transport_changed |= self.execute_timeline_command(command);
+            }
+            if transport_changed {
                 break;
             }
         }
@@ -1953,6 +1975,7 @@ impl App {
                             note: String::new(),
                             color: [0.35, 0.7, 1.0],
                             commands: Vec::new(),
+                            auto: false,
                         });
                     self.project.timeline.sort_cues();
                     self.sync_clock_duration();
@@ -1965,6 +1988,7 @@ impl App {
                     time,
                     color,
                     commands,
+                    auto,
                 } => {
                     let Some(cue) = self
                         .project
@@ -1980,6 +2004,7 @@ impl App {
                     cue.time = time.clamp(0.0, self.project.timeline.duration);
                     cue.color = color.map(|channel| channel.clamp(0.0, 1.0));
                     cue.commands = commands;
+                    cue.auto = auto;
                     self.project.timeline.sort_cues();
                 }
                 EditorAction::RemoveTimelineCue { id } => {
@@ -3975,6 +4000,13 @@ fn paste_timeline_keys(
     pasted
 }
 
+fn timeline_cue_commands(cues: &[TimelineCue], from: f32, to: f32) -> Vec<Vec<TimelineCommand>> {
+    cues.iter()
+        .filter(|cue| cue.auto && cue.time >= from && cue.time <= to + 1.0e-4)
+        .map(|cue| cue.commands.clone())
+        .collect()
+}
+
 fn timeline_trigger_commands(
     triggers: &[TimelineTrigger],
     from: f32,
@@ -4493,6 +4525,48 @@ mod tests {
         assert_eq!(visible.keys[0].time, 5.0);
         assert_eq!(visible.keys[0].value, 1.0);
         assert_eq!(visible.keys[0].interpolation, TimelineInterpolation::Step);
+    }
+
+    #[test]
+    fn auto_cues_fire_only_inside_the_playback_range() {
+        let cues = vec![
+            TimelineCue {
+                id: 1,
+                name: "One".to_owned(),
+                time: 1.0,
+                note: String::new(),
+                color: [1.0, 1.0, 1.0],
+                commands: vec![TimelineCommand::LoopOn],
+                auto: true,
+            },
+            TimelineCue {
+                id: 2,
+                name: "Manual".to_owned(),
+                time: 2.0,
+                note: String::new(),
+                color: [1.0, 1.0, 1.0],
+                commands: vec![TimelineCommand::Pause],
+                auto: false,
+            },
+            TimelineCue {
+                id: 3,
+                name: "Three".to_owned(),
+                time: 3.0,
+                note: String::new(),
+                color: [1.0, 1.0, 1.0],
+                commands: vec![TimelineCommand::LoopOff, TimelineCommand::Pause],
+                auto: true,
+            },
+        ];
+        assert_eq!(
+            timeline_cue_commands(&cues, 0.0, 2.0),
+            vec![vec![TimelineCommand::LoopOn]]
+        );
+        assert_eq!(
+            timeline_cue_commands(&cues, 2.0, 3.5),
+            vec![vec![TimelineCommand::LoopOff, TimelineCommand::Pause]]
+        );
+        assert!(timeline_cue_commands(&cues, 3.1, 4.0).is_empty());
     }
 
     #[test]

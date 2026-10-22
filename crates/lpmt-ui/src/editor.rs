@@ -536,6 +536,7 @@ pub enum EditorAction {
         time: f32,
         color: [f32; 3],
         commands: Vec<TimelineCommand>,
+        auto: bool,
     },
     RemoveTimelineCue {
         id: u64,
@@ -1227,6 +1228,13 @@ pub fn draw(
                                         state.timeline_selected_cue = Some(cue.id);
                                         state.timeline_cue_buffer_id = None;
                                     }
+                                    if cue.auto {
+                                        ui.label(
+                                            RichText::new("AUTO")
+                                                .small()
+                                                .color(Color32::from_rgb(255, 200, 90)),
+                                        );
+                                    }
                                 });
                                 if selected && !cue.note.is_empty() {
                                     ui.label(
@@ -1255,6 +1263,7 @@ pub fn draw(
                                 let mut time = cue.time;
                                 let mut color = cue.color;
                                 let mut commands = cue.commands.clone();
+                                let mut auto = cue.auto;
                                 ui.separator();
                                 ui.label(RichText::new("Cue editor").strong());
                                 egui::Grid::new(("timeline-cue-editor", id))
@@ -1279,6 +1288,8 @@ pub fn draw(
                                         ui.label("Colour");
                                         ui.color_edit_button_rgb(&mut color);
                                     });
+                                ui.checkbox(&mut auto, "Auto at cue time")
+                                    .on_hover_text("Fire this cue when playback reaches its time");
                                 ui.label("Commands");
                                 for command in TimelineCommand::ALL {
                                     let mut enabled = commands.contains(&command);
@@ -1304,6 +1315,7 @@ pub fn draw(
                                     || time != cue.time
                                     || color != cue.color
                                     || commands != cue.commands
+                                    || auto != cue.auto
                                 {
                                     actions.push(EditorAction::SetTimelineCue {
                                         id,
@@ -1312,6 +1324,7 @@ pub fn draw(
                                         time,
                                         color,
                                         commands,
+                                        auto,
                                     });
                                 }
                             } else {
