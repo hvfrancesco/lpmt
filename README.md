@@ -132,15 +132,17 @@ shelf; Calibration and Show are separate modes.
   onto the parameter range; relative mode follows encoder ticks; toggle mode
   turns a pad or button into a latching control. Project changes made through
   MIDI use the same actions and undo/redo path as the editor.
-- **Numeric timeline:** Show mode has a bottom timeline panel targeting float
+- **Parameter timeline:** Show mode has a bottom timeline panel targeting float
   parameters such as surface/layer opacity, output brightness/contrast/gamma and
-  edge blending. Double-click a lane to add a key, drag keys to move them,
-  right-click to remove, and choose Step or Linear interpolation. The ruler
-  seeks the shared show clock, so playback and scrubbing evaluate the keys in
-  sync. Timeline values are a render-time overlay: playback does not modify the
-  saved parameter values or mark the project dirty. A manual parameter edit while
-  paused temporarily suspends the overlay until the next seek, play or timeline
-  edit.
+  edge blending, plus bool state tracks for surface/layer visibility and mask
+  enable/invert. Double-click a lane to add a key, drag keys to move them,
+  right-click to remove, and choose Step or Linear interpolation for floats;
+  bool tracks use Step values. A trigger lane can pause the transport or switch
+  looping on/off at a chosen time. The ruler seeks the shared show clock, so
+  playback and scrubbing evaluate the keys in sync. Timeline values are a
+  render-time overlay: playback does not modify the saved parameter values or
+  mark the project dirty. A manual parameter edit while paused temporarily
+  suspends the overlay until the next seek, play or timeline edit.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -168,10 +170,11 @@ shelf; Calibration and Show are separate modes.
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
 crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
-learn and numeric timeline curves are now in place. The next timeline work is:
+learn, parameter timeline tracks and basic transport triggers are now in place.
+The next timeline work is:
 
 - colour tracks for output look changes;
-- timed bool and command triggers;
+- richer command triggers and cue lists;
 - easing curves, copy/paste and timeline markers.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
@@ -405,18 +408,27 @@ timeline tracks use the same stable parameter paths.
 
 ### Timeline
 
-Show mode includes a numeric timeline below the preview. Choose a float
-parameter, press **Add track**, then edit its keys:
+Show mode includes a parameter timeline below the preview. Choose a float
+parameter or a supported bool state (surface/layer visibility, mask enable or
+invert), press **Add track**, then edit its keys:
 
 - **double-click** a lane to add a key at that time;
 - **drag** a key to move it between its neighbours;
 - **right-click** a key to remove it;
-- select a key to edit its time, value and **Step**/**Linear** interpolation;
+- select a key to edit its time and value; float keys offer **Step**/**Linear**
+  interpolation, while bool keys are Step-only on/off states;
 - click or drag the ruler to seek the shared show clock;
 - use the normal transport to play, pause, restart and loop the timeline.
 
+The **Triggers** lane schedules transport commands. Choose **Pause transport**,
+**Loop on**, or **Loop off** in the header, press **Add trigger** at the
+playhead, or double-click the trigger lane. Drag a trigger marker to retime it
+and right-click to remove it. Triggers fire while the clock is playing, including
+on a natural loop wrap; scrubbing does not fire them.
+
 Timeline keys target stable parameter paths, so renaming a layer or surface does
-not break automation. Track edits are undoable and saved with the project.
+not break automation. Track and trigger edits are undoable and saved with the
+project.
 
 Timeline values are evaluated as a render-time overlay. Playing the timeline
 does not modify the underlying project parameter values or mark the project

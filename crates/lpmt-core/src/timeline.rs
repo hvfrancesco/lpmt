@@ -91,12 +91,40 @@ impl TimelineTrack {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TimelineCommand {
+    Pause,
+    LoopOn,
+    LoopOff,
+}
+
+impl TimelineCommand {
+    pub const ALL: [Self; 3] = [Self::Pause, Self::LoopOn, Self::LoopOff];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Pause => "Pause transport",
+            Self::LoopOn => "Loop on",
+            Self::LoopOff => "Loop off",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TimelineTrigger {
+    pub time: f32,
+    pub command: TimelineCommand,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Timeline {
     #[serde(default = "default_duration")]
     pub duration: f32,
     #[serde(default)]
     pub tracks: Vec<TimelineTrack>,
+    #[serde(default)]
+    pub triggers: Vec<TimelineTrigger>,
 }
 
 fn default_duration() -> f32 {
@@ -108,13 +136,14 @@ impl Default for Timeline {
         Self {
             duration: DEFAULT_TIMELINE_DURATION,
             tracks: Vec::new(),
+            triggers: Vec::new(),
         }
     }
 }
 
 impl Timeline {
     pub fn is_empty(&self) -> bool {
-        self.tracks.is_empty()
+        self.tracks.is_empty() && self.triggers.is_empty()
     }
 
     pub fn is_active(&self) -> bool {
@@ -139,6 +168,14 @@ impl Timeline {
             }
             track.sort_keys();
         }
+        for trigger in &mut self.triggers {
+            trigger.time = trigger.time.clamp(0.0, self.duration);
+        }
+        self.sort_triggers();
+    }
+
+    pub fn sort_triggers(&mut self) {
+        self.triggers.sort_by(|a, b| a.time.total_cmp(&b.time));
     }
 
     pub fn track_index(&self, parameter: &str) -> Option<usize> {
@@ -220,6 +257,33 @@ mod tests {
     }
 
     #[test]
+    fn triggers_are_sorted_and_timeline_is_active_without_tracks() {
+        let mut timeline = Timeline {
+            duration: 5.0,
+            tracks: Vec::new(),
+            triggers: vec![
+                TimelineTrigger {
+                    time: 4.0,
+                    command: TimelineCommand::Pause,
+                },
+                TimelineTrigger {
+                    time: 1.0,
+                    command: TimelineCommand::LoopOff,
+                },
+                TimelineTrigger {
+                    time: 9.0,
+                    command: TimelineCommand::LoopOn,
+                },
+            ],
+        };
+        timeline.normalize();
+        assert!(timeline.is_active());
+        assert_eq!(timeline.triggers[0].time, 1.0);
+        assert_eq!(timeline.triggers[1].time, 4.0);
+        assert_eq!(timeline.triggers[2].time, 5.0);
+    }
+
+    #[test]
     fn normalize_sorts_keys_and_clamps_time() {
         let mut timeline = Timeline {
             duration: 2.0,
@@ -238,6 +302,7 @@ mod tests {
                     },
                 ],
             }],
+            triggers: Vec::new(),
         };
         timeline.normalize();
         assert_eq!(timeline.tracks[0].keys[0].time, 0.0);
