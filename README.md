@@ -192,7 +192,7 @@ learn, parameter timeline tracks, transport triggers and named markers are now
 in place. The next timeline work is:
 
 - richer cue data and additional command triggers;
-- BPM, bars and a musical snap grid;
+- time-signature denominator and tempo maps;
 - richer interpolation and timeline templates.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
@@ -447,8 +447,9 @@ invert), press **Add track**, then edit its keys:
 - use **-**, **+** and **Fit** to zoom the timeline, drag the view slider to
   scroll horizontally, roll the wheel over the ruler to zoom, use **Ctrl+wheel**
   over any track to zoom, or **Shift+wheel** to pan;
-- enable **Snap** and set the interval to quantize new and dragged keys,
-  triggers and markers; ruler scrubbing remains continuous;
+- enable **Snap** and choose **Time**, **Beat** or **Bar** quantization for new
+  and dragged keys, triggers and markers; **BPM** and **beats/bar** define the
+  musical grid. Ruler scrubbing remains continuous;
 - use the normal transport to play, pause, restart and loop the timeline.
 
 Choose an output and press **Add colour track** for a dedicated RGB tint lane.

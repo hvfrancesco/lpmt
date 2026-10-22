@@ -210,6 +210,7 @@ pub struct EditorState {
     timeline_zoom: f32,
     timeline_view_start: f32,
     timeline_snap: bool,
+    timeline_snap_mode: TimelineSnapMode,
     timeline_snap_seconds: f32,
     splash_texture: Option<egui::TextureHandle>,
     splash_start_seconds: Option<f64>,
@@ -270,6 +271,7 @@ impl Default for EditorState {
             timeline_zoom: 1.0,
             timeline_view_start: 0.0,
             timeline_snap: true,
+            timeline_snap_mode: TimelineSnapMode::Time,
             timeline_snap_seconds: 0.1,
             splash_texture: None,
             splash_start_seconds: None,
@@ -491,6 +493,10 @@ pub enum EditorAction {
     },
     SetTimelineDuration {
         duration: f32,
+    },
+    SetTimelineTempo {
+        bpm: f32,
+        beats_per_bar: u32,
     },
     AddTimelineTrigger {
         time: f32,
@@ -2750,6 +2756,7 @@ fn draw_timeline(
         span,
     };
     let tick_step = timeline_tick_step(view.span);
+    let snap_step = timeline_snap_interval(state, timeline);
 
     state.timeline_selected_keys.retain(|(track, key)| {
         timeline
@@ -3077,7 +3084,7 @@ fn draw_timeline(
         if ui.button("Add trigger").clicked() {
             let time = snap_timeline_time(
                 state.timeline_snap,
-                state.timeline_snap_seconds,
+                snap_step,
                 status.transport.position_seconds as f32,
             );
             let trigger = timeline
@@ -3093,7 +3100,7 @@ fn draw_timeline(
         if ui.button("Add marker").clicked() {
             let time = snap_timeline_time(
                 state.timeline_snap,
-                state.timeline_snap_seconds,
+                snap_step,
                 status.transport.position_seconds as f32,
             );
             let marker = timeline
@@ -3598,16 +3605,59 @@ fn draw_timeline(
             display_view.end()
         ));
         ui.separator();
+        let mut bpm = timeline.bpm;
+        if ui
+            .add(
+                egui::DragValue::new(&mut bpm)
+                    .range(20.0..=300.0)
+                    .speed(0.5)
+                    .suffix(" BPM"),
+            )
+            .on_hover_text("Timeline tempo")
+            .changed()
+        {
+            actions.push(EditorAction::SetTimelineTempo {
+                bpm,
+                beats_per_bar: timeline.beats_per_bar,
+            });
+        }
+        let mut beats_per_bar = timeline.beats_per_bar;
+        if ui
+            .add(
+                egui::DragValue::new(&mut beats_per_bar)
+                    .range(1..=16)
+                    .suffix("/bar"),
+            )
+            .on_hover_text("Beats per bar")
+            .changed()
+        {
+            actions.push(EditorAction::SetTimelineTempo {
+                bpm: timeline.bpm,
+                beats_per_bar,
+            });
+        }
         ui.checkbox(&mut state.timeline_snap, "Snap")
             .on_hover_text("Snap key, trigger and marker times to the grid");
-        ui.add_enabled(
-            state.timeline_snap,
-            egui::DragValue::new(&mut state.timeline_snap_seconds)
-                .range(0.01..=10.0)
-                .speed(0.01)
-                .suffix(" s"),
-        )
-        .on_hover_text("Snap interval");
+        egui::ComboBox::from_id_salt("timeline-snap-mode")
+            .selected_text(state.timeline_snap_mode.label())
+            .show_ui(ui, |ui| {
+                for mode in TimelineSnapMode::ALL {
+                    ui.selectable_value(&mut state.timeline_snap_mode, mode, mode.label());
+                }
+            });
+        if state.timeline_snap_mode == TimelineSnapMode::Time {
+            ui.add_enabled(
+                state.timeline_snap,
+                egui::DragValue::new(&mut state.timeline_snap_seconds)
+                    .range(0.01..=10.0)
+                    .speed(0.01)
+                    .suffix(" s"),
+            )
+            .on_hover_text("Snap interval");
+        } else {
+            ui.label(format!("{snap_step:.3}s"))
+                .on_hover_text("Current beat or bar snap interval");
+        }
         ui.label(
             RichText::new("Wheel over ruler zooms · Ctrl+wheel over tracks · Shift+wheel pans")
                 .small()
@@ -3824,7 +3874,7 @@ fn draw_timeline(
                             if hit.is_none() {
                                 let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                                 let insert_at = track
@@ -3878,7 +3928,7 @@ fn draw_timeline(
                                 if let Some(key) = track.keys.get(drag_key) {
                                     let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                                     actions.push(EditorAction::SetTimelineKey {
@@ -4071,7 +4121,7 @@ fn draw_timeline(
                             if hit.is_none() {
                                 let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                                 let insert_at = colour_track
@@ -4142,7 +4192,7 @@ fn draw_timeline(
                                 if let Some(key) = colour_track.keys.get(key_index) {
                                     let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                                     actions.push(EditorAction::SetTimelineColourKey {
@@ -4297,7 +4347,7 @@ fn draw_timeline(
                         if hit.is_none() {
                             let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                             let trigger = timeline
@@ -4335,7 +4385,7 @@ fn draw_timeline(
                         if let Some(trigger) = timeline.triggers.get(trigger_index) {
                             let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                             actions.push(EditorAction::SetTimelineTrigger {
@@ -4496,7 +4546,7 @@ fn draw_timeline(
                         if hit.is_none() {
                             let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                             let marker = timeline
@@ -4544,7 +4594,7 @@ fn draw_timeline(
                         if let Some(marker) = timeline.markers.get(marker_index) {
                             let time = snap_timeline_time(
                                     state.timeline_snap,
-                                    state.timeline_snap_seconds,
+                                    snap_step,
                                     view.time(lane_rect, pointer.x),
                                 );
                             actions.push(EditorAction::SetTimelineMarker {
@@ -4648,6 +4698,26 @@ fn trigger_command_short(command: TimelineCommand) -> &'static str {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum TimelineSnapMode {
+    #[default]
+    Time,
+    Beat,
+    Bar,
+}
+
+impl TimelineSnapMode {
+    const ALL: [Self; 3] = [Self::Time, Self::Beat, Self::Bar];
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Time => "Time",
+            Self::Beat => "Beat",
+            Self::Bar => "Bar",
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum CueAction {
     Marker(usize),
@@ -4700,6 +4770,14 @@ fn snap_timeline_time(enabled: bool, step: f32, time: f32) -> f32 {
         (time / step.max(0.01)).round() * step.max(0.01)
     } else {
         time
+    }
+}
+
+fn timeline_snap_interval(state: &EditorState, timeline: &lpmt_core::timeline::Timeline) -> f32 {
+    match state.timeline_snap_mode {
+        TimelineSnapMode::Time => state.timeline_snap_seconds.max(0.01),
+        TimelineSnapMode::Beat => timeline.seconds_per_beat(),
+        TimelineSnapMode::Bar => timeline.seconds_per_bar(),
     }
 }
 
@@ -6861,6 +6939,19 @@ mod tests {
         assert_eq!(snap_timeline_time(true, 0.5, 1.26), 1.5);
         assert!((snap_timeline_time(true, 0.1, 1.26) - 1.3).abs() < 1.0e-5);
         assert_eq!(snap_timeline_time(false, 0.5, 1.26), 1.26);
+    }
+
+    #[test]
+    fn musical_snap_uses_beat_and_bar_intervals() {
+        let mut state = EditorState::default();
+        let timeline = lpmt_core::timeline::Timeline::default();
+        state.timeline_snap_mode = TimelineSnapMode::Beat;
+        assert_eq!(timeline_snap_interval(&state, &timeline), 0.5);
+        state.timeline_snap_mode = TimelineSnapMode::Bar;
+        assert_eq!(timeline_snap_interval(&state, &timeline), 2.0);
+        state.timeline_snap_mode = TimelineSnapMode::Time;
+        state.timeline_snap_seconds = 0.2;
+        assert_eq!(timeline_snap_interval(&state, &timeline), 0.2);
     }
 
     #[test]

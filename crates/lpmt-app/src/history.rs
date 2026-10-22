@@ -35,6 +35,7 @@ pub(crate) enum HistoryKey {
     TimelineTrigger(usize),
     TimelineMarker(usize),
     TimelineDuration,
+    TimelineTempo,
     Discrete,
 }
 

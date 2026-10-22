@@ -1803,6 +1803,15 @@ impl App {
                     self.status_message =
                         format!("Timeline duration: {:.2}s", self.project.timeline.duration);
                 }
+                EditorAction::SetTimelineTempo { bpm, beats_per_bar } => {
+                    self.project.timeline.bpm = bpm;
+                    self.project.timeline.beats_per_bar = beats_per_bar;
+                    self.project.timeline.normalize();
+                    self.status_message = format!(
+                        "Timeline tempo: {:.1} BPM · {} beats/bar",
+                        self.project.timeline.bpm, self.project.timeline.beats_per_bar
+                    );
+                }
                 EditorAction::AddTimelineTrigger { time, command } => {
                     if self.project.timeline.is_empty() {
                         let duration = self
@@ -4139,6 +4148,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         }
         RemoveTimelineKey { .. } => (HistoryKey::Discrete, "remove timeline key"),
         SetTimelineDuration { .. } => (HistoryKey::TimelineDuration, "change timeline duration"),
+        SetTimelineTempo { .. } => (HistoryKey::TimelineTempo, "change timeline tempo"),
         AddTimelineTrigger { .. } => (HistoryKey::Discrete, "add timeline trigger"),
         SetTimelineTrigger { trigger, .. } => (
             HistoryKey::TimelineTrigger(*trigger),

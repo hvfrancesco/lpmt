@@ -215,6 +215,10 @@ pub struct TimelineMarker {
 pub struct Timeline {
     #[serde(default = "default_duration")]
     pub duration: f32,
+    #[serde(default = "default_bpm")]
+    pub bpm: f32,
+    #[serde(default = "default_beats_per_bar")]
+    pub beats_per_bar: u32,
     #[serde(default)]
     pub tracks: Vec<TimelineTrack>,
     #[serde(default)]
@@ -229,10 +233,20 @@ fn default_duration() -> f32 {
     DEFAULT_TIMELINE_DURATION
 }
 
+fn default_bpm() -> f32 {
+    120.0
+}
+
+fn default_beats_per_bar() -> u32 {
+    4
+}
+
 impl Default for Timeline {
     fn default() -> Self {
         Self {
             duration: DEFAULT_TIMELINE_DURATION,
+            bpm: default_bpm(),
+            beats_per_bar: default_beats_per_bar(),
             tracks: Vec::new(),
             colour_tracks: Vec::new(),
             triggers: Vec::new(),
@@ -261,10 +275,20 @@ impl Timeline {
     }
 
     /// Clamp and sort after loading or before first use.
+    pub fn seconds_per_beat(&self) -> f32 {
+        60.0 / self.bpm.clamp(20.0, 300.0)
+    }
+
+    pub fn seconds_per_bar(&self) -> f32 {
+        self.seconds_per_beat() * self.beats_per_bar.clamp(1, 16) as f32
+    }
+
     pub fn normalize(&mut self) {
         self.duration = self
             .duration
             .clamp(MIN_TIMELINE_DURATION, MAX_TIMELINE_DURATION);
+        self.bpm = self.bpm.clamp(20.0, 300.0);
+        self.beats_per_bar = self.beats_per_bar.clamp(1, 16);
         for track in &mut self.tracks {
             for key in &mut track.keys {
                 key.time = key.time.clamp(0.0, self.duration);
@@ -419,6 +443,8 @@ mod tests {
     fn triggers_are_sorted_and_timeline_is_active_without_tracks() {
         let mut timeline = Timeline {
             duration: 5.0,
+            bpm: 120.0,
+            beats_per_bar: 4,
             tracks: Vec::new(),
             colour_tracks: Vec::new(),
             triggers: vec![
@@ -481,9 +507,27 @@ mod tests {
     }
 
     #[test]
+    fn tempo_helpers_follow_bpm_and_time_signature() {
+        let mut timeline = Timeline {
+            bpm: 90.0,
+            beats_per_bar: 3,
+            ..Timeline::default()
+        };
+        assert!((timeline.seconds_per_beat() - 2.0 / 3.0).abs() < 1.0e-5);
+        assert!((timeline.seconds_per_bar() - 2.0).abs() < 1.0e-5);
+        timeline.bpm = 0.0;
+        timeline.beats_per_bar = 0;
+        timeline.normalize();
+        assert_eq!(timeline.bpm, 20.0);
+        assert_eq!(timeline.beats_per_bar, 1);
+    }
+
+    #[test]
     fn normalize_sorts_keys_and_clamps_time() {
         let mut timeline = Timeline {
             duration: 2.0,
+            bpm: 120.0,
+            beats_per_bar: 4,
             tracks: vec![TimelineTrack {
                 parameter: "layer/layer-1/opacity".to_owned(),
                 keys: vec![
