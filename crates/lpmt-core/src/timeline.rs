@@ -227,6 +227,10 @@ pub struct TimelineCue {
     /// Fire this cue automatically when playback reaches `time`.
     #[serde(default)]
     pub auto: bool,
+    /// After this cue fires, automatically fire the next cue after this many
+    /// seconds. Zero disables follow.
+    #[serde(default)]
+    pub follow_seconds: f32,
 }
 
 fn default_cue_colour() -> [f32; 3] {
@@ -351,6 +355,7 @@ impl Timeline {
         for cue in &mut self.cues {
             cue.time = cue.time.clamp(0.0, self.duration);
             cue.color = cue.color.map(|channel| channel.clamp(0.0, 1.0));
+            cue.follow_seconds = cue.follow_seconds.clamp(0.0, 600.0);
         }
         self.sort_cues();
     }
@@ -573,6 +578,7 @@ mod tests {
                     color: [1.0, 0.5, 0.0],
                     commands: vec![TimelineCommand::Pause],
                     auto: false,
+                    follow_seconds: 0.0,
                 },
                 TimelineCue {
                     id: 2,
@@ -582,6 +588,7 @@ mod tests {
                     color: [0.0, 0.5, 1.0],
                     commands: vec![TimelineCommand::LoopOn, TimelineCommand::Restart],
                     auto: true,
+                    follow_seconds: 999.0,
                 },
             ],
             ..Timeline::default()
@@ -589,6 +596,7 @@ mod tests {
         timeline.normalize();
         assert_eq!(timeline.cues[0].id, 2);
         assert_eq!(timeline.cues[1].id, 7);
+        assert_eq!(timeline.cues[0].follow_seconds, 600.0);
         assert_eq!(timeline.next_cue_id(), 8);
         assert_eq!(timeline.cue_index(7), Some(1));
     }

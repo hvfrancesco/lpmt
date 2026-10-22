@@ -537,6 +537,7 @@ pub enum EditorAction {
         color: [f32; 3],
         commands: Vec<TimelineCommand>,
         auto: bool,
+        follow_seconds: f32,
     },
     RemoveTimelineCue {
         id: u64,
@@ -1235,6 +1236,13 @@ pub fn draw(
                                                 .color(Color32::from_rgb(255, 200, 90)),
                                         );
                                     }
+                                    if cue.follow_seconds > 0.0 {
+                                        ui.label(
+                                            RichText::new(format!("FOLLOW {:.1}s", cue.follow_seconds))
+                                                .small()
+                                                .color(Color32::from_rgb(160, 210, 255)),
+                                        );
+                                    }
                                 });
                                 if selected && !cue.note.is_empty() {
                                     ui.label(
@@ -1264,6 +1272,7 @@ pub fn draw(
                                 let mut color = cue.color;
                                 let mut commands = cue.commands.clone();
                                 let mut auto = cue.auto;
+                                let mut follow_seconds = cue.follow_seconds;
                                 ui.separator();
                                 ui.label(RichText::new("Cue editor").strong());
                                 egui::Grid::new(("timeline-cue-editor", id))
@@ -1290,6 +1299,16 @@ pub fn draw(
                                     });
                                 ui.checkbox(&mut auto, "Auto at cue time")
                                     .on_hover_text("Fire this cue when playback reaches its time");
+                                ui.horizontal(|ui| {
+                                    ui.label("Follow");
+                                    ui.add(
+                                        egui::DragValue::new(&mut follow_seconds)
+                                            .range(0.0..=600.0)
+                                            .speed(0.05)
+                                            .suffix(" s"),
+                                    )
+                                    .on_hover_text("Fire the next cue after this delay; 0 disables");
+                                });
                                 ui.label("Commands");
                                 for command in TimelineCommand::ALL {
                                     let mut enabled = commands.contains(&command);
@@ -1316,6 +1335,7 @@ pub fn draw(
                                     || color != cue.color
                                     || commands != cue.commands
                                     || auto != cue.auto
+                                    || follow_seconds != cue.follow_seconds
                                 {
                                     actions.push(EditorAction::SetTimelineCue {
                                         id,
@@ -1325,6 +1345,7 @@ pub fn draw(
                                         color,
                                         commands,
                                         auto,
+                                        follow_seconds,
                                     });
                                 }
                             } else {

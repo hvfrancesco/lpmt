@@ -17,7 +17,7 @@ use history::{History, HistoryKey};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use lpmt_control::{MidiEvent, MidiListener, OscEvent, OscListener};
@@ -109,6 +109,8 @@ struct App {
     timeline_preview_active: bool,
     timeline_last_playhead: f32,
     timeline_was_playing: bool,
+    /// Pending cue follow: wall-clock due time and destination cue ID.
+    cue_follow: Option<(Instant, u64)>,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
     pending_output_sync: bool,
@@ -222,6 +224,7 @@ impl App {
             timeline_preview_active: false,
             timeline_last_playhead: 0.0,
             timeline_was_playing: false,
+            cue_follow: None,
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
             pending_output_sync: false,
@@ -844,16 +847,65 @@ impl App {
     }
 
     fn fire_timeline_cues(&mut self, from: f32, to: f32) {
-        let cues = timeline_cue_commands(&self.project.timeline.cues, from, to);
-        for commands in cues {
-            let mut transport_changed = false;
-            for command in commands {
-                transport_changed |= self.execute_timeline_command(command);
-            }
-            if transport_changed {
+        let ids = timeline_cue_ids(&self.project.timeline.cues, from, to);
+        for id in ids {
+            if self.fire_timeline_cue(id) {
                 break;
             }
         }
+    }
+
+    /// Fire one cue and schedule its follow destination. Returns true when the
+    /// cue changed transport, which stops later auto cues in the same tick.
+    fn fire_timeline_cue(&mut self, id: u64) -> bool {
+        let Some(cue) = self
+            .project
+            .timeline
+            .cues
+            .iter()
+            .find(|cue| cue.id == id)
+            .cloned()
+        else {
+            self.cue_follow = None;
+            return false;
+        };
+        let mut transport_changed = false;
+        if cue.commands.is_empty() {
+            self.status_message = "Cue has no commands".to_owned();
+        } else {
+            for &command in &cue.commands {
+                transport_changed |= self.execute_timeline_command(command);
+            }
+        }
+        self.schedule_cue_follow(&cue);
+        transport_changed
+    }
+
+    fn schedule_cue_follow(&mut self, cue: &TimelineCue) {
+        self.cue_follow = None;
+        if cue.follow_seconds <= 0.0 {
+            return;
+        }
+        let Some(index) = self.project.timeline.cue_index(cue.id) else {
+            return;
+        };
+        let Some(next) = self.project.timeline.cues.get(index + 1) else {
+            return;
+        };
+        let follow = cue.follow_seconds.clamp(0.0, 600.0);
+        self.cue_follow = Some((Instant::now() + Duration::from_secs_f32(follow), next.id));
+        self.status_message = format!("Cue follow: {} in {follow:.1}s", next.name);
+    }
+
+    fn update_cue_follow(&mut self, now: Instant) {
+        let Some((due, id)) = self.cue_follow else {
+            return;
+        };
+        if now < due {
+            return;
+        }
+        self.cue_follow = None;
+        self.fire_timeline_cue(id);
     }
 
     /// Execute one cue command. Returns true when it changes transport in a way
@@ -1976,6 +2028,7 @@ impl App {
                             color: [0.35, 0.7, 1.0],
                             commands: Vec::new(),
                             auto: false,
+                            follow_seconds: 0.0,
                         });
                     self.project.timeline.sort_cues();
                     self.sync_clock_duration();
@@ -1989,6 +2042,7 @@ impl App {
                     color,
                     commands,
                     auto,
+                    follow_seconds,
                 } => {
                     let Some(cue) = self
                         .project
@@ -2005,6 +2059,7 @@ impl App {
                     cue.color = color.map(|channel| channel.clamp(0.0, 1.0));
                     cue.commands = commands;
                     cue.auto = auto;
+                    cue.follow_seconds = follow_seconds.clamp(0.0, 600.0);
                     self.project.timeline.sort_cues();
                 }
                 EditorAction::RemoveTimelineCue { id } => {
@@ -2012,23 +2067,7 @@ impl App {
                     self.status_message = "Removed timeline cue".to_owned();
                 }
                 EditorAction::FireTimelineCue { id } => {
-                    let Some(commands) = self
-                        .project
-                        .timeline
-                        .cues
-                        .iter()
-                        .find(|cue| cue.id == id)
-                        .map(|cue| cue.commands.clone())
-                    else {
-                        continue;
-                    };
-                    if commands.is_empty() {
-                        self.status_message = "Cue has no commands".to_owned();
-                        continue;
-                    }
-                    for command in commands {
-                        self.execute_timeline_command(command);
-                    }
+                    self.fire_timeline_cue(id);
                 }
                 EditorAction::AddTimelineColourTrack { output } => {
                     let Some(spec) = self.project.outputs.get(output) else {
@@ -3089,6 +3128,7 @@ impl App {
         self.midi_learn = None;
         self.midi_cc_high.clear();
         self.midi_note_down.clear();
+        self.cue_follow = None;
         self.timeline_preview_active = true;
         self.sync_clock_duration();
         self.ui_state.reset_text_buffers();
@@ -3309,6 +3349,7 @@ impl App {
         self.project = project;
         self.saved_project = self.project.clone();
         self.history.clear();
+        self.cue_follow = None;
         self.midi_learn = None;
         self.midi_cc_high.clear();
         self.midi_note_down.clear();
@@ -3601,6 +3642,7 @@ impl App {
             };
             self.frame_ms = self.frame_ms * 0.9 + elapsed * 1000.0 * 0.1;
         }
+        self.update_cue_follow(now);
     }
 }
 
@@ -4000,10 +4042,10 @@ fn paste_timeline_keys(
     pasted
 }
 
-fn timeline_cue_commands(cues: &[TimelineCue], from: f32, to: f32) -> Vec<Vec<TimelineCommand>> {
+fn timeline_cue_ids(cues: &[TimelineCue], from: f32, to: f32) -> Vec<u64> {
     cues.iter()
         .filter(|cue| cue.auto && cue.time >= from && cue.time <= to + 1.0e-4)
-        .map(|cue| cue.commands.clone())
+        .map(|cue| cue.id)
         .collect()
 }
 
@@ -4538,6 +4580,7 @@ mod tests {
                 color: [1.0, 1.0, 1.0],
                 commands: vec![TimelineCommand::LoopOn],
                 auto: true,
+                follow_seconds: 0.0,
             },
             TimelineCue {
                 id: 2,
@@ -4547,6 +4590,7 @@ mod tests {
                 color: [1.0, 1.0, 1.0],
                 commands: vec![TimelineCommand::Pause],
                 auto: false,
+                follow_seconds: 0.0,
             },
             TimelineCue {
                 id: 3,
@@ -4556,17 +4600,12 @@ mod tests {
                 color: [1.0, 1.0, 1.0],
                 commands: vec![TimelineCommand::LoopOff, TimelineCommand::Pause],
                 auto: true,
+                follow_seconds: 0.0,
             },
         ];
-        assert_eq!(
-            timeline_cue_commands(&cues, 0.0, 2.0),
-            vec![vec![TimelineCommand::LoopOn]]
-        );
-        assert_eq!(
-            timeline_cue_commands(&cues, 2.0, 3.5),
-            vec![vec![TimelineCommand::LoopOff, TimelineCommand::Pause]]
-        );
-        assert!(timeline_cue_commands(&cues, 3.1, 4.0).is_empty());
+        assert_eq!(timeline_cue_ids(&cues, 0.0, 2.0), vec![1]);
+        assert_eq!(timeline_cue_ids(&cues, 2.0, 3.5), vec![3]);
+        assert!(timeline_cue_ids(&cues, 3.1, 4.0).is_empty());
     }
 
     #[test]

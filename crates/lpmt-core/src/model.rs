@@ -1274,6 +1274,7 @@ mod tests {
             color: [0.9, 0.3, 0.2],
             commands: vec![TimelineCommand::Pause, TimelineCommand::LoopOff],
             auto: false,
+            follow_seconds: 0.0,
         });
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();

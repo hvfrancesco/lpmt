@@ -158,11 +158,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, richer
-  tempo maps/cue follow delays and additional command triggers, the legacy XML importer, packaging
-  and validated macOS/Windows builds.
-- **Next implementation slice:** tempo maps, cue follow delays and additional command triggers,
-  all targeting the stable parameter paths.
+  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, tempo
+  maps and additional command triggers, the legacy XML importer, packaging and validated
+  macOS/Windows builds.
+- **Next implementation slice:** tempo maps and additional command triggers, all targeting the
+  stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -665,7 +665,8 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 - Configurable time, beat or bar snap for key, trigger and marker edits, driven by persisted BPM,
   beats-per-bar and time-signature denominator settings.
 - A persisted Show-mode cue stack with stable IDs, name, note, colour, multiple transport commands,
-  manual **Go** / previous / next actions and optional automatic firing at the cue time.
+  manual **Go** / previous / next actions, optional automatic firing at the cue time and
+  wall-clock follow delays that advance the next cue in time order.
 - Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, manage
   triggers, seek from the ruler, and resize the timeline duration.
 - Deterministic evaluation: playback and scrubbing sample the same clock used by video and audio.
@@ -675,7 +676,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 Still planned:
 
-- Tempo maps, cue follow delays and additional command triggers.
+- Tempo maps and additional command triggers.
 - Per-stage timelines or independent cue stacks, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
@@ -827,7 +828,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Persisted cue stack with names, notes, colours, multiple commands, Go/prev/next and auto firing.
 - [x] Configurable time/beat/bar snap driven by BPM, beats-per-bar and denominator.
 - [x] Multi-track key selection with path-based copy/paste.
-- [ ] Tempo maps, cue follow delays and additional command triggers.
+- [x] Cue follow delays that advance the stack after a configurable interval.
+- [ ] Tempo maps and additional command triggers.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 
