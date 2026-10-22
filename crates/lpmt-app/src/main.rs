@@ -1113,6 +1113,15 @@ impl App {
                 .and_then(|stage| stage.layers.iter().find(|layer| &layer.id == id))
                 .map(|layer| ParameterValue::Text(layer.blend.label().to_ascii_lowercase()))
                 .ok_or_else(|| format!("{path}: layer not found")),
+            ParameterId::LayerSolidColor(id, channel) => stage
+                .and_then(|stage| stage.layers.iter().find(|layer| &layer.id == id))
+                .and_then(|layer| match &layer.source {
+                    SourceSpec::Solid { color } => {
+                        Some(ParameterValue::Float(color[channel_index(*channel)]))
+                    }
+                    _ => None,
+                })
+                .ok_or_else(|| format!("{path}: solid colour layer not found")),
             ParameterId::OutputEnabled(id) => self
                 .project
                 .output(id)
@@ -1284,6 +1293,23 @@ impl App {
                     .blend_mode()
                     .ok_or_else(|| format!("{path} expects normal/add/screen/multiply"))?;
                 actions.push(EditorAction::SetLayerBlend { layer, blend });
+            }
+            ParameterId::LayerSolidColor(id, channel) => {
+                let layer = self
+                    .layer_index(id)
+                    .ok_or_else(|| format!("{path}: layer not found"))?;
+                let current = self
+                    .project
+                    .primary_stage()
+                    .and_then(|stage| stage.layers.get(layer))
+                    .and_then(|layer| match &layer.source {
+                        SourceSpec::Solid { color } => Some(*color),
+                        _ => None,
+                    })
+                    .ok_or_else(|| format!("{path}: solid colour layer not found"))?;
+                let mut color = current;
+                color[channel_index(*channel)] = require_float(value, &path)?.clamp(0.0, 1.0);
+                actions.push(EditorAction::SetLayerSolidColor { layer, color });
             }
             ParameterId::OutputEnabled(id) => {
                 let output = self
@@ -3763,6 +3789,16 @@ fn apply_timeline_value_to_project(project: &mut Project, parameter: &ParameterI
                 layer.visible = value >= 0.5;
             }
         }
+        ParameterId::LayerSolidColor(id, channel) => {
+            if let Some(layer) = project
+                .primary_stage_mut()
+                .and_then(|stage| stage.layers.iter_mut().find(|layer| &layer.id == id))
+            {
+                if let SourceSpec::Solid { color } = &mut layer.source {
+                    color[channel_index(*channel)] = value;
+                }
+            }
+        }
         ParameterId::OutputBrightness(id) => {
             if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
                 output.color.brightness = value;
@@ -3871,6 +3907,7 @@ fn action_targets_timeline_parameter(action: &EditorAction) -> bool {
             | EditorAction::SetSurfaceMaskInvert { .. }
             | EditorAction::SetLayerOpacity { .. }
             | EditorAction::SetLayerVisibility { .. }
+            | EditorAction::SetLayerSolidColor { .. }
             | EditorAction::SetOutputColor { .. }
             | EditorAction::SetOutputEdgeBlend { .. }
     )
@@ -3882,6 +3919,7 @@ fn timeline_parameter_allowed(parameter: &ParameterId) -> bool {
         ParameterId::SurfaceOpacity(_)
             | ParameterId::SurfaceMaskFeather(_)
             | ParameterId::LayerOpacity(_)
+            | ParameterId::LayerSolidColor(_, _)
             | ParameterId::OutputBrightness(_)
             | ParameterId::OutputContrast(_)
             | ParameterId::OutputGamma(_)
@@ -4038,6 +4076,14 @@ fn relative_midi_value(
             "{}: relative MIDI is not supported for bool parameters",
             parameter.path()
         )),
+    }
+}
+
+const fn channel_index(channel: TintChannel) -> usize {
+    match channel {
+        TintChannel::Red => 0,
+        TintChannel::Green => 1,
+        TintChannel::Blue => 2,
     }
 }
 
@@ -4441,6 +4487,26 @@ mod tests {
                 .output(&OutputId::new("output-1"))
                 .map(|output| output.color.tint[0]),
             Some(0.4)
+        );
+        let surface_id = project.stages[0].surfaces[0].id.clone();
+        project.stages[0].layers.push(Layer::solid(
+            "solid-1",
+            "Solid 1",
+            &surface_id,
+            [0.1, 0.2, 0.3],
+        ));
+        let solid = ParameterId::LayerSolidColor(LayerId::new("solid-1"), TintChannel::Green);
+        apply_timeline_value_to_project(&mut project, &solid, 0.7);
+        assert_eq!(
+            project.stages[0]
+                .layers
+                .iter()
+                .find(|layer| layer.id == LayerId::new("solid-1"))
+                .and_then(|layer| match &layer.source {
+                    SourceSpec::Solid { color } => Some(color[1]),
+                    _ => None,
+                }),
+            Some(0.7)
         );
     }
 

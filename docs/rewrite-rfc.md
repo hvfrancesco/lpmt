@@ -649,7 +649,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 - One global project timeline driven by the shared show clock.
 - Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
-  Output RGB tint channels use the same mechanism.
+  Output tint and solid-layer RGB channels use the same mechanism.
 - Dedicated output colour tracks with RGB keys, editing, playback overlay, multi-key shift
   selection and copy/paste at the playhead.
 - Multi-track key selection with shift-click and copy/paste at the playhead. Keys carry their stable
@@ -771,7 +771,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
       visibility/opacity.
 - [x] Ordered layer stack with visibility, opacity, one-or-more surface assignment and basic blend
       modes.
-- [x] Solid-colour layers with an RGB colour picker and cached 1×1 render textures.
+- [x] Solid-colour layers with an RGB colour picker, cached 1×1 render textures and stable
+      per-channel timeline/OSC/MIDI parameters.
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
 - [x] Media thumbnails, an in-app layer media picker and explicit target-layer assignment.
 - [x] Inline Mapping editor, separate Calibration/Show modes and a bottom media shelf.

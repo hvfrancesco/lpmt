@@ -140,8 +140,9 @@ shelf; Calibration and Show are separate modes.
   turns a pad or button into a latching control. Project changes made through
   MIDI use the same actions and undo/redo path as the editor.
 - **Parameter timeline:** Show mode has a bottom timeline panel targeting float
-  parameters such as surface/layer opacity, output brightness/contrast/gamma
-  and edge blending, plus dedicated output colour tracks with RGB keys and bool
+  parameters such as surface/layer opacity, solid-layer R/G/B channels, output
+  brightness/contrast/gamma and edge blending, plus dedicated output colour tracks
+  with RGB keys and bool
   state tracks for surface/layer visibility and mask enable/invert. Double-click
   a lane to add a key, drag keys to move them, right-click to remove, and choose
   Step, Linear or Smooth interpolation. Shift-click selects multiple numeric
@@ -229,9 +230,11 @@ mode, assign it to one or more surfaces, reorder it, or add/delete layers. If
 several surfaces are selected in the Mapping view, **Add test pattern** or
 **Add solid colour** creates one layer on all of them. A solid layer’s colour
 picker updates the rendered RGB live and coalesces continuous picker changes in
-undo. When a test-pattern layer is selected, its **Test pattern** selector
-switches between the checker, alignment grid, colour bars, grayscale ramp and
-RGB convergence card.
+undo. Its red, green and blue channels are exposed as stable float parameters,
+so they can be hotkey/MIDI/OSC-bound or animated by timeline tracks. When a
+test-pattern layer is selected, its **Test pattern** selector switches between
+the checker, alignment grid, colour bars, grayscale ramp and RGB convergence
+card.
 
 The demo also defines two outputs: **Main output** (full stage, windowed at
 1280×720) and **Right half** (windowed, view `x=0.5..1.0`). On a multi-display

@@ -10,7 +10,7 @@
 
 use std::fmt;
 
-use crate::model::{BlendMode, LayerId, OutputId, Project, SurfaceId};
+use crate::model::{BlendMode, LayerId, OutputId, Project, SourceSpec, SurfaceId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeSide {
@@ -98,6 +98,7 @@ pub enum ParameterId {
     LayerOpacity(LayerId),
     LayerVisible(LayerId),
     LayerBlend(LayerId),
+    LayerSolidColor(LayerId, TintChannel),
     OutputEnabled(OutputId),
     OutputBrightness(OutputId),
     OutputContrast(OutputId),
@@ -122,6 +123,9 @@ impl ParameterId {
             Self::LayerOpacity(id) => format!("layer/{id}/opacity"),
             Self::LayerVisible(id) => format!("layer/{id}/visible"),
             Self::LayerBlend(id) => format!("layer/{id}/blend"),
+            Self::LayerSolidColor(id, channel) => {
+                format!("layer/{id}/solid/{}", channel.label())
+            }
             Self::OutputEnabled(id) => format!("output/{id}/enabled"),
             Self::OutputBrightness(id) => format!("output/{id}/brightness"),
             Self::OutputContrast(id) => format!("output/{id}/contrast"),
@@ -154,6 +158,9 @@ impl ParameterId {
             ["layer", id, "opacity"] => Ok(Self::LayerOpacity(LayerId::new(*id))),
             ["layer", id, "visible"] => Ok(Self::LayerVisible(LayerId::new(*id))),
             ["layer", id, "blend"] => Ok(Self::LayerBlend(LayerId::new(*id))),
+            ["layer", id, "solid", channel] => TintChannel::parse(channel)
+                .map(|channel| Self::LayerSolidColor(LayerId::new(*id), channel))
+                .ok_or_else(unknown),
             ["output", id, "enabled"] => Ok(Self::OutputEnabled(OutputId::new(*id))),
             ["output", id, "brightness"] => Ok(Self::OutputBrightness(OutputId::new(*id))),
             ["output", id, "contrast"] => Ok(Self::OutputContrast(OutputId::new(*id))),
@@ -178,6 +185,7 @@ impl ParameterId {
             Self::SurfaceOpacity(_)
             | Self::SurfaceMaskFeather(_)
             | Self::LayerOpacity(_)
+            | Self::LayerSolidColor(_, _)
             | Self::OutputBrightness(_)
             | Self::OutputContrast(_)
             | Self::OutputGamma(_)
@@ -201,9 +209,10 @@ impl ParameterId {
     /// without a fixed upper bound, such as transport position, return `None`.
     pub fn range(&self) -> Option<(f32, f32)> {
         match self {
-            Self::SurfaceOpacity(_) | Self::LayerOpacity(_) | Self::ShowAudioVolume => {
-                Some((0.0, 1.0))
-            }
+            Self::SurfaceOpacity(_)
+            | Self::LayerOpacity(_)
+            | Self::LayerSolidColor(_, _)
+            | Self::ShowAudioVolume => Some((0.0, 1.0)),
             Self::SurfaceMaskFeather(_) => Some((0.0, 0.5)),
             Self::OutputBrightness(_) | Self::OutputContrast(_) => Some((0.0, 4.0)),
             Self::OutputGamma(_) => Some((0.1, 4.0)),
@@ -320,6 +329,15 @@ pub fn project_parameters(project: &Project) -> Vec<ParameterDescriptor> {
                 let label = format!("{} {}", layer.name, suffix(&id));
                 parameters.push(descriptor(id, label));
             }
+            if matches!(&layer.source, SourceSpec::Solid { .. }) {
+                for channel in TintChannel::ALL {
+                    let id = ParameterId::LayerSolidColor(layer.id.clone(), channel);
+                    parameters.push(descriptor(
+                        id.clone(),
+                        format!("{} {}", layer.name, suffix(&id)),
+                    ));
+                }
+            }
         }
     }
     for output in &project.outputs {
@@ -389,6 +407,11 @@ fn suffix(id: &ParameterId) -> &'static str {
         ParameterId::LayerOpacity(_) => "opacity",
         ParameterId::LayerVisible(_) => "visible",
         ParameterId::LayerBlend(_) => "blend",
+        ParameterId::LayerSolidColor(_, channel) => match channel {
+            TintChannel::Red => "solid red",
+            TintChannel::Green => "solid green",
+            TintChannel::Blue => "solid blue",
+        },
         ParameterId::OutputEnabled(_) => "enabled",
         ParameterId::OutputBrightness(_) => "brightness",
         ParameterId::OutputContrast(_) => "contrast",
@@ -457,6 +480,29 @@ mod tests {
             Some(BlendMode::Screen)
         );
         assert_eq!(ParameterValue::Float(f32::NAN).as_f32(), None);
+    }
+
+    #[test]
+    fn solid_layers_expose_linear_rgb_parameters() {
+        let mut project = Project::demo();
+        let surface_id = project.stages[0].surfaces[0].id.clone();
+        project.stages[0].layers.push(crate::model::Layer::solid(
+            "solid-1",
+            "Solid 1",
+            &surface_id,
+            [0.1, 0.2, 0.3],
+        ));
+        let parameters = project_parameters(&project);
+        for channel in TintChannel::ALL {
+            let path = format!("layer/solid-1/solid/{}", channel.label());
+            let descriptor = parameters
+                .iter()
+                .find(|descriptor| descriptor.path() == path)
+                .unwrap();
+            assert_eq!(descriptor.kind, ParameterKind::Float);
+            assert_eq!(descriptor.range, Some((0.0, 1.0)));
+            assert_eq!(ParameterId::parse(&path).unwrap(), descriptor.id);
+        }
     }
 
     #[test]
