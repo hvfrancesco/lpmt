@@ -161,13 +161,19 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   Corner edits still apply a four-corner homography and carry the whole grid with them; toggling
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
+- **Legacy LPMT 1 importer:** `lpmt-import-legacy` parses the legacy `ofXml` settings tree,
+  flattens its `PATH:TO:VALUE` structure and migrates quads to surfaces and layers. It preserves
+  corners, masks, crops, layer ordering, source tint/opacity, blend modes and shared-video
+  references, and reports unsupported slideshow, camera, timeline and per-quad edge-blend data.
+  The editor exposes **Project → Import LPMT 1 XML…**; a headless `--import-legacy` path writes
+  JSON directly. Fixtures and round-trip tests live in the crate.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
-  DMX/Art-Net, MIDI hotplug/device selection, the legacy XML importer, packaging and validated
-  macOS/Windows builds. Tempo maps and additional cue commands are explicitly post-v1.
-- **Next implementation slice:** record M4 colourisation/chroma-key acceptance and decide 3D LUT
-  scope, then build the M7 legacy importer and release work. M2/M3/M5 acceptance was recorded on
-  2026-10-22 in [`acceptance.md`](acceptance.md).
+  DMX/Art-Net, MIDI hotplug/device selection, packaging and validated macOS/Windows builds.
+  Tempo maps and additional cue commands are explicitly post-v1.
+- **Next implementation slice:** packaging, crash recovery and performance/long-run validation for
+  M7, followed by M6 media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
+  [`acceptance.md`](acceptance.md); 3D LUT support is deferred to post-v1.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -762,10 +768,10 @@ dangling.
 | M1 — Minimal renderer | Done | — |
 | M2 — Editor and video | Functionally complete | Run the manual acceptance check, then close |
 | M3 — Multi-output | Functionally complete | Run the manual acceptance check, then close |
-| M4 — Mapping depth | Partial | Colourisation/chroma key implemented; record acceptance and decide 3D LUT scope; Bézier deferred |
+| M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
 | M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
 | M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
-| M7 — Migration/release | Planned | Legacy XML importer, packaging, recovery and performance validation |
+| M7 — Migration/release | In progress | Legacy XML importer implemented; packaging, recovery and performance validation remain |
 
 ### M0 — Bootstrap and spikes
 
@@ -831,10 +837,11 @@ dangling.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
 - [x] Multi-select, whole-surface drag, align and distribute.
-- [ ] Decide 3D LUT scope for v1; broader calibration diagnostics follow that decision.
+- [x] 3D LUT support deferred to post-v1; 1D LUTs plus output colour controls cover v1 calibration.
 - [ ] Bézier-compatible patches. **Deferred post-v1.**
-- [ ] Acceptance (manual): mapping, masks, crops, colourisation and chroma key match LPMT 1’s core
-      workflow. Bézier and 3D LUT may be documented omissions.
+- [x] Acceptance (manual): mapping, masks, crops, colourisation and chroma key match LPMT 1’s core
+      workflow. Bézier and 3D LUT are documented omissions. Evidence:
+      [`acceptance.md`](acceptance.md), 2026-10-22.
 
 ### M5 — Show control
 
@@ -869,7 +876,8 @@ dangling.
 
 ### M7 — Migration and release candidate
 
-- [ ] Legacy XML importer with real LPMT 1 fixtures.
+- [x] Legacy XML importer with representative LPMT 1 fixtures and editor/CLI migration paths.
+- [ ] Import and run a real LPMT 1 show, documenting remaining differences.
 - [ ] Packaging for target platforms.
 - [ ] Crash/recovery UX and project backup path.
 - [ ] Performance and long-run validation.
@@ -922,16 +930,14 @@ These are deliberately deferred and must not block milestone acceptance:
 
 ## 17. Immediate next steps
 
-1. M2/M3/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep the
-   smoke script in the release checklist and fix only regressions found by re-runs.
+1. M2/M3/M4/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep
+   the smoke script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
-3. Record M4 colourisation/chroma-key acceptance, then make and record the 3D LUT scope decision.
-   Keep Bézier deferred.
-4. Build the M7 legacy XML importer with real fixtures, then packaging, recovery and performance
-   validation.
-5. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
+3. Validate the implemented legacy importer against a real LPMT 1 show, then finish M7 packaging,
+   recovery and performance/long-run validation.
+4. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
    decode.
-6. Only then revisit the post-v1 backlog.
+5. Only then revisit the post-v1 backlog.
 
 The guiding rule remains **rebuild the concepts, not the code**, but the delivery rule is now
 **close milestone acceptance before extending a feature area**. LPMT’s domain model and show

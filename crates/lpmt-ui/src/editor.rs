@@ -777,6 +777,7 @@ pub enum EditorAction {
         path: String,
     },
     OpenProjectDialog,
+    ImportLegacyDialog,
     AddMedia,
     RemoveMedia {
         media: usize,
@@ -982,6 +983,11 @@ pub fn draw(
                     actions.push(EditorAction::LoadProject {
                         path: state.project_path.clone(),
                     });
+                    ui.close();
+                }
+                ui.separator();
+                if ui.button("Import LPMT 1 XML…").clicked() {
+                    actions.push(EditorAction::ImportLegacyDialog);
                     ui.close();
                 }
             });

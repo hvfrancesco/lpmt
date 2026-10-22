@@ -52,6 +52,26 @@ use winit::window::{Fullscreen, Window, WindowId};
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
+    if let Some((input, output)) = parse_legacy_import_args()? {
+        let imported = lpmt_import_legacy::import_file(&input)?;
+        let output = output.unwrap_or_else(|| input.with_extension("json"));
+        let json = serde_json::to_string_pretty(&imported.project)
+            .context("failed to serialize imported project")?;
+        project_io::write_atomic(&output, json.as_bytes())?;
+        println!(
+            "Imported {} quads, {} surfaces, {} layers and {} media assets to {}",
+            imported.report.quads,
+            imported.report.surfaces,
+            imported.report.layers,
+            imported.report.media,
+            output.display()
+        );
+        for warning in &imported.report.warnings {
+            eprintln!("warning: {warning}");
+        }
+        return Ok(());
+    }
+
     let event_loop = EventLoop::new().context("failed to create event loop")?;
     event_loop.set_control_flow(ControlFlow::Poll);
 
@@ -3008,6 +3028,74 @@ impl App {
                         }
                     }
                 }
+                EditorAction::ImportLegacyDialog => {
+                    let dialog = rfd::FileDialog::new()
+                        .add_filter("LPMT 1 settings", &["xml"])
+                        .set_directory(&self.media_base);
+                    if let Some(source) = dialog.pick_file() {
+                        match lpmt_import_legacy::import_file(&source) {
+                            Ok(imported) => {
+                                let directory = source
+                                    .parent()
+                                    .filter(|parent| !parent.as_os_str().is_empty())
+                                    .unwrap_or_else(|| Path::new("."));
+                                let file_name = source
+                                    .with_extension("json")
+                                    .file_name()
+                                    .map(|name| name.to_string_lossy().into_owned())
+                                    .unwrap_or_else(|| "imported.json".to_owned());
+                                let target = rfd::FileDialog::new()
+                                    .add_filter("LPMT project", &["json"])
+                                    .set_directory(directory)
+                                    .set_file_name(file_name)
+                                    .save_file();
+                                if let Some(target) = target {
+                                    let json = match serde_json::to_string_pretty(&imported.project)
+                                    {
+                                        Ok(json) => json,
+                                        Err(error) => {
+                                            log::error!(
+                                                "failed to serialize imported project: {error:#}"
+                                            );
+                                            self.status_message = format!("Import failed: {error}");
+                                            return;
+                                        }
+                                    };
+                                    if let Err(error) =
+                                        project_io::write_atomic(&target, json.as_bytes())
+                                    {
+                                        log::error!("failed to write imported project: {error:#}");
+                                        self.status_message = format!("Import failed: {error}");
+                                        return;
+                                    }
+                                    if let Err(error) =
+                                        self.load_project(&target.display().to_string())
+                                    {
+                                        log::error!("failed to load imported project: {error:#}");
+                                        self.status_message = format!("Import failed: {error}");
+                                        return;
+                                    }
+                                    for warning in &imported.report.warnings {
+                                        log::warn!("legacy import: {warning}");
+                                    }
+                                    self.status_message = format!(
+                                        "Imported LPMT 1: {} surfaces, {} layers, {} media ({} warnings)",
+                                        imported.report.surfaces,
+                                        imported.report.layers,
+                                        imported.report.media,
+                                        imported.report.warnings.len()
+                                    );
+                                } else {
+                                    self.status_message = "Legacy import canceled.".to_owned();
+                                }
+                            }
+                            Err(error) => {
+                                log::error!("failed to import legacy XML: {error:#}");
+                                self.status_message = format!("Import failed: {error}");
+                            }
+                        }
+                    }
+                }
                 EditorAction::AddMedia => {
                     let selected_layer = self.ui_state.selected_layer;
                     let dialog = media_file_dialog(&self.media_base);
@@ -4419,6 +4507,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | SaveProjectDialog
         | LoadProject { .. }
         | OpenProjectDialog
+        | ImportLegacyDialog
         | AddMedia
         | PickMediaFile { .. }
         | SetOutputGuide { .. }
@@ -4486,6 +4575,38 @@ fn media_kind_from_path(path: &Path, fallback: MediaKind) -> MediaKind {
     }
 }
 
+fn parse_legacy_import_args() -> Result<Option<(PathBuf, Option<PathBuf>)>> {
+    parse_legacy_import_args_from(std::env::args().skip(1))
+}
+
+fn parse_legacy_import_args_from(
+    arguments: impl IntoIterator<Item = String>,
+) -> Result<Option<(PathBuf, Option<PathBuf>)>> {
+    let mut arguments = arguments.into_iter();
+    let mut input = None;
+    let mut output = None;
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--import-legacy" => {
+                input = Some(PathBuf::from(
+                    arguments
+                        .next()
+                        .context("--import-legacy needs an XML file path")?,
+                ));
+            }
+            "--out" => {
+                output = Some(PathBuf::from(
+                    arguments
+                        .next()
+                        .context("--out needs a JSON project path")?,
+                ));
+            }
+            _ => {}
+        }
+    }
+    Ok(input.map(|input| (input, output)))
+}
+
 fn parse_startup_project() -> Option<PathBuf> {
     let mut arguments = std::env::args().skip(1);
     while let Some(argument) = arguments.next() {
@@ -4534,6 +4655,25 @@ fn configure_egui_surface(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_legacy_import_arguments() {
+        let parsed = parse_legacy_import_args_from(
+            ["--import-legacy", "show.xml", "--out", "show.json"]
+                .into_iter()
+                .map(str::to_owned),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(parsed.0, PathBuf::from("show.xml"));
+        assert_eq!(parsed.1, Some(PathBuf::from("show.json")));
+
+        assert!(parse_legacy_import_args_from(std::iter::empty::<String>())
+            .unwrap()
+            .is_none());
+        assert!(parse_legacy_import_args_from(["--import-legacy"].map(str::to_owned)).is_err());
+        assert!(parse_legacy_import_args_from(["--out"].map(str::to_owned)).is_err());
+    }
 
     #[test]
     fn selected_surface_ids_deduplicates_indices() {

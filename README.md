@@ -8,9 +8,9 @@ real editor, independent output windows and a portable rendering stack.
 The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
-**Current status (2026-10-22):** Linux-first M0–M3 complete; M4 mapping depth and
-M5 show control are in progress. Ordered layer compositing, optional video and
-audio playback, a shared show clock,
+**Current status (2026-10-22):** Linux-first M0–M5 accepted; the M7 legacy XML
+importer is implemented and packaging/release validation is next. Ordered layer
+compositing, optional video and audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
@@ -98,7 +98,8 @@ shelf; Calibration and Show are separate modes.
   target layer selected.
 - **Workspace modes:** **F1 Mapping**, **F2 Calibration** and **F3 Show** switch
   between authoring, output calibration and transport/audio. Project open/save
-  lives in the top **Project** menu; **Help → About LPMT** shows version,
+  lives in the top **Project** menu; the same menu has **Import LPMT 1 XML…**
+  for migrating legacy shows. **Help → About LPMT** shows version,
   renderer and license information, and **Help → Show splash** replays the
   updated LPMT 2 startup splash.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
@@ -194,15 +195,15 @@ control, timeline automation and cue stack are now substantially implemented.
 The project is no longer planning the next timeline feature by default:
 milestone acceptance and breadth take priority over adding more M5 depth.
 
-M2/M3/M5 acceptance was recorded on **2026-10-22** in
-[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen for v1.
+M2/M3/M4/M5 acceptance was recorded on **2026-10-22** in
+[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen for v1;
+3D LUT and Bézier support are deferred to post-v1.
 
 The immediate order is:
 
-1. Record the M4 colourisation/chroma-key acceptance check, then decide whether
-   3D LUT support is in v1. Bézier patches are explicitly deferred.
-2. Build the **LPMT 1 legacy XML importer** with real fixtures, followed by
+1. Validate the **LPMT 1 legacy XML importer** against a real show, then finish
    packaging, recovery and performance validation (M7).
+2. Keep 3D LUT support and Bézier patches deferred to post-v1.
 3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
    per-layer audio mixing and hardware decode.
 4. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
@@ -537,7 +538,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
 | `lpmt-media` | Image decoding plus optional `ffmpeg-next` video and `rodio` audio playback; capture next |
 | `lpmt-control` | OSC and optional MIDI listeners; DMX next |
-| `lpmt-import-legacy` | Future LPMT 1 XML importer |
+| `lpmt-import-legacy` | LPMT 1 XML parser and migration rules |
 | `lpmt-app` | Window/event-loop composition and application state |
 
 The architecture, output topology and milestones are documented in
@@ -570,6 +571,28 @@ audio, and can add a visual asset as a new layer on every selected surface.
 calibration guides. Audio and transport live in **Show** mode. Use the top
 **Project** menu to save or load the JSON show file; **Undo**/**Redo** in the
 top bar or Ctrl+Z / Ctrl+Shift+Z step through project edits.
+
+## Importing LPMT 1 shows
+
+Use **Project → Import LPMT 1 XML…** in the editor. Choose the legacy XML
+settings file, then choose where to save the converted `.json` project. The
+import creates one stage, a surface for each legacy quad, ordered content layers,
+one windowed output, and preserves corners, masks, rectangular/circular crops,
+source tint/opacity, legacy layer ordering and the available blend modes.
+
+The same conversion is available without opening a window:
+
+```bash
+cargo run -p lpmt-app -- --import-legacy /path/to/legacy-settings.xml --out show.json
+```
+
+Unsupported legacy features are reported on stderr and in a summary after the
+import. The importer currently migrates solid, image, video and shared-video
+content; slideshows and cameras are reported and skipped, while timeline data
+is not reconstructed. Per-quad edge blending, Bézier deformation, source flips
+and source scaling require manual review because LPMT 2 expresses them at the
+surface/output level. Legacy media paths are kept as written; saving the JSON
+next to the legacy settings file preserves the usual relative-path layout.
 
 ## Legacy LPMT 1 archive
 

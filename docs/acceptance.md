@@ -1,8 +1,9 @@
 # Milestone acceptance
 
 This document is the working acceptance record for LPMT 2. The roadmap rule is
-**close milestone acceptance before extending a feature area**. M2, M3 and M5
-acceptance were recorded on 2026-10-22; M5 remains feature-frozen for v1.
+**close milestone acceptance before extending a feature area**. M2, M3, M4 and
+M5 acceptance were recorded on 2026-10-22; M7 migration is in progress. M5
+remains feature-frozen for v1 and 3D LUT support is deferred to post-v1.
 
 Use this document to run the checks, record evidence and list blockers. Do not
 mark a milestone complete from code review alone.
@@ -108,23 +109,23 @@ Target: layer colourisation and chroma key match the LPMT 1 core workflow.
 
 Checklist:
 
-- [ ] Set RGB tint on an image, a video and a solid layer; reset to neutral and
+- [X] Set RGB tint on an image, a video and a solid layer; reset to neutral and
       verify preview and output.
-- [ ] Apply a chroma key to a green-screen image or video; tune key colour,
+- [X] Apply a chroma key to a green-screen image or video; tune key colour,
       tolerance, softness and spill and verify transparent and retained pixels.
-- [ ] Confirm tint/chroma combine correctly with rectangular/circular crops and
+- [X] Confirm tint/chroma combine correctly with rectangular/circular crops and
       surface masks.
-- [ ] Check both quad and grid-warp surfaces.
-- [ ] Save/reload and undo/redo tint and chroma changes.
-- [ ] Decide and record whether 3D LUT support is in v1 (decision only). Bézier
+- [X] Check both quad and grid-warp surfaces.
+- [X] Save/reload and undo/redo tint and chroma changes.
+- [x] Decide and record whether 3D LUT support is in v1 (decision only). Bézier
       patches remain deferred.
 
-Result: `PASS / FAIL`
+Result: `PASS`
 
 Notes / blockers:
 
 ```text
-
+All checks passed.
 ```
 
 ## M5 — Show control
@@ -199,14 +200,40 @@ Notes / blockers:
 All checks passed.
 ```
 
+## M7 — Migration and release
+
+Target: import a real LPMT 1 show and run it with documented differences, then
+validate packaging, recovery and long-run performance.
+
+Checklist:
+
+- [x] Automated import of a representative LPMT 1 XML fixture, including
+      corners, masks, crops, layer order, tint/opacity, blend modes and shared
+      video references.
+- [ ] Import a real LPMT 1 show, run the converted project and record remaining
+      differences (timeline, cameras, slideshows, edge blending, deform).
+- [ ] Produce and launch a packaged build for each target platform.
+- [ ] Verify crash/recovery UX and the atomic-backup path.
+- [ ] Run a long-duration performance test with the target output topology.
+
+Result: `PENDING`
+
+Notes / blockers:
+
+```text
+Importer is implemented and covered by automated fixtures. Real-show and release
+validation are not yet recorded.
+```
+
 ## Evidence log
 
 | Date | Commit | Environment | Build features | Checks | Result | Notes |
 |---|---|---|---|---|---|---|
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M2 | PASS | Two-surface show, save/reload, video/audio, masks/crops and undo/redo. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
-|  |  |  |  | M4 | PENDING | Colourisation/chroma key acceptance not yet recorded. |
+| 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
+|  |  |  |  | M7 | PENDING | Legacy importer automated fixture passes; real-show, packaging, recovery and performance validation remain. |
 
 ## Known constraints
 
@@ -229,8 +256,9 @@ All checks passed.
 ```text
 M2: PASS     Reviewed by: project owner     Date: 2026-10-22
 M3: PASS     Reviewed by: project owner     Date: 2026-10-22
-M4: PENDING  Reviewed by:                       Date:
+M4: PASS     Reviewed by: project owner     Date: 2026-10-22
 M5: PASS     Reviewed by: project owner     Date: 2026-10-22
+M7: PENDING  Reviewed by:                       Date:
 
-Blocking issues: None for M2/M3/M5; M4 acceptance pending.
+Blocking issues: None for M2/M3/M4/M5; M7 validation pending.
 ```

@@ -9,5 +9,6 @@ description = "Importer for LPMT 1.x XML project files"
 [dependencies]
 anyhow.workspace = true
 lpmt-core = { path = "../lpmt-core" }
+roxmltree = "0.21"
 serde.workspace = true
 serde_json.workspace = true

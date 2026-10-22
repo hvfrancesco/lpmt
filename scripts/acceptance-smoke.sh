@@ -23,6 +23,15 @@ cargo test -p lpmt-core --test acceptance
 echo "== OSC acceptance =="
 cargo test -p lpmt-control
 
+echo "== legacy importer acceptance =="
+cargo test -p lpmt-import-legacy
+legacy_dir="$(mktemp -d)"
+trap 'rm -rf "$legacy_dir"' EXIT
+cargo run -q -p lpmt-app -- \
+    --import-legacy crates/lpmt-import-legacy/tests/fixtures/legacy-show.xml \
+    --out "$legacy_dir/show.json"
+test -s "$legacy_dir/show.json"
+
 if [[ "${LPMT_ALL_FEATURES:-0}" == "1" ]]; then
     echo "== all-features tests =="
     cargo test --workspace --all-features

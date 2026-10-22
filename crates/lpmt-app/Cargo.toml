@@ -21,6 +21,7 @@ env_logger.workspace = true
 log.workspace = true
 lpmt-control = { path = "../lpmt-control" }
 lpmt-core = { path = "../lpmt-core" }
+lpmt-import-legacy = { path = "../lpmt-import-legacy" }
 lpmt-media = { path = "../lpmt-media" }
 lpmt-render = { path = "../lpmt-render" }
 lpmt-ui = { path = "../lpmt-ui" }
