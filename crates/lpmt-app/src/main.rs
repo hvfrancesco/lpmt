@@ -29,7 +29,7 @@ use lpmt_core::model::{
     OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask, TestPattern,
     MASK_POINT_LIMIT,
 };
-use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue};
+use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue, TintChannel};
 use lpmt_core::timeline::{
     Timeline, TimelineCommand, TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
 };
@@ -852,6 +852,37 @@ impl App {
                     self.clock.set_looping(false);
                     self.status_message = "Timeline trigger: loop off".to_owned();
                 }
+                TimelineCommand::NextMarker => {
+                    let position = self.clock.position_seconds() as f32;
+                    if let Some(time) = self
+                        .project
+                        .timeline
+                        .markers
+                        .iter()
+                        .find(|marker| marker.time > position + 1.0e-4)
+                        .map(|marker| marker.time)
+                    {
+                        self.clock.seek(f64::from(time));
+                        self.status_message = "Timeline trigger: next marker".to_owned();
+                        return;
+                    }
+                }
+                TimelineCommand::PreviousMarker => {
+                    let position = self.clock.position_seconds() as f32;
+                    if let Some(time) = self
+                        .project
+                        .timeline
+                        .markers
+                        .iter()
+                        .rev()
+                        .find(|marker| marker.time < position - 1.0e-4)
+                        .map(|marker| marker.time)
+                    {
+                        self.clock.seek(f64::from(time));
+                        self.status_message = "Timeline trigger: previous marker".to_owned();
+                        return;
+                    }
+                }
             }
         }
     }
@@ -1092,6 +1123,18 @@ impl App {
                 .output(id)
                 .map(|output| ParameterValue::Float(output.color.gamma))
                 .ok_or_else(|| format!("{path}: output not found")),
+            ParameterId::OutputTint(id, channel) => self
+                .project
+                .output(id)
+                .map(|output| {
+                    let value = match channel {
+                        TintChannel::Red => output.color.tint[0],
+                        TintChannel::Green => output.color.tint[1],
+                        TintChannel::Blue => output.color.tint[2],
+                    };
+                    ParameterValue::Float(value)
+                })
+                .ok_or_else(|| format!("{path}: output not found")),
             ParameterId::OutputEdgeBlend(id, side) => self
                 .project
                 .output(id)
@@ -1257,6 +1300,22 @@ impl App {
                     ParameterId::OutputContrast(_) => color.contrast = amount,
                     ParameterId::OutputGamma(_) => color.gamma = amount,
                     _ => unreachable!("guard only admits colour parameters"),
+                }
+                actions.push(EditorAction::SetOutputColor { output, color });
+            }
+            ParameterId::OutputTint(id, channel) => {
+                let output = self
+                    .output_index(id)
+                    .ok_or_else(|| format!("{path}: output not found"))?;
+                let Some(spec) = self.project.outputs.get(output) else {
+                    return Err(format!("{path}: output not found"));
+                };
+                let mut color = spec.color;
+                let amount = require_float(value, &path)?.clamp(0.0, 4.0);
+                match channel {
+                    TintChannel::Red => color.tint[0] = amount,
+                    TintChannel::Green => color.tint[1] = amount,
+                    TintChannel::Blue => color.tint[2] = amount,
                 }
                 actions.push(EditorAction::SetOutputColor { output, color });
             }
@@ -1639,12 +1698,7 @@ impl App {
                     self.timeline_preview_active = true;
                     self.status_message = format!("Added timeline key at {time:.2}s");
                 }
-                EditorAction::AddTimelineKeyValue {
-                    track,
-                    time,
-                    value,
-                    interpolation,
-                } => {
+                EditorAction::PasteTimelineKeys { track, time, keys } => {
                     let Some(track_ref) = self.project.timeline.tracks.get(track) else {
                         continue;
                     };
@@ -1654,35 +1708,44 @@ impl App {
                     if !timeline_parameter_allowed(&parameter) {
                         continue;
                     }
-                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let base_time = time.clamp(0.0, self.project.timeline.duration);
                     let (minimum, maximum) =
                         timeline_value_range(&self.project.timeline, &parameter)
                             .unwrap_or((0.0, 1.0));
-                    let (value, interpolation) = if parameter.kind() == ParameterKind::Bool {
-                        (
-                            if value >= 0.5 { 1.0 } else { 0.0 },
-                            TimelineInterpolation::Step,
-                        )
-                    } else {
-                        (value.clamp(minimum, maximum), interpolation)
-                    };
-                    let keys = &mut self.project.timeline.tracks[track].keys;
-                    if let Some(existing) = keys
-                        .iter_mut()
-                        .find(|key| (key.time - time).abs() <= 1.0e-4)
-                    {
-                        existing.value = value;
-                        existing.interpolation = interpolation;
-                    } else {
-                        keys.push(TimelineKey {
-                            time,
-                            value,
-                            interpolation,
-                        });
-                        self.project.timeline.tracks[track].sort_keys();
+                    let count = keys.len();
+                    let destination = &mut self.project.timeline.tracks[track].keys;
+                    for key in keys {
+                        let time =
+                            (base_time + key.time).clamp(0.0, self.project.timeline.duration);
+                        let (value, interpolation) = if parameter.kind() == ParameterKind::Bool {
+                            (
+                                if key.value >= 0.5 { 1.0 } else { 0.0 },
+                                TimelineInterpolation::Step,
+                            )
+                        } else {
+                            (key.value.clamp(minimum, maximum), key.interpolation)
+                        };
+                        if let Some(existing) = destination
+                            .iter_mut()
+                            .find(|existing| (existing.time - time).abs() <= 1.0e-4)
+                        {
+                            existing.value = value;
+                            existing.interpolation = interpolation;
+                        } else {
+                            destination.push(TimelineKey {
+                                time,
+                                value,
+                                interpolation,
+                            });
+                        }
                     }
+                    self.project.timeline.tracks[track].sort_keys();
                     self.timeline_preview_active = true;
-                    self.status_message = "Pasted timeline key".to_owned();
+                    self.status_message = if count == 1 {
+                        "Pasted timeline key".to_owned()
+                    } else {
+                        format!("Pasted {count} timeline keys")
+                    };
                 }
                 EditorAction::SetTimelineKey {
                     track,
@@ -3529,6 +3592,15 @@ fn apply_timeline_value_to_project(project: &mut Project, parameter: &ParameterI
                 output.color.gamma = value;
             }
         }
+        ParameterId::OutputTint(id, channel) => {
+            if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
+                match channel {
+                    TintChannel::Red => output.color.tint[0] = value,
+                    TintChannel::Green => output.color.tint[1] = value,
+                    TintChannel::Blue => output.color.tint[2] = value,
+                }
+            }
+        }
         ParameterId::OutputEdgeBlend(id, side) => {
             if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
                 match side {
@@ -3579,6 +3651,7 @@ fn timeline_parameter_allowed(parameter: &ParameterId) -> bool {
             | ParameterId::OutputBrightness(_)
             | ParameterId::OutputContrast(_)
             | ParameterId::OutputGamma(_)
+            | ParameterId::OutputTint(_, _)
             | ParameterId::OutputEdgeBlend(_, _)
             | ParameterId::SurfaceVisible(_)
             | ParameterId::SurfaceMaskEnabled(_)
@@ -3780,7 +3853,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         AddTimelineTrack { .. } => (HistoryKey::Discrete, "add timeline track"),
         RemoveTimelineTrack { .. } => (HistoryKey::Discrete, "remove timeline track"),
         AddTimelineKey { .. } => (HistoryKey::Discrete, "add timeline key"),
-        AddTimelineKeyValue { .. } => (HistoryKey::Discrete, "paste timeline key"),
+        PasteTimelineKeys { .. } => (HistoryKey::Discrete, "paste timeline keys"),
         SetTimelineKey { track, key, .. } => {
             (HistoryKey::TimelineKey(*track, *key), "move timeline key")
         }
@@ -4073,6 +4146,14 @@ mod tests {
                 .and_then(|stage| stage.surface(&SurfaceId::new("surface-1")))
                 .map(|surface| surface.visible),
             Some(true)
+        );
+        let tint = ParameterId::OutputTint(OutputId::new("output-1"), TintChannel::Red);
+        apply_timeline_value_to_project(&mut project, &tint, 0.4);
+        assert_eq!(
+            project
+                .output(&OutputId::new("output-1"))
+                .map(|output| output.color.tint[0]),
+            Some(0.4)
         );
     }
 

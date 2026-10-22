@@ -245,6 +245,7 @@ const _: () = assert!(LUT_SAMPLES.is_multiple_of(4));
 struct CompositeUniforms {
     edge_blend: [f32; 4],
     color: [f32; 4],
+    tint: [f32; 4],
     lut_size: u32,
     guide_mode: u32,
     _lut_padding: [u32; 2],
@@ -263,6 +264,7 @@ impl CompositeUniforms {
         let mut uniforms = Self {
             edge_blend: [edge.left, edge.right, edge.top, edge.bottom],
             color: [color.brightness, color.contrast, color.gamma, 0.0],
+            tint: [color.tint[0], color.tint[1], color.tint[2], 0.0],
             lut_size: 0,
             guide_mode: guide.shader_value(),
             _lut_padding: [0; 2],
@@ -292,6 +294,8 @@ struct Composite {
     edge_blend: vec4<f32>,
     // Brightness, contrast, gamma, unused.
     color: vec4<f32>,
+    // Per-channel tint, alpha unused.
+    tint: vec4<f32>,
     lut_size: u32,
     guide_mode: u32,
     _lut_padding0: u32,
@@ -438,6 +442,7 @@ fn composite_color(frag_coord: vec4<f32>) -> vec4<f32> {
     rgb = pow(max(rgb, vec3<f32>(0.0)), vec3<f32>(1.0 / gamma));
     rgb = (rgb - vec3<f32>(0.5)) * composite.color.y + vec3<f32>(0.5);
     rgb = max(rgb * composite.color.x, vec3<f32>(0.0));
+    rgb = max(rgb * composite.tint.rgb, vec3<f32>(0.0));
 
     // Calibration files describe the signal sent to the projector, so apply
     // the curves in display space and convert back to the linear working space.
@@ -956,7 +961,10 @@ impl StageRenderer {
             .expect("scene target is created immediately before rendering");
 
         {
-            let background = stage.background;
+            // Projectors must emit no light where the stage has no content.
+            // Clear to black even if an older project carries a non-black
+            // stage background; a coloured background should be a full-stage
+            // layer, not a renderer clear colour.
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("lpmt-output-scene-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -964,12 +972,7 @@ impl StageRenderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: background[0] as f64,
-                            g: background[1] as f64,
-                            b: background[2] as f64,
-                            a: background[3] as f64,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -1633,13 +1636,14 @@ mod tests {
     fn composite_uniform_layout_matches_the_wgsl_struct() {
         assert_eq!(offset_of!(CompositeUniforms, edge_blend), 0);
         assert_eq!(offset_of!(CompositeUniforms, color), 16);
-        assert_eq!(offset_of!(CompositeUniforms, lut_size), 32);
-        assert_eq!(offset_of!(CompositeUniforms, guide_mode), 36);
-        assert_eq!(offset_of!(CompositeUniforms, _lut_padding), 40);
-        assert_eq!(offset_of!(CompositeUniforms, lut_red), 48);
-        assert_eq!(offset_of!(CompositeUniforms, lut_green), 48 + 128);
-        assert_eq!(offset_of!(CompositeUniforms, lut_blue), 48 + 256);
-        assert_eq!(size_of::<CompositeUniforms>(), 48 + 384);
+        assert_eq!(offset_of!(CompositeUniforms, tint), 32);
+        assert_eq!(offset_of!(CompositeUniforms, lut_size), 48);
+        assert_eq!(offset_of!(CompositeUniforms, guide_mode), 52);
+        assert_eq!(offset_of!(CompositeUniforms, _lut_padding), 56);
+        assert_eq!(offset_of!(CompositeUniforms, lut_red), 64);
+        assert_eq!(offset_of!(CompositeUniforms, lut_green), 64 + 128);
+        assert_eq!(offset_of!(CompositeUniforms, lut_blue), 64 + 256);
+        assert_eq!(size_of::<CompositeUniforms>(), 64 + 384);
     }
 
     #[test]
@@ -1690,6 +1694,14 @@ mod tests {
         assert_eq!(vertices[0].uv, [0.0, 0.0]);
         assert_eq!(vertices[1].uv, [0.5, 0.0]);
         assert_eq!(vertices[2].uv, [0.5, 0.5]);
+    }
+
+    #[test]
+    fn composite_uniforms_store_rgb_tint() {
+        let mut color = ColorCorrection::IDENTITY;
+        color.tint = [0.2, 0.5, 1.5];
+        let uniforms = CompositeUniforms::new(EdgeBlend::NONE, color, None, GuideMode::None);
+        assert_eq!(uniforms.tint, [0.2, 0.5, 1.5, 0.0]);
     }
 
     #[test]

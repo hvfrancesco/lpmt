@@ -759,6 +759,8 @@ pub struct Stage {
     pub id: StageId,
     pub name: String,
     pub aspect: f32,
+    /// Persisted for project compatibility. Output rendering always clears to
+    /// black; coloured backgrounds belong in a full-stage layer.
     pub background: [f32; 4],
     pub surfaces: Vec<Surface>,
     pub layers: Vec<Layer>,
@@ -824,6 +826,13 @@ pub struct ColorCorrection {
     pub contrast: f32,
     /// Display gamma, `1.0` is neutral; values above 1 lift mid-tones.
     pub gamma: f32,
+    /// Per-channel display-space gain, `[1.0; 3]` is neutral.
+    #[serde(default = "identity_tint")]
+    pub tint: [f32; 3],
+}
+
+fn identity_tint() -> [f32; 3] {
+    [1.0, 1.0, 1.0]
 }
 
 impl Default for ColorCorrection {
@@ -837,6 +846,7 @@ impl ColorCorrection {
         brightness: 1.0,
         contrast: 1.0,
         gamma: 1.0,
+        tint: [1.0, 1.0, 1.0],
     };
 
     pub fn is_identity(self) -> bool {
@@ -848,6 +858,11 @@ impl ColorCorrection {
             brightness: self.brightness.clamp(0.0, 4.0),
             contrast: self.contrast.clamp(0.0, 4.0),
             gamma: self.gamma.clamp(0.1, 4.0),
+            tint: [
+                self.tint[0].clamp(0.0, 4.0),
+                self.tint[1].clamp(0.0, 4.0),
+                self.tint[2].clamp(0.0, 4.0),
+            ],
         }
     }
 }
@@ -1087,7 +1102,7 @@ impl Project {
                 id: stage_id.clone(),
                 name: "Main stage".to_owned(),
                 aspect: 16.0 / 9.0,
-                background: [0.015, 0.018, 0.025, 1.0],
+                background: [0.0, 0.0, 0.0, 1.0],
                 surfaces: vec![surface, surface2],
                 layers: vec![layer, layer2],
             }],
@@ -1311,6 +1326,24 @@ mod tests {
     }
 
     #[test]
+    fn older_output_colour_loads_with_neutral_tint() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        for output in value["outputs"].as_array_mut().unwrap() {
+            if let Some(color) = output
+                .get_mut("color")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                color.remove("tint");
+            }
+        }
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project
+            .outputs
+            .iter()
+            .all(|output| output.color.tint == [1.0, 1.0, 1.0]));
+    }
+
+    #[test]
     fn calibration_lut_round_trips_with_the_project() {
         let mut project = Project::demo();
         project.outputs[0].calibration = Some(CalibrationLut::identity("test display"));
@@ -1354,11 +1387,13 @@ mod tests {
             brightness: -1.0,
             contrast: 9.0,
             gamma: 0.0,
+            tint: [-1.0, 2.0, 9.0],
         }
         .clamped();
         assert_eq!(color.brightness, 0.0);
         assert_eq!(color.contrast, 4.0);
         assert_eq!(color.gamma, 0.1);
+        assert_eq!(color.tint, [0.0, 2.0, 4.0]);
     }
 
     #[test]

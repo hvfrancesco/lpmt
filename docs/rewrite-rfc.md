@@ -124,9 +124,12 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   frame time and fps, and warns when a previously presenting output has gone stale.
 - **Per-output composition:** each output renders its layers into an offscreen scene target, then a
   composite pass applies left/right/top/bottom edge feathering, brightness/contrast/gamma
-  correction and an optional 1D RGB calibration LUT. Correction happens after compositing, so
-  overlapping outputs can be matched without changing the show content. The editor exposes all four
-  edges, the three colour controls and LUT load/clear actions.
+  correction, per-channel RGB tint and an optional 1D RGB calibration LUT. Tint is also exposed
+  as three stable float parameters for timeline automation. The scene target clears to pure black,
+  regardless of the persisted stage background, so a projector emits no light outside the mapped
+  content; coloured backgrounds belong in a full-stage layer. Correction happens after compositing,
+  so overlapping outputs can be matched without changing the show content. The editor exposes all
+  four edges, the three colour controls and LUT load/clear actions.
 - **Test patterns and calibration:** test-pattern layers can select checker, alignment grid, colour
   bars, grayscale ramp or RGB convergence cards. A Resolve-style 1D `.cube` LUT can be loaded per
   output; it is resampled to 32 samples per channel, stored in the project and applied in display
@@ -153,10 +156,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, timeline
-  colour tracks, richer command triggers/cue lists and multi-key copy/paste, the legacy XML
-  importer, packaging and validated macOS/Windows builds.
-- **Next implementation slice:** timeline colour tracks, richer command triggers and multi-key
-  copy/paste, all targeting the stable parameter paths.
+  colour tracks and richer command triggers/cue lists, the legacy XML importer, packaging and
+  validated macOS/Windows builds.
+- **Next implementation slice:** timeline colour tracks, cue lists and richer command triggers, all
+  targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -402,7 +405,7 @@ own thread only if measurements show UI stalls affecting output.
 | Entity | Responsibility |
 |---|---|
 | `Project` | Root document: stages, surfaces, layers, media references, outputs, timelines, bindings |
-| `Stage` | Virtual composition canvas; normalized coordinate space; background |
+| `Stage` | Virtual composition canvas; normalized coordinate space |
 | `Surface` | Mapping geometry: 4 corners, optional warp mesh, mask polygons, crop; in stage coordinates |
 | `Layer` | Binds a source to a surface, with content transform, effects, opacity and blend mode |
 | `MediaAsset` | A file or device description; stable ID; metadata; readiness/error state |
@@ -508,7 +511,7 @@ presets, undo and show snapshots for free.
 For each output and frame:
 
 1. Resolve view region and output target.
-2. Clear to stage background / output black.
+2. Clear the output scene to pure black; a coloured background is content, not a clear colour.
 3. For each visible layer intersecting the output:
    - sample the source texture;
    - apply content transform, crop, flips, colour and source effects;
@@ -643,10 +646,13 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 - One global project timeline driven by the shared show clock.
 - Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
-- Single-key copy/paste at the playhead, with range clamping on the target track.
+  Output RGB tint channels use the same mechanism, giving colour animation without a separate
+  colour-track type yet.
+- Multi-key selection with shift-click and copy/paste at the playhead, preserving relative timing
+  with range clamping on the target track.
 - Bool state tracks for surface/layer visibility and mask enable/invert, using on/off Step keys.
-- A trigger lane for pause, stop/rewind, restart and loop on/off commands, fired while playing and on
-  loop wrap.
+- A trigger lane for pause, stop/rewind, restart, loop on/off and marker-jump commands, fired while
+  playing and on loop wrap.
 - Named seek markers with click-to-seek, previous/next navigation, retiming, rename and undo
   support.
 - Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, manage
@@ -658,8 +664,8 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 Still planned:
 
-- Colour tracks for output look/LUT changes and richer command triggers/cue lists.
-- BPM, time signature, snap-to-grid and multi-key copy/paste.
+- Dedicated multi-channel colour tracks and richer command triggers/cue lists.
+- BPM, time signature, snap-to-grid and multi-track key selection.
 - Per-stage timelines or cue lists, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
@@ -802,9 +808,10 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Persisted parameter bindings, including undo/redo and project reload.
 - [x] MIDI CC/note bindings with absolute, relative and toggle modes plus Show-mode learn.
 - [x] Float and bool-state timeline tracks with scrubbing and render-time playback.
-- [x] Timed transport triggers (pause, stop/rewind, restart and loop on/off).
-- [x] Smooth easing, single-key copy/paste and named timeline markers.
-- [ ] Timeline colour tracks, richer command triggers and multi-key copy/paste.
+- [x] Timed transport triggers (pause, stop/rewind, restart, loop on/off and marker jumps).
+- [x] Smooth easing, multi-key copy/paste and named timeline markers.
+- [x] Per-output RGB tint parameters animated by numeric timeline tracks.
+- [ ] Dedicated colour tracks, cue lists and richer command triggers.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 

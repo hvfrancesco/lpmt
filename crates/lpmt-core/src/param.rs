@@ -44,6 +44,34 @@ impl EdgeSide {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TintChannel {
+    Red,
+    Green,
+    Blue,
+}
+
+impl TintChannel {
+    pub const ALL: [Self; 3] = [Self::Red, Self::Green, Self::Blue];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Red => "red",
+            Self::Green => "green",
+            Self::Blue => "blue",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_lowercase().as_str() {
+            "red" | "r" => Some(Self::Red),
+            "green" | "g" => Some(Self::Green),
+            "blue" | "b" => Some(Self::Blue),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ParameterKind {
     Float,
     Bool,
@@ -74,6 +102,7 @@ pub enum ParameterId {
     OutputBrightness(OutputId),
     OutputContrast(OutputId),
     OutputGamma(OutputId),
+    OutputTint(OutputId, TintChannel),
     OutputEdgeBlend(OutputId, EdgeSide),
     ShowAudioVolume,
     ShowAudioMuted,
@@ -97,6 +126,9 @@ impl ParameterId {
             Self::OutputBrightness(id) => format!("output/{id}/brightness"),
             Self::OutputContrast(id) => format!("output/{id}/contrast"),
             Self::OutputGamma(id) => format!("output/{id}/gamma"),
+            Self::OutputTint(id, channel) => {
+                format!("output/{id}/tint/{}", channel.label())
+            }
             Self::OutputEdgeBlend(id, side) => {
                 format!("output/{id}/edge_blend/{}", side.label())
             }
@@ -126,6 +158,9 @@ impl ParameterId {
             ["output", id, "brightness"] => Ok(Self::OutputBrightness(OutputId::new(*id))),
             ["output", id, "contrast"] => Ok(Self::OutputContrast(OutputId::new(*id))),
             ["output", id, "gamma"] => Ok(Self::OutputGamma(OutputId::new(*id))),
+            ["output", id, "tint", channel] => TintChannel::parse(channel)
+                .map(|channel| Self::OutputTint(OutputId::new(*id), channel))
+                .ok_or_else(unknown),
             ["output", id, "edge_blend", side] => EdgeSide::parse(side)
                 .map(|side| Self::OutputEdgeBlend(OutputId::new(*id), side))
                 .ok_or_else(unknown),
@@ -146,6 +181,7 @@ impl ParameterId {
             | Self::OutputBrightness(_)
             | Self::OutputContrast(_)
             | Self::OutputGamma(_)
+            | Self::OutputTint(_, _)
             | Self::OutputEdgeBlend(_, _)
             | Self::ShowAudioVolume
             | Self::TransportPosition => ParameterKind::Float,
@@ -171,6 +207,7 @@ impl ParameterId {
             Self::SurfaceMaskFeather(_) => Some((0.0, 0.5)),
             Self::OutputBrightness(_) | Self::OutputContrast(_) => Some((0.0, 4.0)),
             Self::OutputGamma(_) => Some((0.1, 4.0)),
+            Self::OutputTint(_, _) => Some((0.0, 4.0)),
             Self::OutputEdgeBlend(_, _) => Some((0.0, 0.5)),
             _ => None,
         }
@@ -295,6 +332,13 @@ pub fn project_parameters(project: &Project) -> Vec<ParameterDescriptor> {
             let label = format!("{} {}", output.name, suffix(&id));
             parameters.push(descriptor(id, label));
         }
+        for channel in TintChannel::ALL {
+            let id = ParameterId::OutputTint(output.id.clone(), channel);
+            parameters.push(descriptor(
+                id.clone(),
+                format!("{} {}", output.name, suffix(&id)),
+            ));
+        }
         for side in EdgeSide::ALL {
             let id = ParameterId::OutputEdgeBlend(output.id.clone(), side);
             parameters.push(descriptor(
@@ -349,6 +393,11 @@ fn suffix(id: &ParameterId) -> &'static str {
         ParameterId::OutputBrightness(_) => "brightness",
         ParameterId::OutputContrast(_) => "contrast",
         ParameterId::OutputGamma(_) => "gamma",
+        ParameterId::OutputTint(_, channel) => match channel {
+            TintChannel::Red => "tint red",
+            TintChannel::Green => "tint green",
+            TintChannel::Blue => "tint blue",
+        },
         ParameterId::OutputEdgeBlend(_, side) => match side {
             EdgeSide::Left => "edge left",
             EdgeSide::Right => "edge right",
@@ -420,6 +469,7 @@ mod tests {
         assert!(paths.contains("surface/surface-1/opacity"));
         assert!(paths.contains("layer/layer-1/opacity"));
         assert!(paths.contains("output/output-1/edge_blend/right"));
+        assert!(paths.contains("output/output-1/tint/red"));
         assert!(paths.contains("transport/playing"));
     }
 }

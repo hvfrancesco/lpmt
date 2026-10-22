@@ -105,15 +105,19 @@ pub enum TimelineCommand {
     Restart,
     LoopOn,
     LoopOff,
+    NextMarker,
+    PreviousMarker,
 }
 
 impl TimelineCommand {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::Pause,
         Self::Stop,
         Self::Restart,
         Self::LoopOn,
         Self::LoopOff,
+        Self::NextMarker,
+        Self::PreviousMarker,
     ];
 
     pub const fn label(self) -> &'static str {
@@ -123,6 +127,8 @@ impl TimelineCommand {
             Self::Restart => "Restart transport",
             Self::LoopOn => "Loop on",
             Self::LoopOff => "Loop off",
+            Self::NextMarker => "Jump to next marker",
+            Self::PreviousMarker => "Jump to previous marker",
         }
     }
 }

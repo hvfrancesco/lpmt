@@ -70,8 +70,11 @@ shelf; Calibration and Show are separate modes.
   checker, alignment grid, colour bars, grayscale ramp or RGB convergence card.
 - Each output renders through an offscreen scene pass followed by a composite
   pass that applies per-edge blending (left/right/top/bottom feather),
-  per-output brightness/contrast/gamma and an optional display-space 1D RGB
-  calibration LUT. This is the base for projector seam matching.
+  per-output brightness/contrast/gamma, RGB tint and an optional display-space
+  1D RGB calibration LUT. Unmapped areas always clear to pure black so projectors
+  emit no light outside the mapped content; a coloured background should be a
+  full-stage layer. Tint channels are exposed as stable parameters and can be
+  animated by the timeline. This is the base for projector seam matching.
 - **Calibration LUTs:** load a Resolve-style 1D `.cube` file for the selected
   output. The curves are resampled to 32 samples per channel, stored in the
   project (so the show remains portable), and applied after colour correction.
@@ -133,14 +136,15 @@ shelf; Calibration and Show are separate modes.
   turns a pad or button into a latching control. Project changes made through
   MIDI use the same actions and undo/redo path as the editor.
 - **Parameter timeline:** Show mode has a bottom timeline panel targeting float
-  parameters such as surface/layer opacity, output brightness/contrast/gamma and
-  edge blending, plus bool state tracks for surface/layer visibility and mask
+  parameters such as surface/layer opacity, output brightness/contrast/gamma,
+  RGB tint and edge blending, plus bool state tracks for surface/layer visibility and mask
   enable/invert. Double-click a lane to add a key, drag keys to move them,
   right-click to remove, and choose Step, Linear or Smooth interpolation for
-  floats; keys can be copied and pasted at the playhead. Bool tracks use Step
-  values. A trigger lane can pause, stop/rewind, restart or switch looping on/off
-  at a chosen time, and named markers provide seek points with previous/next
-  navigation. The ruler seeks the shared show clock, so
+  floats; shift-click selects multiple keys, which can be copied and pasted at
+  the playhead. Bool tracks use Step
+  values. A trigger lane can pause, stop/rewind, restart, switch looping on/off
+  or jump to the next/previous marker at a chosen time, and named markers provide
+  seek points with header navigation. The ruler seeks the shared show clock, so
   playback and scrubbing evaluate the keys in sync. Timeline values are a
   render-time overlay: playback does not modify the saved parameter values or
   mark the project dirty. A manual parameter edit while paused temporarily
@@ -175,9 +179,9 @@ crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
 learn, parameter timeline tracks, transport triggers and named markers are now
 in place. The next timeline work is:
 
-- colour tracks for output look changes;
-- richer command triggers and cue lists;
-- multi-key copy/paste and marker-driven shortcuts.
+- dedicated multi-channel colour tracks;
+- cue lists and richer command triggers;
+- marker-driven shortcuts and multi-track key selection.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -224,7 +228,7 @@ press **Open now**. Either can be made fullscreen on an explicitly chosen
 display from the Outputs section. The **Outputs** section adds or deletes outputs, toggles their
 window, chooses fullscreen and an explicit display, edits the normalized view
 rectangle, applies `Full stage` / `Left half` / `Right half` presets, and sets
-edge blending plus brightness/contrast/gamma. The same section loads or clears a
+edge blending plus brightness/contrast/gamma and per-channel RGB tint. The same section loads or clears a
 1D calibration `.cube` and selects a temporary calibration guide for the
 selected output (`G` cycles it). The **Output groups** section assigns outputs to
 synchronized groups; the demo puts both outputs in **Main wall**. The stage
@@ -351,6 +355,7 @@ Only the first argument of a message is used. Bundles are accepted. The
 /lpmt/surface/surface-1/opacity      f 0.75
 /lpmt/surface/surface-1/mask/feather f 0.04
 /lpmt/output/output-1/brightness     f 1.0
+/lpmt/output/output-1/tint/red       f 1.0
 /lpmt/output/output-1/edge_blend/right f 0.1
 /lpmt/audio/volume                   f 0.8
 /lpmt/transport/playing              i 1
@@ -419,17 +424,18 @@ invert), press **Add track**, then edit its keys:
 - **right-click** a key to remove it;
 - select a key to edit its time and value; float keys offer **Step**/**Linear**/
   **Smooth** interpolation, while bool keys are Step-only on/off states;
-- **Copy key** and **Paste at playhead** duplicate a key's value and
-  interpolation, clamped to the target track's range;
+- **Shift-click** keys to extend the selection; **Copy** and **Paste at
+  playhead** duplicate all selected keys with their relative timing, clamped to
+  the target track's range;
 - click or drag the ruler to seek the shared show clock;
 - use the normal transport to play, pause, restart and loop the timeline.
 
 The **Triggers** lane schedules transport commands. Choose **Pause transport**,
-**Stop and rewind**, **Restart transport**, **Loop on**, or **Loop off** in the
-header, press **Add trigger** at the playhead, or double-click the trigger lane.
-Drag a trigger marker to retime it and right-click to remove it. Triggers fire
-while the clock is playing, including on a natural loop wrap; scrubbing does not
-fire them.
+**Stop and rewind**, **Restart transport**, **Loop on**, **Loop off**, **Jump to
+next marker**, or **Jump to previous marker** in the header, press **Add trigger**
+at the playhead, or double-click the trigger lane. Drag a trigger marker to
+retime it and right-click to remove it. Triggers fire while the clock is playing,
+including on a natural loop wrap; scrubbing does not fire them.
 
 The **Markers** lane holds named seek points. Press **Add marker** at the
 playhead or double-click the lane, then edit the name and time in the marker

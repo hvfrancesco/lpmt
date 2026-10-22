@@ -14,7 +14,8 @@ use lpmt_core::model::{
 };
 use lpmt_core::param::{project_parameters, ParameterDescriptor, ParameterKind};
 use lpmt_core::timeline::{
-    TimelineCommand, TimelineInterpolation, MAX_TIMELINE_DURATION, MIN_TIMELINE_DURATION,
+    TimelineCommand, TimelineInterpolation, TimelineKey, MAX_TIMELINE_DURATION,
+    MIN_TIMELINE_DURATION,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -144,10 +145,10 @@ struct SurfaceMoveDrag {
     originals: Vec<(usize, [Point2; 4])>,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct TimelineKeyClipboard {
-    value: f32,
-    interpolation: TimelineInterpolation,
+#[derive(Debug, Clone)]
+struct TimelineClipboard {
+    /// Key times are relative to the earliest copied key.
+    keys: Vec<TimelineKey>,
 }
 
 #[derive(Debug)]
@@ -179,7 +180,8 @@ pub struct EditorState {
     timeline_selected_trigger: Option<usize>,
     timeline_drag_trigger: Option<usize>,
     timeline_trigger_command: TimelineCommand,
-    timeline_clipboard: Option<TimelineKeyClipboard>,
+    timeline_clipboard: Option<TimelineClipboard>,
+    timeline_selected_keys: BTreeSet<usize>,
     timeline_selected_marker: Option<usize>,
     timeline_drag_marker: Option<usize>,
     timeline_marker_name: String,
@@ -226,6 +228,7 @@ impl Default for EditorState {
             timeline_drag_trigger: None,
             timeline_trigger_command: TimelineCommand::Pause,
             timeline_clipboard: None,
+            timeline_selected_keys: BTreeSet::new(),
             timeline_selected_marker: None,
             timeline_drag_marker: None,
             timeline_marker_name: String::new(),
@@ -260,6 +263,7 @@ impl EditorState {
         self.timeline_selected_trigger = None;
         self.timeline_drag_trigger = None;
         self.timeline_clipboard = None;
+        self.timeline_selected_keys.clear();
         self.timeline_selected_marker = None;
         self.timeline_drag_marker = None;
         self.timeline_marker_name.clear();
@@ -421,11 +425,10 @@ pub enum EditorAction {
         track: usize,
         time: f32,
     },
-    AddTimelineKeyValue {
+    PasteTimelineKeys {
         track: usize,
         time: f32,
-        value: f32,
-        interpolation: TimelineInterpolation,
+        keys: Vec<TimelineKey>,
     },
     SetTimelineKey {
         track: usize,
@@ -1538,6 +1541,22 @@ pub fn draw(
                                         );
                                         ui.end_row();
                                     }
+                                    for (label, value) in [
+                                        "Tint red",
+                                        "Tint green",
+                                        "Tint blue",
+                                    ]
+                                    .into_iter()
+                                    .zip(color.tint.iter_mut())
+                                    {
+                                        ui.label(label);
+                                        ui.add(
+                                            egui::Slider::new(value, 0.0..=4.0)
+                                                .fixed_decimals(2)
+                                                .show_value(true),
+                                        );
+                                        ui.end_row();
+                                    }
                                 });
                             if color != output.color {
                                 actions.push(EditorAction::SetOutputColor {
@@ -2380,6 +2399,7 @@ fn draw_timeline(
     let timeline = &project.timeline;
     let duration = timeline.duration.max(MIN_TIMELINE_DURATION);
     let parameters = project_parameters(project);
+    let shift = ui.input(|input| input.modifiers.shift);
 
     if state
         .timeline_selected_track
@@ -2389,12 +2409,21 @@ fn draw_timeline(
         state.timeline_selected_key = None;
     }
     if let Some(track) = state.timeline_selected_track {
+        let key_count = timeline.tracks[track].keys.len();
+        state.timeline_selected_keys.retain(|key| *key < key_count);
         if state
             .timeline_selected_key
-            .is_some_and(|key| key >= timeline.tracks[track].keys.len())
+            .is_some_and(|key| key >= key_count)
         {
             state.timeline_selected_key = None;
         }
+        if let Some(key) = state.timeline_selected_key {
+            state.timeline_selected_keys.insert(key);
+        } else if let Some(key) = state.timeline_selected_keys.iter().next_back().copied() {
+            state.timeline_selected_key = Some(key);
+        }
+    } else {
+        state.timeline_selected_keys.clear();
     }
     if state.timeline_drag_key.is_some_and(|(track, key)| {
         timeline
@@ -2518,6 +2547,7 @@ fn draw_timeline(
                         .unwrap_or(timeline.tracks.len());
                     state.timeline_selected_track = Some(track);
                     state.timeline_selected_key = Some(0);
+                    state.timeline_selected_keys.clear();
                     state.timeline_selected_trigger = None;
                     actions.push(EditorAction::AddTimelineTrack { parameter });
                 }
@@ -2529,9 +2559,15 @@ fn draw_timeline(
                 actions.push(EditorAction::RemoveTimelineTrack { track });
                 state.timeline_selected_track = None;
                 state.timeline_selected_key = None;
+                state.timeline_selected_keys.clear();
             }
-            if let Some(clipboard) = state.timeline_clipboard {
-                if ui.button("Paste key at playhead").clicked() {
+            if let Some(clipboard) = state.timeline_clipboard.clone() {
+                let label = if clipboard.keys.len() > 1 {
+                    format!("Paste {} keys at playhead", clipboard.keys.len())
+                } else {
+                    "Paste key at playhead".to_owned()
+                };
+                if ui.button(label).clicked() {
                     let time = status.transport.position_seconds as f32;
                     let insert_at = timeline
                         .tracks
@@ -2545,11 +2581,12 @@ fn draw_timeline(
                         })
                         .unwrap_or(0);
                     state.timeline_selected_key = Some(insert_at);
-                    actions.push(EditorAction::AddTimelineKeyValue {
+                    state.timeline_selected_keys.clear();
+                    state.timeline_selected_keys.insert(insert_at);
+                    actions.push(EditorAction::PasteTimelineKeys {
                         track,
                         time,
-                        value: clipboard.value,
-                        interpolation: clipboard.interpolation,
+                        keys: clipboard.keys,
                     });
                 }
             }
@@ -2716,18 +2753,46 @@ fn draw_timeline(
                             });
                         }
                     }
-                    if ui.button("Copy key").clicked() {
-                        state.timeline_clipboard = Some(TimelineKeyClipboard {
-                            value: key.value,
-                            interpolation: key.interpolation,
-                        });
+                    let selected_count = state.timeline_selected_keys.len().max(1);
+                    let copy_label = if selected_count > 1 {
+                        format!("Copy {selected_count} keys")
+                    } else {
+                        "Copy key".to_owned()
+                    };
+                    if ui.button(copy_label).clicked() {
+                        let mut indices: Vec<usize> = state
+                            .timeline_selected_keys
+                            .iter()
+                            .copied()
+                            .filter(|index| *index < track.keys.len())
+                            .collect();
+                        if indices.is_empty() {
+                            indices.push(key_index);
+                        }
+                        if let Some(base) = indices
+                            .iter()
+                            .filter_map(|index| track.keys.get(*index))
+                            .map(|key| key.time)
+                            .min_by(f32::total_cmp)
+                        {
+                            let keys = indices
+                                .iter()
+                                .filter_map(|index| track.keys.get(*index))
+                                .map(|key| TimelineKey {
+                                    time: key.time - base,
+                                    value: key.value,
+                                    interpolation: key.interpolation,
+                                })
+                                .collect();
+                            state.timeline_clipboard = Some(TimelineClipboard { keys });
+                        }
                     }
                     let can_paste = state.timeline_clipboard.is_some();
                     if ui
                         .add_enabled(can_paste, egui::Button::new("Paste at playhead"))
                         .clicked()
                     {
-                        if let Some(clipboard) = state.timeline_clipboard {
+                        if let Some(clipboard) = state.timeline_clipboard.clone() {
                             let time = status.transport.position_seconds as f32;
                             let insert_at = track
                                 .keys
@@ -2736,12 +2801,13 @@ fn draw_timeline(
                                 .unwrap_or(track.keys.len());
                             state.timeline_selected_track = Some(track_index);
                             state.timeline_selected_key = Some(insert_at);
+                            state.timeline_selected_keys.clear();
+                            state.timeline_selected_keys.insert(insert_at);
                             state.timeline_selected_trigger = None;
-                            actions.push(EditorAction::AddTimelineKeyValue {
+                            actions.push(EditorAction::PasteTimelineKeys {
                                 track: track_index,
                                 time,
-                                value: clipboard.value,
-                                interpolation: clipboard.interpolation,
+                                keys: clipboard.keys,
                             });
                         }
                     }
@@ -2750,7 +2816,18 @@ fn draw_timeline(
                             track: track_index,
                             key: key_index,
                         });
-                        state.timeline_selected_key = None;
+                        state.timeline_selected_keys.remove(&key_index);
+                        state.timeline_selected_key =
+                            state.timeline_selected_keys.iter().next_back().copied();
+                    }
+                    if selected_count > 1 {
+                        ui.label(
+                            RichText::new(format!(
+                                "{selected_count} keys selected; shift-click to extend"
+                            ))
+                            .small()
+                            .color(Color32::from_rgb(132, 144, 166)),
+                        );
                     }
                 });
             }
@@ -2921,6 +2998,7 @@ fn draw_timeline(
                     if label_response.clicked() {
                         state.timeline_selected_track = Some(track_index);
                         state.timeline_selected_key = None;
+                        state.timeline_selected_keys.clear();
                         state.timeline_drag_key = None;
                         state.timeline_selected_trigger = None;
                     }
@@ -3024,7 +3102,7 @@ fn draw_timeline(
                         .collect();
                     for (key_index, point) in key_points.iter().enumerate() {
                         let selected = state.timeline_selected_track == Some(track_index)
-                            && state.timeline_selected_key == Some(key_index);
+                            && state.timeline_selected_keys.contains(&key_index);
                         painter.circle_filled(
                             *point,
                             if selected { 6.0 } else { 4.5 },
@@ -3067,12 +3145,20 @@ fn draw_timeline(
 
                     if response.secondary_clicked() {
                         if let Some(key) = hit {
+                            if state.timeline_selected_track != Some(track_index) {
+                                state.timeline_selected_keys.clear();
+                            }
                             actions.push(EditorAction::RemoveTimelineKey {
                                 track: track_index,
                                 key,
                             });
                             state.timeline_selected_track = Some(track_index);
-                            state.timeline_selected_key = None;
+                            state.timeline_selected_keys.remove(&key);
+                            state.timeline_selected_key = state
+                                .timeline_selected_keys
+                                .iter()
+                                .next_back()
+                                .copied();
                             state.timeline_drag_key = None;
                             state.timeline_selected_trigger = None;
                         }
@@ -3087,6 +3173,8 @@ fn draw_timeline(
                                     .unwrap_or(track.keys.len());
                                 state.timeline_selected_track = Some(track_index);
                                 state.timeline_selected_key = Some(insert_at);
+                                state.timeline_selected_keys.clear();
+                                state.timeline_selected_keys.insert(insert_at);
                                 state.timeline_selected_trigger = None;
                                 actions.push(EditorAction::AddTimelineKey {
                                     track: track_index,
@@ -3095,9 +3183,17 @@ fn draw_timeline(
                             }
                         }
                     } else if response.clicked() {
+                        if state.timeline_selected_track != Some(track_index) {
+                            state.timeline_selected_keys.clear();
+                        }
                         state.timeline_selected_track = Some(track_index);
-                        state.timeline_selected_key = hit;
                         state.timeline_selected_trigger = None;
+                        select_timeline_key(
+                            &mut state.timeline_selected_keys,
+                            &mut state.timeline_selected_key,
+                            hit,
+                            shift,
+                        );
                         if hit.is_some() {
                             state.timeline_drag_key = None;
                         }
@@ -3105,8 +3201,13 @@ fn draw_timeline(
 
                     if response.drag_started() {
                         if let Some(key) = hit {
+                            if state.timeline_selected_track != Some(track_index) {
+                                state.timeline_selected_keys.clear();
+                            }
                             state.timeline_selected_track = Some(track_index);
                             state.timeline_selected_key = Some(key);
+                            state.timeline_selected_keys.clear();
+                            state.timeline_selected_keys.insert(key);
                             state.timeline_drag_key = Some((track_index, key));
                             state.timeline_selected_trigger = None;
                         }
@@ -3527,6 +3628,33 @@ fn draw_timeline(
         });
 }
 
+fn select_timeline_key(
+    selected: &mut BTreeSet<usize>,
+    primary: &mut Option<usize>,
+    key: Option<usize>,
+    shift: bool,
+) {
+    if let Some(key) = key {
+        if shift {
+            if !selected.insert(key) {
+                selected.remove(&key);
+            }
+            *primary = if selected.contains(&key) {
+                Some(key)
+            } else {
+                selected.iter().next_back().copied()
+            };
+        } else {
+            selected.clear();
+            selected.insert(key);
+            *primary = Some(key);
+        }
+    } else {
+        *primary = None;
+        selected.clear();
+    }
+}
+
 fn trigger_command_short(command: TimelineCommand) -> &'static str {
     match command {
         TimelineCommand::Pause => "Pause",
@@ -3534,6 +3662,8 @@ fn trigger_command_short(command: TimelineCommand) -> &'static str {
         TimelineCommand::Restart => "Restart",
         TimelineCommand::LoopOn => "Loop+",
         TimelineCommand::LoopOff => "Loop-",
+        TimelineCommand::NextMarker => "NextM",
+        TimelineCommand::PreviousMarker => "PrevM",
     }
 }
 
@@ -5180,6 +5310,21 @@ mod tests {
         assert!(timeline_candidate(find("layer/layer-1/visible")));
         assert!(!timeline_candidate(find("output/output-1/enabled")));
         assert!(!timeline_candidate(find("transport/playing")));
+    }
+
+    #[test]
+    fn timeline_key_selection_extends_and_removes_with_shift() {
+        let mut selected = BTreeSet::new();
+        let mut primary = None;
+        select_timeline_key(&mut selected, &mut primary, Some(1), false);
+        assert_eq!(selected, BTreeSet::from([1]));
+        assert_eq!(primary, Some(1));
+        select_timeline_key(&mut selected, &mut primary, Some(3), true);
+        assert_eq!(selected, BTreeSet::from([1, 3]));
+        assert_eq!(primary, Some(3));
+        select_timeline_key(&mut selected, &mut primary, Some(3), true);
+        assert_eq!(selected, BTreeSet::from([1]));
+        assert_eq!(primary, Some(1));
     }
 
     #[test]
