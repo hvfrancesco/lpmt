@@ -641,12 +641,22 @@ impl MediaAsset {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SourceSpec {
-    TestPattern { pattern: TestPattern },
-    Image { media_id: MediaId },
-    Video { media_id: MediaId },
+    TestPattern {
+        pattern: TestPattern,
+    },
+    /// Linear RGB, converted to an sRGB 1×1 texture by the renderer.
+    Solid {
+        color: [f32; 3],
+    },
+    Image {
+        media_id: MediaId,
+    },
+    Video {
+        media_id: MediaId,
+    },
 }
 
 /// Content drawn through one or more surfaces. A surface is geometry; a layer
@@ -702,6 +712,24 @@ impl Layer {
             source: SourceSpec::TestPattern {
                 pattern: TestPattern::Checker,
             },
+            crop: Crop::default(),
+            opacity: 1.0,
+            blend: BlendMode::Normal,
+            visible: true,
+        }
+    }
+
+    pub fn solid(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        surface_id: &SurfaceId,
+        color: [f32; 3],
+    ) -> Self {
+        Self {
+            id: LayerId::new(id),
+            name: name.into(),
+            surface_ids: vec![surface_id.clone()],
+            source: SourceSpec::Solid { color },
             crop: Crop::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
@@ -1038,7 +1066,7 @@ impl Project {
         self.stages.iter().any(|stage| {
             stage.layers.iter().any(|layer| match &layer.source {
                 SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id == id,
-                SourceSpec::TestPattern { .. } => false,
+                SourceSpec::TestPattern { .. } | SourceSpec::Solid { .. } => false,
             })
         })
     }
@@ -1131,6 +1159,25 @@ mod tests {
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();
         assert_eq!(project, round_trip);
+    }
+
+    #[test]
+    fn solid_colour_layers_persist_without_media() {
+        let mut project = Project::demo();
+        let surface_id = project.stages[0].surfaces[0].id.clone();
+        project.stages[0].layers.push(Layer::solid(
+            "solid-1",
+            "Solid 1",
+            &surface_id,
+            [0.2, 0.4, 0.8],
+        ));
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+        assert!(matches!(
+            &round_trip.stages[0].layers.last().unwrap().source,
+            SourceSpec::Solid { color } if *color == [0.2, 0.4, 0.8]
+        ));
     }
 
     #[test]

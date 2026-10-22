@@ -635,6 +635,13 @@ pub enum EditorAction {
     AddLayer {
         surfaces: Vec<usize>,
     },
+    AddSolidLayer {
+        surfaces: Vec<usize>,
+    },
+    SetLayerSolidColor {
+        layer: usize,
+        color: [f32; 3],
+    },
     AddLayerFromMedia {
         surfaces: Vec<usize>,
         media: usize,
@@ -5042,6 +5049,19 @@ fn draw_hierarchy(
                 .clicked()
             {
                 actions.push(EditorAction::AddLayer {
+                    surfaces: new_surfaces.clone(),
+                });
+                state.selected_layer = stage.layers.len();
+            }
+            if ui
+                .add_enabled(
+                    !new_surfaces.is_empty(),
+                    egui::Button::new("+ Solid colour"),
+                )
+                .on_hover_text("Add a solid colour layer on the selected surfaces")
+                .clicked()
+            {
+                actions.push(EditorAction::AddSolidLayer {
                     surfaces: new_surfaces,
                 });
                 state.selected_layer = stage.layers.len();
@@ -5136,18 +5156,33 @@ fn draw_layer_editor(
                 });
             }
         } else {
+            let solid = match &layer.source {
+                SourceSpec::Solid { color } => Some(*color),
+                _ => None,
+            };
             let (rect, _) = ui.allocate_exact_size(Vec2::new(52.0, 34.0), Sense::hover());
-            ui.painter()
-                .rect_filled(rect, 3.0, Color32::from_rgb(26, 30, 38));
-            ui.painter().text(
-                rect.center(),
-                Align2::CENTER_CENTER,
-                "pattern",
-                FontId::proportional(9.0),
-                Color32::from_rgb(130, 140, 160),
-            );
+            if let Some(color) = solid {
+                let [r, g, b, _] =
+                    egui::Rgba::from_rgb(color[0], color[1], color[2]).to_srgba_unmultiplied();
+                ui.painter()
+                    .rect_filled(rect, 3.0, Color32::from_rgb(r, g, b));
+            } else {
+                ui.painter()
+                    .rect_filled(rect, 3.0, Color32::from_rgb(26, 30, 38));
+                ui.painter().text(
+                    rect.center(),
+                    Align2::CENTER_CENTER,
+                    "pattern",
+                    FontId::proportional(9.0),
+                    Color32::from_rgb(130, 140, 160),
+                );
+            }
             ui.vertical(|ui| {
-                ui.label("Test pattern");
+                ui.label(if solid.is_some() {
+                    "Solid colour"
+                } else {
+                    "Test pattern"
+                });
                 ui.label(
                     RichText::new(layer_source(layer, project))
                         .small()
@@ -5243,6 +5278,19 @@ fn draw_layer_editor(
             actions.push(EditorAction::SetLayerTestPattern {
                 layer: index,
                 pattern: chosen,
+            });
+        }
+    }
+    if let SourceSpec::Solid { color } = &layer.source {
+        let mut chosen = *color;
+        ui.horizontal(|ui| {
+            ui.label("Solid colour");
+            ui.color_edit_button_rgb(&mut chosen);
+        });
+        if chosen != *color {
+            actions.push(EditorAction::SetLayerSolidColor {
+                layer: index,
+                color: chosen,
             });
         }
     }
@@ -5848,6 +5896,7 @@ fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
             .media_asset(media_id)
             .map_or_else(|| "missing media".to_owned(), |asset| asset.name.clone()),
         SourceSpec::TestPattern { pattern } => format!("test pattern · {}", pattern.label()),
+        SourceSpec::Solid { .. } => "solid colour".to_owned(),
     }
 }
 
@@ -5885,7 +5934,7 @@ fn layer_surface_label(stage: &Stage, layer: &lpmt_core::model::Layer) -> String
 fn layer_media_index(layer: &lpmt_core::model::Layer, project: &Project) -> Option<usize> {
     let media_id = match &layer.source {
         SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id,
-        SourceSpec::TestPattern { .. } => return None,
+        SourceSpec::TestPattern { .. } | SourceSpec::Solid { .. } => return None,
     };
     project.media.iter().position(|asset| &asset.id == media_id)
 }

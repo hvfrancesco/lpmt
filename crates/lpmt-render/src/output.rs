@@ -858,7 +858,7 @@ impl StageRenderer {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
-            let bind_group = media.bind_group(&layer.source).clone();
+            let bind_group = media.bind_group(gpu, &layer.source)?.clone();
             let blend_index = pipeline_index(layer.blend);
             for surface_id in &layer.surface_ids {
                 if draws.len() >= MAX_LAYER_SLOTS {

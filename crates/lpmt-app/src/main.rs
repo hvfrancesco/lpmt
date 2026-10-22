@@ -2374,6 +2374,47 @@ impl App {
                     stage.layers.push(layer);
                     self.ui_state.selected_layer = stage.layers.len() - 1;
                 }
+                EditorAction::AddSolidLayer { surfaces } => {
+                    let Some(stage) = self.project.primary_stage_mut() else {
+                        continue;
+                    };
+                    let surface_ids = selected_surface_ids(stage, &surfaces);
+                    let Some(primary) = surface_ids.first() else {
+                        continue;
+                    };
+                    let mut index = stage.layers.len() + 1;
+                    let id = loop {
+                        let candidate = format!("layer-{index}");
+                        if !stage
+                            .layers
+                            .iter()
+                            .any(|layer| layer.id.as_str() == candidate)
+                        {
+                            break candidate;
+                        }
+                        index += 1;
+                    };
+                    let mut layer = Layer::solid(
+                        id,
+                        format!("Solid colour {index}"),
+                        primary,
+                        [0.85, 0.25, 0.2],
+                    );
+                    layer.surface_ids = surface_ids;
+                    stage.layers.push(layer);
+                    self.ui_state.selected_layer = stage.layers.len() - 1;
+                }
+                EditorAction::SetLayerSolidColor { layer, color } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        if let SourceSpec::Solid { color: current } = &mut layer.source {
+                            *current = color.map(|channel| channel.clamp(0.0, 1.0));
+                        }
+                    }
+                }
                 EditorAction::AddLayerFromMedia { surfaces, media } => {
                     let Some(asset) = self.project.media.get(media) else {
                         continue;
@@ -4105,6 +4146,10 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerCrop { layer, .. } => (HistoryKey::LayerCrop(*layer), "change layer crop"),
         SetLayerSurfaces { .. } => (HistoryKey::Discrete, "change layer surfaces"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
+        AddSolidLayer { .. } => (HistoryKey::Discrete, "add solid colour layer"),
+        SetLayerSolidColor { layer, .. } => {
+            (HistoryKey::LayerSolidColor(*layer), "change solid colour")
+        }
         AddLayerFromMedia { .. } => (HistoryKey::Discrete, "add media layer"),
         DeleteLayer { .. } => (HistoryKey::Discrete, "delete layer"),
         ReorderLayer { .. } => (HistoryKey::Discrete, "reorder layer"),

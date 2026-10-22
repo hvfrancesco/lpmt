@@ -24,6 +24,7 @@ pub(crate) enum HistoryKey {
     MediaPath(usize),
     LayerName(usize),
     LayerOpacity(usize),
+    LayerSolidColor(usize),
     LayerCrop(usize),
     ShowAudioVolume,
     OutputView(usize),

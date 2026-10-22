@@ -65,9 +65,11 @@ shelf; Calibration and Show are separate modes.
   running independently. The Outputs inspector reports per-output pacing:
   presented and missed frames, skipped/occluded frames, errors, average frame
   interval and fps.
-- Outputs render images or looping video through a four-corner projective warp,
-  with a procedural test pattern as fallback. Test-pattern layers can select a
-  checker, alignment grid, colour bars, grayscale ramp or RGB convergence card.
+- Outputs render images, looping video or solid colours through a four-corner
+  projective warp, with a procedural test pattern as fallback. Test-pattern
+  layers can select a checker, alignment grid, colour bars, grayscale ramp or
+  RGB convergence card; solid-colour layers have an RGB colour picker and use
+  the normal opacity and blend controls.
 - Each output renders through an offscreen scene pass followed by a composite
   pass that applies per-edge blending (left/right/top/bottom feather),
   per-output brightness/contrast/gamma, RGB tint and an optional display-space
@@ -223,12 +225,13 @@ The demo show loads [`assets/images/ofTheo.jpg`](assets/images/ofTheo.jpg) on th
 background layer and [`assets/images/car.jpg`](assets/images/car.jpg) on a smaller
 `Screen`-blended layer. Missing assets fall back to the procedural checker card.
 Use the **Layers** section to select a layer, toggle it, change opacity or blend
-mode, assign it to one or more surfaces, reorder it, or add/delete test-pattern
-layers. If several surfaces are selected in the Mapping view, **Add test
-pattern** creates one layer on all of them.
-When a test-pattern layer is selected, its **Test pattern** selector switches
-between the checker, alignment grid, colour bars, grayscale ramp and RGB
-convergence card.
+mode, assign it to one or more surfaces, reorder it, or add/delete layers. If
+several surfaces are selected in the Mapping view, **Add test pattern** or
+**Add solid colour** creates one layer on all of them. A solid layer’s colour
+picker updates the rendered RGB live and coalesces continuous picker changes in
+undo. When a test-pattern layer is selected, its **Test pattern** selector
+switches between the checker, alignment grid, colour bars, grayscale ramp and
+RGB convergence card.
 
 The demo also defines two outputs: **Main output** (full stage, windowed at
 1280×720) and **Right half** (windowed, view `x=0.5..1.0`). On a multi-display

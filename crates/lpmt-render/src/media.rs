@@ -36,6 +36,7 @@ pub struct MediaCache {
     texture_bind_group_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     test_patterns: HashMap<TestPattern, TextureEntry>,
+    solids: HashMap<[u8; 4], TextureEntry>,
     media: HashMap<MediaId, TextureEntry>,
     /// Surface masks are rasterized on the CPU and cached by a content hash,
     /// so editing a mask only rebuilds that surface's texture.
@@ -112,6 +113,7 @@ impl MediaCache {
             texture_bind_group_layout,
             sampler,
             test_patterns,
+            solids: HashMap::new(),
             media: HashMap::new(),
             masks: HashMap::new(),
             neutral_mask,
@@ -196,19 +198,44 @@ impl MediaCache {
     }
 
     /// Bind group for a layer source, falling back to the checker test card.
-    pub(crate) fn bind_group(&self, source: &SourceSpec) -> &wgpu::BindGroup {
+    /// Solid colours are cached as one-pixel textures keyed by their quantized
+    /// RGBA value, so changing a colour picker does not allocate a texture every
+    /// frame.
+    pub(crate) fn bind_group(
+        &mut self,
+        gpu: &Gpu,
+        source: &SourceSpec,
+    ) -> Result<&wgpu::BindGroup> {
         match source {
-            SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => self
+            SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => Ok(self
                 .media
                 .get(media_id)
-                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group),
+                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group)),
             SourceSpec::TestPattern { pattern } => {
                 let entry = self
                     .test_patterns
                     .get(pattern)
                     .or_else(|| self.test_patterns.get(&TestPattern::Checker))
                     .expect("the checker test pattern is always generated");
-                &entry.bind_group
+                Ok(&entry.bind_group)
+            }
+            SourceSpec::Solid { color } => {
+                let key = solid_color_key(*color);
+                if !self.solids.contains_key(&key) {
+                    let entry = create_texture_entry(
+                        gpu,
+                        &self.texture_bind_group_layout,
+                        &self.sampler,
+                        "lpmt-solid-colour",
+                        ImageData {
+                            width: 1,
+                            height: 1,
+                            rgba: &key,
+                        },
+                    )?;
+                    self.solids.insert(key, entry);
+                }
+                Ok(&self.solids[&key].bind_group)
             }
         }
     }
@@ -535,6 +562,19 @@ fn write_image(gpu: &Gpu, texture: &wgpu::Texture, image: ImageData<'_>) -> Resu
     Ok(())
 }
 
+fn solid_color_key(color: [f32; 3]) -> [u8; 4] {
+    let to_srgb = |channel: f32| {
+        let channel = channel.clamp(0.0, 1.0);
+        let srgb = if channel <= 0.003_130_8 {
+            12.92 * channel
+        } else {
+            1.055 * channel.powf(1.0 / 2.4) - 0.055
+        };
+        (srgb * 255.0).round() as u8
+    };
+    [to_srgb(color[0]), to_srgb(color[1]), to_srgb(color[2]), 255]
+}
+
 fn create_pattern_pixels(pattern: TestPattern) -> Vec<u8> {
     match pattern {
         TestPattern::Checker => create_checker_pixels(),
@@ -743,6 +783,14 @@ mod tests {
                 .iter()
                 .all(|pixel| pixel[3] == 255));
         }
+    }
+
+    #[test]
+    fn solid_colours_quantize_to_opaque_srgb_rgba() {
+        assert_eq!(solid_color_key([1.0, 0.0, 0.0]), [255, 0, 0, 255]);
+        assert_eq!(solid_color_key([-1.0, 2.0, 0.0]), [0, 255, 0, 255]);
+        let [r, g, b, a] = solid_color_key([0.25, 0.5, 0.75]);
+        assert_eq!((r, g, b, a), (137, 188, 225, 255));
     }
 
     #[test]

@@ -771,6 +771,7 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
       visibility/opacity.
 - [x] Ordered layer stack with visibility, opacity, one-or-more surface assignment and basic blend
       modes.
+- [x] Solid-colour layers with an RGB colour picker and cached 1×1 render textures.
 - [x] Native project open/save and media file pickers; picked media stored relative when possible.
 - [x] Media thumbnails, an in-app layer media picker and explicit target-layer assignment.
 - [x] Inline Mapping editor, separate Calibration/Show modes and a bottom media shelf.
