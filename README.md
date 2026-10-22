@@ -16,9 +16,9 @@ presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
 guides, multi-surface mapping, quad/grid warp, polygon masks, rectangular and
 circular crops, thumbnail media picking, an OSC control surface, persisted
-hotkey bindings and optional MIDI learn. Mapping uses an inline editable
-hierarchy beside the live preview with a bottom media shelf; Calibration and
-Show are separate modes.
+hotkey bindings, optional MIDI learn and a numeric parameter timeline. Mapping
+uses an inline editable hierarchy beside the live preview with a bottom media
+shelf; Calibration and Show are separate modes.
 
 - One event loop, one `wgpu` device and queue, one editor window and any number
   of independent output windows.
@@ -132,6 +132,15 @@ Show are separate modes.
   onto the parameter range; relative mode follows encoder ticks; toggle mode
   turns a pad or button into a latching control. Project changes made through
   MIDI use the same actions and undo/redo path as the editor.
+- **Numeric timeline:** Show mode has a bottom timeline panel targeting float
+  parameters such as surface/layer opacity, output brightness/contrast/gamma and
+  edge blending. Double-click a lane to add a key, drag keys to move them,
+  right-click to remove, and choose Step or Linear interpolation. The ruler
+  seeks the shared show clock, so playback and scrubbing evaluate the keys in
+  sync. Timeline values are a render-time overlay: playback does not modify the
+  saved parameter values or mark the project dirty. A manual parameter edit while
+  paused temporarily suspends the overlay until the next seek, play or timeline
+  edit.
 - Project save/load from the editor, with typed paths and native file pickers
   (Open…, Save as…, Browse… for media). Media paths are resolved relative to the
   project file; picked files inside the show directory are stored relative.
@@ -158,12 +167,12 @@ Show are separate modes.
 
 The preview viewport, snapping, pacing diagnostics, calibration LUTs, test
 patterns, output guides, multi-surface mapping, grid warp, surface masks, layer
-crops, stable parameter paths, OSC control, persisted hotkey bindings and MIDI
-learn are now in place. The next implementation slice is the **timeline**:
+crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
+learn and numeric timeline curves are now in place. The next timeline work is:
 
-- numeric parameter curves;
-- colour tracks;
-- timed triggers and transport cues.
+- colour tracks for output look changes;
+- timed bool and command triggers;
+- easing curves, copy/paste and timeline markers.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -256,9 +265,9 @@ Playback is controlled by the **Transport** section in **Show** mode, not by
 individual assets. The transport starts paused: press **Play** to advance
 the shared show clock. Every used video follows that clock, is paused/resumed
 with it and is seeked when it drifts. **Restart** returns to zero and plays;
-**Loop** repeats the show at its duration (the longest used video until a real
-timeline exists). Scrubbing while paused decodes a single preview frame at the
-new position. **Space** toggles play/pause, **Home** restarts, **G** cycles the
+**Loop** repeats the show at its duration (the timeline duration when tracks
+exist, otherwise the longest used video or audio). Scrubbing while paused
+decodes a single preview frame at the new position. **Space** toggles play/pause, **Home** restarts, **G** cycles the
 selected output's calibration guide, **M** opens the media picker for the
 selected layer and **F1/F2/F3** switch Mapping, Calibration and Show when no
 text field has focus.
@@ -352,8 +361,8 @@ oscsend localhost 9000 /lpmt/transport/playing i 1
 ```
 
 The **Show** mode displays the listener address, received message count and the
-last accepted or rejected message. OSC addresses are session-only; the timeline
-is the next control milestone.
+last accepted or rejected message. OSC addresses are session-only; timeline
+colour and trigger tracks are the next control milestone.
 
 ### MIDI control
 
@@ -391,8 +400,29 @@ replaces the old assignment.
 
 Custom bindings take precedence over the built-in shortcuts. They currently
 toggle bool parameters (surface and layer visibility, masks, output enabled,
-show audio mute) and the transport playing/looping state. MIDI bindings and the
-future timeline use the same stable parameter paths.
+show audio mute) and the transport playing/looping state. MIDI bindings and
+timeline tracks use the same stable parameter paths.
+
+### Timeline
+
+Show mode includes a numeric timeline below the preview. Choose a float
+parameter, press **Add track**, then edit its keys:
+
+- **double-click** a lane to add a key at that time;
+- **drag** a key to move it between its neighbours;
+- **right-click** a key to remove it;
+- select a key to edit its time, value and **Step**/**Linear** interpolation;
+- click or drag the ruler to seek the shared show clock;
+- use the normal transport to play, pause, restart and loop the timeline.
+
+Timeline keys target stable parameter paths, so renaming a layer or surface does
+not break automation. Track edits are undoable and saved with the project.
+
+Timeline values are evaluated as a render-time overlay. Playing the timeline
+does not modify the underlying project parameter values or mark the project
+dirty. When paused, manually changing an automated parameter temporarily
+suspends the overlay so the edit is visible; the next seek, play, or timeline
+edit re-enables it.
 
 Useful commands:
 
@@ -417,7 +447,7 @@ archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 
 | Crate | Responsibility |
 |---|---|
-| `lpmt-core` | Domain model, stable IDs, geometry, LUT and guide descriptors |
+| `lpmt-core` | Domain model, stable IDs, geometry, timeline, LUT and guide descriptors |
 | `lpmt-render` | `wgpu` device setup, shared media textures, calibration and output rendering |
 | `lpmt-ui` | `egui` editor, emitting actions rather than mutating runtime state |
 | `lpmt-media` | Image decoding plus optional `ffmpeg-next` video and `rodio` audio playback; capture next |

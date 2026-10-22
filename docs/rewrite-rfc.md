@@ -89,8 +89,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   A build without the feature has no ALSA/cpal dependency and reports a rebuild hint.
 - **Shared show clock:** one `ShowClock` in the application is authoritative for every output, every
   video and the show audio. The editor transport edits that clock (play/pause, restart, loop, scrub);
-  the clock duration is the longest used video or the audio track until the timeline provides its
-  own length. A loop serial distinguishes a natural wrap from a deliberate seek.
+  when timeline tracks exist their duration is authoritative, otherwise the clock uses the longest
+  used video or audio track. A loop serial distinguishes a natural wrap from a deliberate seek.
 - **Multiple output windows:** every enabled `OutputSpec` owns a window keyed by its stable
   `OutputId` and renders its own normalized `view` rectangle of the stage. Opening, closing,
   fullscreen toggling, display assignment and adding/deleting outputs recreate windows only on
@@ -112,8 +112,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   stored in the project and toggle bool/transport parameters through the same paths. The optional
   `midi` feature adds a `midir` listener; Show mode learns CC/note sources into persisted bindings
   with absolute, relative and toggle modes, and maps them through the same parameter actions. Toggle
-  gives pads and buttons latching control of bool parameters. OSC addresses remain session-only;
-  DMX and the timeline are next.
+  gives pads and buttons latching control of bool parameters. A numeric timeline evaluates float
+  parameter curves from the shared show clock in the Show panel; values are a render-time overlay so
+  playback does not dirty the project. OSC addresses remain session-only; DMX and colour/trigger
+  timeline tracks are next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -150,10 +152,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, the
-  timeline, the legacy XML importer, packaging and validated macOS/Windows builds.
-- **Next implementation slice:** the timeline with numeric curves, colour tracks and timed
-  triggers targeting the stable parameter paths.
+  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, timeline
+  colour/trigger tracks and easing, the legacy XML importer, packaging and validated macOS/Windows
+  builds.
+- **Next implementation slice:** timeline colour tracks, bool/command triggers and richer
+  interpolation, all targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -636,16 +639,22 @@ This replaces the old pattern where every OSC address knew the internals of the 
 
 ## 10. Timeline
 
-Timeline should be core functionality, not an addon:
+Timeline should be core functionality, not an addon. The current v1 implements:
 
-- Transport: play/pause/stop, loop, duration, BPM, time signature, snap-to-grid.
-- Track types: numeric curve, colour, trigger/bang, maybe markers.
-- Tracks target parameter paths; triggers execute commands.
-- Per-stage or global timelines initially: one global project timeline is enough for v1, with
-  target paths making per-surface pages unnecessary.
-- Deterministic evaluation: timeline time is authoritative; media clocks can be resynced to it.
-- Undoable edits; copy/paste keyframes; visible playhead synced to output frames.
-- Later: MTC/LTC input, multiple timelines, cue lists, OSC timecode.
+- One global project timeline driven by the shared show clock.
+- Numeric float tracks targeting stable parameter paths, with Step and Linear interpolation.
+- Show-mode editing: add/remove tracks, add keys at a time, drag keys, edit time/value/mode, seek
+  from the ruler, and resize the timeline duration.
+- Deterministic evaluation: playback and scrubbing sample the same clock used by video and audio.
+- A render-time overlay that does not modify saved parameter values or dirty the project. Manual
+  parameter edits while paused suspend the overlay until the next seek/play/timeline edit.
+- Undoable timeline edits and project persistence.
+
+Still planned:
+
+- Colour tracks for output look/LUT changes and bool/command triggers.
+- BPM, time signature, snap-to-grid, markers and copy/paste.
+- Per-stage timelines or cue lists, MTC/LTC input, OSC timecode.
 
 The old LPMT timeline XML is addon-specific. A dedicated importer can be attempted later; the project
 model and timeline UI are more important than binary compatibility.
@@ -786,8 +795,9 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Configurable hotkey bindings with Show-mode learn.
 - [x] Persisted parameter bindings, including undo/redo and project reload.
 - [x] MIDI CC/note bindings with absolute, relative and toggle modes plus Show-mode learn.
+- [x] Numeric timeline tracks with Step/Linear keys, scrubbing and render-time playback.
+- [ ] Timeline colour tracks, bool/command triggers and richer interpolation.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
-- [ ] Timeline with curves, colours and triggers targeting parameters.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 
 ### M6 — Media breadth and sync

@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::binding::{MidiBinding, ParameterBinding};
 use crate::homography::{Homography, HomographyError};
 use crate::lut::CalibrationLut;
+use crate::timeline::Timeline;
 
 macro_rules! id_type {
     ($name:ident) => {
@@ -957,6 +958,9 @@ pub struct Project {
     /// Persisted MIDI bindings for stable parameter paths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub midi_bindings: Vec<MidiBinding>,
+    /// Numeric parameter timeline.
+    #[serde(default, skip_serializing_if = "Timeline::is_empty")]
+    pub timeline: Timeline,
 }
 
 impl Project {
@@ -1093,6 +1097,7 @@ impl Project {
             audio: ShowAudio::default(),
             bindings: Vec::new(),
             midi_bindings: Vec::new(),
+            timeline: Timeline::default(),
         }
     }
 }
@@ -1100,6 +1105,7 @@ impl Project {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::timeline::{TimelineInterpolation, TimelineKey};
 
     #[test]
     fn demo_project_is_serializable() {
@@ -1161,6 +1167,28 @@ mod tests {
         value.as_object_mut().unwrap().remove("midi_bindings");
         let project: Project = serde_json::from_value(value).unwrap();
         assert!(project.midi_bindings.is_empty());
+    }
+
+    #[test]
+    fn older_projects_load_without_a_timeline() {
+        let mut value = serde_json::to_value(Project::demo()).unwrap();
+        value.as_object_mut().unwrap().remove("timeline");
+        let project: Project = serde_json::from_value(value).unwrap();
+        assert!(project.timeline.is_empty());
+    }
+
+    #[test]
+    fn timeline_round_trips_with_the_project() {
+        let mut project = Project::demo();
+        let track = project.timeline.add_track("layer/layer-1/opacity");
+        project.timeline.tracks[track].keys.push(TimelineKey {
+            time: 1.5,
+            value: 0.75,
+            interpolation: TimelineInterpolation::Linear,
+        });
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
     }
 
     #[test]

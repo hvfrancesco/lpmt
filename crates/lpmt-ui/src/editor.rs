@@ -12,7 +12,8 @@ use lpmt_core::model::{
     MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage, Surface, SurfaceId,
     TestPattern, WarpGrid,
 };
-use lpmt_core::param::{project_parameters, ParameterKind};
+use lpmt_core::param::{project_parameters, ParameterDescriptor, ParameterKind};
+use lpmt_core::timeline::{TimelineInterpolation, MAX_TIMELINE_DURATION, MIN_TIMELINE_DURATION};
 
 #[derive(Debug, Clone, Default)]
 pub struct EditorStatus {
@@ -163,6 +164,10 @@ pub struct EditorState {
     binding_learn: Option<String>,
     midi_parameter: Option<String>,
     midi_mode: MidiMode,
+    timeline_selected_track: Option<usize>,
+    timeline_selected_key: Option<usize>,
+    timeline_drag_key: Option<(usize, usize)>,
+    timeline_add_parameter: Option<String>,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
     drag_mask_point: Option<usize>,
@@ -197,6 +202,10 @@ impl Default for EditorState {
             binding_learn: None,
             midi_parameter: None,
             midi_mode: MidiMode::Absolute,
+            timeline_selected_track: None,
+            timeline_selected_key: None,
+            timeline_drag_key: None,
+            timeline_add_parameter: None,
             drag_corner: None,
             drag_grid: None,
             drag_mask_point: None,
@@ -220,6 +229,10 @@ impl EditorState {
         self.binding_learn = None;
         self.midi_parameter = None;
         self.midi_mode = MidiMode::Absolute;
+        self.timeline_selected_track = None;
+        self.timeline_selected_key = None;
+        self.timeline_drag_key = None;
+        self.timeline_add_parameter = None;
         self.mask_add_mode = false;
         self.surface_name.clear();
         self.layer_name.clear();
@@ -366,6 +379,30 @@ pub enum EditorAction {
     CancelMidiLearn,
     RemoveMidiBinding {
         binding: usize,
+    },
+    AddTimelineTrack {
+        parameter: String,
+    },
+    RemoveTimelineTrack {
+        track: usize,
+    },
+    AddTimelineKey {
+        track: usize,
+        time: f32,
+    },
+    SetTimelineKey {
+        track: usize,
+        key: usize,
+        time: f32,
+        value: f32,
+        interpolation: TimelineInterpolation,
+    },
+    RemoveTimelineKey {
+        track: usize,
+        key: usize,
+    },
+    SetTimelineDuration {
+        duration: f32,
     },
     ResetSurface {
         surface: usize,
@@ -757,6 +794,15 @@ pub fn draw(
         });
         ui.add_space(2.0);
     });
+
+    if state.mode == WorkspaceMode::Show {
+        egui::Panel::bottom("lpmt-timeline")
+            .resizable(true)
+            .default_size(240.0)
+            .show(ui, |ui| {
+                draw_timeline(ui, state, project, status, &mut actions);
+            });
+    }
 
     if state.mode == WorkspaceMode::Mapping {
         egui::Panel::left("lpmt-hierarchy")
@@ -2259,6 +2305,565 @@ fn draw_media_shelf(
                 });
             }
         });
+    }
+}
+
+fn draw_timeline(
+    ui: &mut egui::Ui,
+    state: &mut EditorState,
+    project: &Project,
+    status: &EditorStatus,
+    actions: &mut Vec<EditorAction>,
+) {
+    const LABEL_WIDTH: f32 = 190.0;
+    const LANE_HEIGHT: f32 = 34.0;
+    let timeline = &project.timeline;
+    let duration = timeline.duration.max(MIN_TIMELINE_DURATION);
+    let parameters = project_parameters(project);
+
+    if state
+        .timeline_selected_track
+        .is_some_and(|track| track >= timeline.tracks.len())
+    {
+        state.timeline_selected_track = None;
+        state.timeline_selected_key = None;
+    }
+    if let Some(track) = state.timeline_selected_track {
+        if state
+            .timeline_selected_key
+            .is_some_and(|key| key >= timeline.tracks[track].keys.len())
+        {
+            state.timeline_selected_key = None;
+        }
+    }
+    if state.timeline_drag_key.is_some_and(|(track, key)| {
+        timeline
+            .tracks
+            .get(track)
+            .is_none_or(|track| key >= track.keys.len())
+    }) {
+        state.timeline_drag_key = None;
+    }
+
+    ui.add_space(4.0);
+    ui.horizontal_wrapped(|ui| {
+        ui.heading("Timeline");
+        let mut duration_edit = timeline.duration;
+        if ui
+            .add(
+                egui::DragValue::new(&mut duration_edit)
+                    .range(MIN_TIMELINE_DURATION..=MAX_TIMELINE_DURATION)
+                    .speed(0.05)
+                    .suffix(" s"),
+            )
+            .changed()
+        {
+            actions.push(EditorAction::SetTimelineDuration {
+                duration: duration_edit,
+            });
+        }
+
+        ui.separator();
+        let candidates: Vec<&ParameterDescriptor> = parameters
+            .iter()
+            .filter(|descriptor| {
+                descriptor.kind == ParameterKind::Float
+                    && !descriptor.path().starts_with("transport/")
+                    && !timeline
+                        .tracks
+                        .iter()
+                        .any(|track| track.parameter == descriptor.path())
+            })
+            .collect();
+        if candidates.is_empty() {
+            ui.label("All numeric parameters have tracks.");
+        } else {
+            let selected_path = state
+                .timeline_add_parameter
+                .clone()
+                .filter(|path| {
+                    candidates
+                        .iter()
+                        .any(|descriptor| &descriptor.path() == path)
+                })
+                .or_else(|| candidates.first().map(|descriptor| descriptor.path()));
+            state.timeline_add_parameter.clone_from(&selected_path);
+            let selected_label = selected_path
+                .as_ref()
+                .and_then(|path| {
+                    candidates
+                        .iter()
+                        .find(|descriptor| &descriptor.path() == path)
+                })
+                .map_or("Select parameter", |descriptor| descriptor.label.as_str());
+            egui::ComboBox::from_id_salt("timeline-add-parameter")
+                .selected_text(selected_label)
+                .show_ui(ui, |ui| {
+                    for descriptor in &candidates {
+                        let path = descriptor.path();
+                        if ui
+                            .selectable_label(
+                                selected_path.as_ref() == Some(&path),
+                                &descriptor.label,
+                            )
+                            .clicked()
+                        {
+                            state.timeline_add_parameter = Some(path);
+                        }
+                    }
+                });
+            if ui
+                .add_enabled(selected_path.is_some(), egui::Button::new("Add track"))
+                .clicked()
+            {
+                if let Some(parameter) = selected_path {
+                    let track = timeline
+                        .track_index(&parameter)
+                        .unwrap_or(timeline.tracks.len());
+                    state.timeline_selected_track = Some(track);
+                    state.timeline_selected_key = Some(0);
+                    actions.push(EditorAction::AddTimelineTrack { parameter });
+                }
+            }
+        }
+
+        if let Some(track) = state.timeline_selected_track {
+            if ui.button("Remove track").clicked() {
+                actions.push(EditorAction::RemoveTimelineTrack { track });
+                state.timeline_selected_track = None;
+                state.timeline_selected_key = None;
+            }
+        }
+    });
+
+    if let Some((track_index, key_index)) = state
+        .timeline_selected_track
+        .zip(state.timeline_selected_key)
+    {
+        if let Some(track) = timeline.tracks.get(track_index) {
+            if let Some(key) = track.keys.get(key_index).copied() {
+                let label = timeline_parameter_label(&parameters, &track.parameter);
+                let (minimum, maximum) = timeline_parameter_range(&parameters, &track.parameter);
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(RichText::new(short_label(&label, 28)).strong());
+                    ui.label("time");
+                    let mut time = key.time;
+                    if ui
+                        .add(
+                            egui::DragValue::new(&mut time)
+                                .range(0.0..=duration)
+                                .speed(0.01)
+                                .suffix(" s"),
+                        )
+                        .changed()
+                    {
+                        actions.push(EditorAction::SetTimelineKey {
+                            track: track_index,
+                            key: key_index,
+                            time,
+                            value: key.value,
+                            interpolation: key.interpolation,
+                        });
+                    }
+                    ui.label("value");
+                    let mut value = key.value.clamp(minimum, maximum);
+                    if ui
+                        .add(egui::Slider::new(&mut value, minimum..=maximum).fixed_decimals(3))
+                        .changed()
+                    {
+                        actions.push(EditorAction::SetTimelineKey {
+                            track: track_index,
+                            key: key_index,
+                            time: key.time,
+                            value,
+                            interpolation: key.interpolation,
+                        });
+                    }
+                    let mut interpolation = key.interpolation;
+                    egui::ComboBox::from_id_salt("timeline-key-interpolation")
+                        .selected_text(interpolation.label())
+                        .show_ui(ui, |ui| {
+                            for candidate in TimelineInterpolation::ALL {
+                                if ui
+                                    .selectable_label(interpolation == candidate, candidate.label())
+                                    .clicked()
+                                {
+                                    interpolation = candidate;
+                                }
+                            }
+                        });
+                    if interpolation != key.interpolation {
+                        actions.push(EditorAction::SetTimelineKey {
+                            track: track_index,
+                            key: key_index,
+                            time: key.time,
+                            value: key.value,
+                            interpolation,
+                        });
+                    }
+                    if ui.button("Delete key").clicked() {
+                        actions.push(EditorAction::RemoveTimelineKey {
+                            track: track_index,
+                            key: key_index,
+                        });
+                        state.timeline_selected_key = None;
+                    }
+                });
+            }
+        }
+    } else {
+        ui.label(
+            RichText::new(
+                "Double-click a track lane to add a key. Drag a key to move it; right-click to remove it.",
+            )
+            .small()
+            .color(Color32::from_rgb(132, 144, 166)),
+        );
+    }
+
+    let tick_step = timeline_tick_step(duration);
+    ui.horizontal(|ui| {
+        let (_, _) = ui.allocate_exact_size(Vec2::new(LABEL_WIDTH, 20.0), Sense::hover());
+        let width = ui.available_width().max(1.0);
+        let (rect, response) =
+            ui.allocate_exact_size(Vec2::new(width, 20.0), Sense::click_and_drag());
+        let painter = ui.painter();
+        painter.rect_filled(rect, 2.0, Color32::from_rgb(22, 25, 33));
+        let mut time = 0.0;
+        while time <= duration + 0.0001 {
+            let x = timeline_time_x(rect, time, duration);
+            painter.line_segment(
+                [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
+                Stroke::new(1.0, Color32::from_rgb(48, 53, 66)),
+            );
+            painter.text(
+                Pos2::new(x + 3.0, rect.top() + 2.0),
+                Align2::LEFT_TOP,
+                format!("{time:.1}s"),
+                FontId::proportional(10.0),
+                Color32::from_rgb(130, 140, 160),
+            );
+            time += tick_step;
+        }
+        let playhead = timeline_time_x(rect, status.transport.position_seconds as f32, duration);
+        painter.line_segment(
+            [
+                Pos2::new(playhead, rect.top()),
+                Pos2::new(playhead, rect.bottom()),
+            ],
+            Stroke::new(2.0, Color32::from_rgb(255, 120, 90)),
+        );
+        if let Some(pointer) = response.interact_pointer_pos() {
+            if response.clicked() || response.dragged() {
+                let time = timeline_x_time(rect, pointer.x, duration);
+                actions.push(EditorAction::SeekTransport {
+                    position: f64::from(time),
+                });
+            }
+        }
+    });
+
+    egui::ScrollArea::vertical()
+        .id_salt("timeline-tracks")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for (track_index, track) in timeline.tracks.iter().enumerate() {
+                let label = timeline_parameter_label(&parameters, &track.parameter);
+                let (minimum, maximum) = timeline_parameter_range(&parameters, &track.parameter);
+                let selected_track = state.timeline_selected_track == Some(track_index);
+                ui.horizontal(|ui| {
+                    let (label_rect, label_response) =
+                        ui.allocate_exact_size(Vec2::new(LABEL_WIDTH, LANE_HEIGHT), Sense::click());
+                    ui.painter().rect_filled(
+                        label_rect,
+                        3.0,
+                        if selected_track {
+                            Color32::from_rgb(43, 68, 72)
+                        } else {
+                            Color32::from_rgb(30, 34, 43)
+                        },
+                    );
+                    ui.painter().text(
+                        Pos2::new(label_rect.left() + 7.0, label_rect.center().y),
+                        Align2::LEFT_CENTER,
+                        short_label(&label, 25),
+                        FontId::proportional(12.0),
+                        if selected_track {
+                            Color32::WHITE
+                        } else {
+                            Color32::from_rgb(190, 198, 214)
+                        },
+                    );
+                    if label_response.clicked() {
+                        state.timeline_selected_track = Some(track_index);
+                        state.timeline_selected_key = None;
+                        state.timeline_drag_key = None;
+                    }
+                    label_response.on_hover_text(&track.parameter);
+
+                    let width = ui.available_width().max(1.0);
+                    let (lane_rect, response) = ui.allocate_exact_size(
+                        Vec2::new(width, LANE_HEIGHT),
+                        Sense::click_and_drag(),
+                    );
+                    let painter = ui.painter();
+                    painter.rect_filled(
+                        lane_rect,
+                        3.0,
+                        if selected_track {
+                            Color32::from_rgb(26, 31, 40)
+                        } else {
+                            Color32::from_rgb(20, 23, 30)
+                        },
+                    );
+                    let mut tick = 0.0;
+                    while tick <= duration + 0.0001 {
+                        let x = timeline_time_x(lane_rect, tick, duration);
+                        painter.line_segment(
+                            [
+                                Pos2::new(x, lane_rect.top()),
+                                Pos2::new(x, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                        );
+                        tick += tick_step;
+                    }
+
+                    let value_y = |value: f32| {
+                        let span = (maximum - minimum).max(1.0e-5);
+                        let normalized = ((value - minimum) / span).clamp(0.0, 1.0);
+                        lane_rect.bottom() - 5.0 - normalized * (lane_rect.height() - 10.0)
+                    };
+                    let curve_color = Color32::from_rgb(105, 205, 225);
+                    if let Some(first) = track.keys.first() {
+                        painter.line_segment(
+                            [
+                                Pos2::new(lane_rect.left(), value_y(first.value)),
+                                Pos2::new(
+                                    timeline_time_x(lane_rect, first.time, duration),
+                                    value_y(first.value),
+                                ),
+                            ],
+                            Stroke::new(1.5, curve_color),
+                        );
+                    }
+                    for pair in track.keys.windows(2) {
+                        let a = pair[0];
+                        let b = pair[1];
+                        let ax = timeline_time_x(lane_rect, a.time, duration);
+                        let bx = timeline_time_x(lane_rect, b.time, duration);
+                        let ay = value_y(a.value);
+                        let by = value_y(b.value);
+                        match a.interpolation {
+                            TimelineInterpolation::Step => {
+                                painter.line_segment(
+                                    [Pos2::new(ax, ay), Pos2::new(bx, ay)],
+                                    Stroke::new(1.5, curve_color),
+                                );
+                                painter.line_segment(
+                                    [Pos2::new(bx, ay), Pos2::new(bx, by)],
+                                    Stroke::new(1.5, curve_color),
+                                );
+                            }
+                            TimelineInterpolation::Linear => {
+                                painter.line_segment(
+                                    [Pos2::new(ax, ay), Pos2::new(bx, by)],
+                                    Stroke::new(1.5, curve_color),
+                                );
+                            }
+                        }
+                    }
+                    if let Some(last) = track.keys.last() {
+                        painter.line_segment(
+                            [
+                                Pos2::new(
+                                    timeline_time_x(lane_rect, last.time, duration),
+                                    value_y(last.value),
+                                ),
+                                Pos2::new(lane_rect.right(), value_y(last.value)),
+                            ],
+                            Stroke::new(1.5, curve_color),
+                        );
+                    }
+
+                    let key_points: Vec<Pos2> = track
+                        .keys
+                        .iter()
+                        .map(|key| {
+                            Pos2::new(
+                                timeline_time_x(lane_rect, key.time, duration),
+                                value_y(key.value),
+                            )
+                        })
+                        .collect();
+                    for (key_index, point) in key_points.iter().enumerate() {
+                        let selected = state.timeline_selected_track == Some(track_index)
+                            && state.timeline_selected_key == Some(key_index);
+                        painter.circle_filled(
+                            *point,
+                            if selected { 6.0 } else { 4.5 },
+                            if selected {
+                                Color32::from_rgb(255, 210, 90)
+                            } else {
+                                Color32::from_rgb(238, 242, 250)
+                            },
+                        );
+                        painter.circle_stroke(
+                            *point,
+                            if selected { 6.0 } else { 4.5 },
+                            Stroke::new(1.0, Color32::from_rgb(18, 22, 28)),
+                        );
+                    }
+
+                    let playhead = timeline_time_x(
+                        lane_rect,
+                        status.transport.position_seconds as f32,
+                        duration,
+                    );
+                    painter.line_segment(
+                        [
+                            Pos2::new(playhead, lane_rect.top()),
+                            Pos2::new(playhead, lane_rect.bottom()),
+                        ],
+                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                    );
+
+                    let pointer = response.interact_pointer_pos();
+                    let hit = pointer.and_then(|pointer| {
+                        key_points
+                            .iter()
+                            .enumerate()
+                            .map(|(index, point)| (index, point.distance(pointer)))
+                            .filter(|(_, distance)| *distance <= 9.0)
+                            .min_by(|left, right| left.1.total_cmp(&right.1))
+                            .map(|(index, _)| index)
+                    });
+
+                    if response.secondary_clicked() {
+                        if let Some(key) = hit {
+                            actions.push(EditorAction::RemoveTimelineKey {
+                                track: track_index,
+                                key,
+                            });
+                            state.timeline_selected_track = Some(track_index);
+                            state.timeline_selected_key = None;
+                            state.timeline_drag_key = None;
+                        }
+                    } else if response.double_clicked() {
+                        if let Some(pointer) = pointer {
+                            if hit.is_none() {
+                                let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                let insert_at = track
+                                    .keys
+                                    .iter()
+                                    .position(|key| key.time > time)
+                                    .unwrap_or(track.keys.len());
+                                state.timeline_selected_track = Some(track_index);
+                                state.timeline_selected_key = Some(insert_at);
+                                actions.push(EditorAction::AddTimelineKey {
+                                    track: track_index,
+                                    time,
+                                });
+                            }
+                        }
+                    } else if response.clicked() {
+                        state.timeline_selected_track = Some(track_index);
+                        state.timeline_selected_key = hit;
+                        if hit.is_some() {
+                            state.timeline_drag_key = None;
+                        }
+                    }
+
+                    if response.drag_started() {
+                        if let Some(key) = hit {
+                            state.timeline_selected_track = Some(track_index);
+                            state.timeline_selected_key = Some(key);
+                            state.timeline_drag_key = Some((track_index, key));
+                        }
+                    }
+                    if response.dragged() {
+                        if let (Some((drag_track, drag_key)), Some(pointer)) =
+                            (state.timeline_drag_key, pointer)
+                        {
+                            if drag_track == track_index {
+                                if let Some(key) = track.keys.get(drag_key) {
+                                    let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                    actions.push(EditorAction::SetTimelineKey {
+                                        track: track_index,
+                                        key: drag_key,
+                                        time,
+                                        value: key.value,
+                                        interpolation: key.interpolation,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    if response.drag_stopped() {
+                        state.timeline_drag_key = None;
+                    }
+                });
+            }
+
+            if timeline.tracks.is_empty() {
+                ui.add_space(8.0);
+                ui.label(
+                    RichText::new(
+                        "No timeline tracks yet. Choose a float parameter above and add a track.",
+                    )
+                    .small()
+                    .color(Color32::from_rgb(132, 144, 166)),
+                );
+            }
+        });
+}
+
+fn timeline_tick_step(duration: f32) -> f32 {
+    const STEPS: [f32; 12] = [
+        0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 15.0, 30.0, 60.0, 120.0, 300.0,
+    ];
+    let target = duration / 8.0;
+    STEPS
+        .iter()
+        .copied()
+        .find(|step| *step >= target)
+        .unwrap_or(600.0)
+}
+
+fn timeline_time_x(rect: EguiRect, time: f32, duration: f32) -> f32 {
+    rect.left() + (time / duration.max(1.0e-5)).clamp(0.0, 1.0) * rect.width()
+}
+
+fn timeline_x_time(rect: EguiRect, x: f32, duration: f32) -> f32 {
+    (((x - rect.left()) / rect.width().max(1.0)).clamp(0.0, 1.0) * duration).clamp(0.0, duration)
+}
+
+fn timeline_parameter_label(parameters: &[ParameterDescriptor], path: &str) -> String {
+    parameters
+        .iter()
+        .find(|descriptor| descriptor.path() == path)
+        .map_or_else(|| path.to_owned(), |descriptor| descriptor.label.clone())
+}
+
+fn timeline_parameter_range(parameters: &[ParameterDescriptor], path: &str) -> (f32, f32) {
+    parameters
+        .iter()
+        .find(|descriptor| descriptor.path() == path)
+        .and_then(|descriptor| descriptor.range)
+        .unwrap_or((0.0, 1.0))
+}
+
+fn short_label(label: &str, max_chars: usize) -> String {
+    if label.chars().count() > max_chars {
+        format!(
+            "{}…",
+            label
+                .chars()
+                .take(max_chars.saturating_sub(1))
+                .collect::<String>()
+        )
+    } else {
+        label.to_owned()
     }
 }
 

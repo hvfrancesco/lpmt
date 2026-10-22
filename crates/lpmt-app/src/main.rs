@@ -30,6 +30,7 @@ use lpmt_core::model::{
     MASK_POINT_LIMIT,
 };
 use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue};
+use lpmt_core::timeline::{Timeline, TimelineInterpolation, TimelineKey};
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
 use lpmt_render::output::{OutputRenderer, PreviewRenderer};
@@ -97,6 +98,11 @@ struct App {
     clock: ShowClock,
     last_clock_seek: u64,
     last_clock_loop: u64,
+    last_timeline_seek: u64,
+    /// Timeline values are a render-time overlay; while paused, a manual
+    /// parameter edit temporarily suspends the overlay until the next seek or
+    /// timeline edit.
+    timeline_preview_active: bool,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
     pending_output_sync: bool,
@@ -206,6 +212,8 @@ impl App {
             clock: ShowClock::new(),
             last_clock_seek: 0,
             last_clock_loop: 0,
+            last_timeline_seek: 0,
+            timeline_preview_active: false,
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
             pending_output_sync: false,
@@ -599,8 +607,8 @@ impl App {
     /// Render every open output once per tick. Outputs in the same group are
     /// prepared first, submitted in one queue call and then presented together.
     fn render_outputs(&mut self) {
-        let groups: Vec<Vec<OutputId>> = self
-            .project
+        let project = self.timeline_project();
+        let groups: Vec<Vec<OutputId>> = project
             .output_groups
             .iter()
             .map(|group| group.outputs.clone())
@@ -619,22 +627,21 @@ impl App {
             for index in &indices {
                 rendered[*index] = true;
             }
-            self.present_outputs(&indices);
+            self.present_outputs(&indices, &project);
         }
 
         let ungrouped: Vec<usize> = (0..self.outputs.len())
             .filter(|index| !rendered[*index])
             .collect();
         for index in ungrouped {
-            self.present_outputs(&[index]);
+            self.present_outputs(&[index], &project);
         }
     }
 
-    fn present_outputs(&mut self, indices: &[usize]) {
+    fn present_outputs(&mut self, indices: &[usize], project: &Project) {
         let App {
             gpu,
             media,
-            project,
             outputs,
             output_guides,
             ..
@@ -763,6 +770,39 @@ impl App {
         for event in events {
             self.handle_midi_event(event);
         }
+    }
+
+    fn track_timeline(&mut self) {
+        let seek_serial = self.clock.seek_serial();
+        if seek_serial != self.last_timeline_seek {
+            self.last_timeline_seek = seek_serial;
+            if self.project.timeline.is_active() {
+                self.timeline_preview_active = true;
+            }
+        }
+        if !self.project.timeline.is_active() {
+            self.timeline_preview_active = false;
+        } else if self.clock.is_playing() {
+            self.timeline_preview_active = true;
+        }
+    }
+
+    fn media_duration(&self) -> Option<f64> {
+        match (self.videos.max_duration(), self.audio.max_duration()) {
+            (Some(video), Some(audio)) => Some(video.max(audio)),
+            (Some(video), None) => Some(video),
+            (None, Some(audio)) => Some(audio),
+            (None, None) => None,
+        }
+    }
+
+    fn sync_clock_duration(&mut self) {
+        let duration = if self.project.timeline.is_active() {
+            Some(self.project.timeline.duration_seconds())
+        } else {
+            self.media_duration()
+        };
+        self.clock.set_duration(duration);
     }
 
     fn handle_midi_event(&mut self, event: MidiEvent) {
@@ -1247,6 +1287,9 @@ impl App {
     }
 
     fn apply_actions(&mut self, actions: Vec<EditorAction>) {
+        if !self.clock.is_playing() && actions.iter().any(action_targets_timeline_parameter) {
+            self.timeline_preview_active = false;
+        }
         let mut pending: Option<(Project, HistoryKey, &'static str)> = None;
         for action in actions {
             // Finish the previous edit before starting the next one. Keeping
@@ -1412,6 +1455,147 @@ impl App {
                         self.status_message =
                             format!("Removed MIDI binding {}", removed.source_label());
                     }
+                }
+                EditorAction::AddTimelineTrack { parameter } => {
+                    let Ok(parameter_id) = ParameterId::parse(&parameter) else {
+                        self.status_message = format!("Unknown parameter path: {parameter}");
+                        continue;
+                    };
+                    if parameter_id.kind() != ParameterKind::Float {
+                        self.status_message =
+                            "Timeline tracks currently support float parameters".to_owned();
+                        continue;
+                    }
+                    if self.project.timeline.is_empty() {
+                        let duration = self
+                            .clock
+                            .duration_seconds()
+                            .map_or(10.0, |duration| duration as f32);
+                        self.project.timeline.duration = duration;
+                        self.project.timeline.normalize();
+                    }
+                    let track = self.project.timeline.add_track(parameter.clone());
+                    if self.project.timeline.tracks[track].keys.is_empty() {
+                        let time = (self.clock.position_seconds() as f32)
+                            .clamp(0.0, self.project.timeline.duration);
+                        let value = self
+                            .current_parameter_value(&parameter_id)
+                            .ok()
+                            .and_then(|value| value.as_f32())
+                            .unwrap_or(0.0);
+                        let (minimum, maximum) =
+                            timeline_value_range(&self.project.timeline, &parameter_id)
+                                .unwrap_or((0.0, 1.0));
+                        self.project.timeline.tracks[track].keys.push(TimelineKey {
+                            time,
+                            value: value.clamp(minimum, maximum),
+                            interpolation: TimelineInterpolation::Linear,
+                        });
+                    }
+                    self.project.timeline.normalize();
+                    self.timeline_preview_active = true;
+                    self.sync_clock_duration();
+                    self.status_message = format!("Timeline track: {parameter}");
+                }
+                EditorAction::RemoveTimelineTrack { track } => {
+                    if track < self.project.timeline.tracks.len() {
+                        self.project.timeline.tracks.remove(track);
+                        self.timeline_preview_active = true;
+                        self.sync_clock_duration();
+                        self.status_message = "Removed timeline track".to_owned();
+                    }
+                }
+                EditorAction::AddTimelineKey { track, time } => {
+                    let Some(track_ref) = self.project.timeline.tracks.get(track) else {
+                        continue;
+                    };
+                    let Ok(parameter) = ParameterId::parse(&track_ref.parameter) else {
+                        continue;
+                    };
+                    if parameter.kind() != ParameterKind::Float {
+                        continue;
+                    }
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let value = self
+                        .current_parameter_value(&parameter)
+                        .ok()
+                        .and_then(|value| value.as_f32())
+                        .unwrap_or(0.0);
+                    let (minimum, maximum) =
+                        timeline_value_range(&self.project.timeline, &parameter)
+                            .unwrap_or((0.0, 1.0));
+                    let value = value.clamp(minimum, maximum);
+                    let keys = &mut self.project.timeline.tracks[track].keys;
+                    if let Some(existing) = keys
+                        .iter_mut()
+                        .find(|key| (key.time - time).abs() <= 1.0e-4)
+                    {
+                        existing.value = value;
+                    } else {
+                        keys.push(TimelineKey {
+                            time,
+                            value,
+                            interpolation: TimelineInterpolation::Linear,
+                        });
+                        self.project.timeline.tracks[track].sort_keys();
+                    }
+                    self.timeline_preview_active = true;
+                    self.status_message = format!("Added timeline key at {time:.2}s");
+                }
+                EditorAction::SetTimelineKey {
+                    track,
+                    key,
+                    time,
+                    value,
+                    interpolation,
+                } => {
+                    let Some(track_ref) = self.project.timeline.tracks.get(track) else {
+                        continue;
+                    };
+                    let Ok(parameter) = ParameterId::parse(&track_ref.parameter) else {
+                        continue;
+                    };
+                    if key >= track_ref.keys.len() {
+                        continue;
+                    }
+                    let minimum_time = if key > 0 {
+                        track_ref.keys[key - 1].time + 1.0e-4
+                    } else {
+                        0.0
+                    };
+                    let maximum_time = if key + 1 < track_ref.keys.len() {
+                        track_ref.keys[key + 1].time - 1.0e-4
+                    } else {
+                        self.project.timeline.duration
+                    };
+                    let (minimum, maximum) =
+                        timeline_value_range(&self.project.timeline, &parameter)
+                            .unwrap_or((0.0, 1.0));
+                    let key_ref = &mut self.project.timeline.tracks[track].keys[key];
+                    key_ref.time = time.clamp(
+                        minimum_time.min(maximum_time),
+                        maximum_time.max(minimum_time),
+                    );
+                    key_ref.value = value.clamp(minimum, maximum);
+                    key_ref.interpolation = interpolation;
+                    self.timeline_preview_active = true;
+                }
+                EditorAction::RemoveTimelineKey { track, key } => {
+                    if let Some(track_ref) = self.project.timeline.tracks.get_mut(track) {
+                        if key < track_ref.keys.len() {
+                            track_ref.keys.remove(key);
+                            self.timeline_preview_active = true;
+                            self.status_message = "Removed timeline key".to_owned();
+                        }
+                    }
+                }
+                EditorAction::SetTimelineDuration { duration } => {
+                    self.project.timeline.duration = duration;
+                    self.project.timeline.normalize();
+                    self.timeline_preview_active = true;
+                    self.sync_clock_duration();
+                    self.status_message =
+                        format!("Timeline duration: {:.2}s", self.project.timeline.duration);
                 }
                 EditorAction::ResetSurface { surface } => {
                     if let Some(surface) = self
@@ -2279,6 +2463,8 @@ impl App {
         self.midi_learn = None;
         self.midi_cc_high.clear();
         self.midi_note_down.clear();
+        self.timeline_preview_active = true;
+        self.sync_clock_duration();
         self.ui_state.reset_text_buffers();
         let surface_count = self
             .project
@@ -2454,13 +2640,7 @@ impl App {
             )
         };
 
-        let duration = match (videos.max_duration(), audio.max_duration()) {
-            (Some(video), Some(audio)) => Some(video.max(audio)),
-            (Some(video), None) => Some(video),
-            (None, Some(audio)) => Some(audio),
-            (None, None) => None,
-        };
-        self.clock.set_duration(duration);
+        self.sync_clock_duration();
     }
 
     /// Store media paths relative to the project when possible, so a show
@@ -2506,6 +2686,8 @@ impl App {
         self.midi_learn = None;
         self.midi_cc_high.clear();
         self.midi_note_down.clear();
+        self.timeline_preview_active = true;
+        self.project.timeline.normalize();
         self.output_guides.clear();
         self.ui_state.project_path = path.display().to_string();
         self.media_base = path
@@ -2725,16 +2907,34 @@ impl App {
         self.ui_state.preview_texture = None;
     }
 
+    fn timeline_project(&self) -> Project {
+        let mut project = self.project.clone();
+        if !project.timeline.is_active()
+            || !(self.clock.is_playing() || self.timeline_preview_active)
+        {
+            return project;
+        }
+        let samples = project
+            .timeline
+            .sample(self.clock.position_seconds() as f32);
+        for (path, value) in samples {
+            if let Ok(parameter) = ParameterId::parse(&path) {
+                apply_timeline_float_to_project(&mut project, &parameter, value);
+            }
+        }
+        project
+    }
+
     fn render_preview(&mut self) {
         if let Err(error) = self.ensure_preview() {
             log::error!("failed to create preview: {error:#}");
             self.clear_preview();
             return;
         }
+        let project = self.timeline_project();
         let App {
             gpu,
             media,
-            project,
             preview,
             ..
         } = self;
@@ -2804,6 +3004,7 @@ impl ApplicationHandler for App {
         self.tick();
         self.poll_osc();
         self.poll_midi();
+        self.track_timeline();
 
         if self.pending_output_sync {
             self.pending_output_sync = false;
@@ -2991,6 +3192,86 @@ fn choose_monitor(
         .cloned()
 }
 
+fn apply_timeline_float_to_project(project: &mut Project, parameter: &ParameterId, value: f32) {
+    let Some((minimum, maximum)) = parameter.range() else {
+        return;
+    };
+    let value = value.clamp(minimum, maximum);
+    match parameter {
+        ParameterId::SurfaceOpacity(id) => {
+            if let Some(surface) = project
+                .primary_stage_mut()
+                .and_then(|stage| stage.surface_mut(id))
+            {
+                surface.opacity = value;
+            }
+        }
+        ParameterId::SurfaceMaskFeather(id) => {
+            if let Some(surface) = project
+                .primary_stage_mut()
+                .and_then(|stage| stage.surface_mut(id))
+            {
+                surface.mask.feather = value;
+            }
+        }
+        ParameterId::LayerOpacity(id) => {
+            if let Some(layer) = project
+                .primary_stage_mut()
+                .and_then(|stage| stage.layers.iter_mut().find(|layer| &layer.id == id))
+            {
+                layer.opacity = value;
+            }
+        }
+        ParameterId::OutputBrightness(id) => {
+            if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
+                output.color.brightness = value;
+            }
+        }
+        ParameterId::OutputContrast(id) => {
+            if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
+                output.color.contrast = value;
+            }
+        }
+        ParameterId::OutputGamma(id) => {
+            if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
+                output.color.gamma = value;
+            }
+        }
+        ParameterId::OutputEdgeBlend(id, side) => {
+            if let Some(output) = project.outputs.iter_mut().find(|output| &output.id == id) {
+                match side {
+                    EdgeSide::Left => output.edge_blend.left = value,
+                    EdgeSide::Right => output.edge_blend.right = value,
+                    EdgeSide::Top => output.edge_blend.top = value,
+                    EdgeSide::Bottom => output.edge_blend.bottom = value,
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn action_targets_timeline_parameter(action: &EditorAction) -> bool {
+    matches!(
+        action,
+        EditorAction::SetSurfaceOpacity { .. }
+            | EditorAction::SetSurfaceMaskFeather { .. }
+            | EditorAction::SetLayerOpacity { .. }
+            | EditorAction::SetOutputColor { .. }
+            | EditorAction::SetOutputEdgeBlend { .. }
+    )
+}
+
+fn timeline_value_range(timeline: &Timeline, parameter: &ParameterId) -> Option<(f32, f32)> {
+    if parameter.kind() != ParameterKind::Float {
+        return None;
+    }
+    parameter.range().or_else(|| {
+        matches!(parameter, ParameterId::TransportPosition)
+            .then_some((0.0, timeline.duration.max(0.1)))
+    })
+}
+
 fn midi_toggle_edge(
     message: MidiMessageKind,
     value: u8,
@@ -3170,6 +3451,14 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         TriggerBinding { .. } => return None,
         BeginMidiLearn { .. } | CancelMidiLearn => return None,
         RemoveMidiBinding { .. } => (HistoryKey::Discrete, "remove MIDI binding"),
+        AddTimelineTrack { .. } => (HistoryKey::Discrete, "add timeline track"),
+        RemoveTimelineTrack { .. } => (HistoryKey::Discrete, "remove timeline track"),
+        AddTimelineKey { .. } => (HistoryKey::Discrete, "add timeline key"),
+        SetTimelineKey { track, key, .. } => {
+            (HistoryKey::TimelineKey(*track, *key), "move timeline key")
+        }
+        RemoveTimelineKey { .. } => (HistoryKey::Discrete, "remove timeline key"),
+        SetTimelineDuration { .. } => (HistoryKey::TimelineDuration, "change timeline duration"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
@@ -3364,6 +3653,40 @@ mod tests {
         assert_eq!(
             selected_surface_ids(stage, &[]),
             [stage.surfaces[0].id.clone()]
+        );
+    }
+
+    #[test]
+    fn timeline_float_values_apply_to_project_targets() {
+        let mut project = Project::demo();
+        let surface = ParameterId::SurfaceOpacity(SurfaceId::new("surface-1"));
+        apply_timeline_float_to_project(&mut project, &surface, 0.35);
+        assert_eq!(
+            project
+                .primary_stage()
+                .and_then(|stage| stage.surface(&SurfaceId::new("surface-1")))
+                .map(|surface| surface.opacity),
+            Some(0.35)
+        );
+        let layer = ParameterId::LayerOpacity(LayerId::new("layer-1"));
+        apply_timeline_float_to_project(&mut project, &layer, 0.6);
+        assert_eq!(
+            project
+                .primary_stage()
+                .and_then(|stage| stage
+                    .layers
+                    .iter()
+                    .find(|layer| layer.id == LayerId::new("layer-1")))
+                .map(|layer| layer.opacity),
+            Some(0.6)
+        );
+        let output = ParameterId::OutputBrightness(OutputId::new("output-1"));
+        apply_timeline_float_to_project(&mut project, &output, 1.25);
+        assert_eq!(
+            project
+                .output(&OutputId::new("output-1"))
+                .map(|output| output.color.brightness),
+            Some(1.25)
         );
     }
 
