@@ -55,6 +55,16 @@ const RECOVERY_INTERVAL: Duration = Duration::from_secs(5);
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
+    let options = parse_startup_options()?;
+    if options.version {
+        println!("lpmt {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    if options.help {
+        print_usage();
+        return Ok(());
+    }
+
     if let Some((input, output)) = parse_legacy_import_args()? {
         let imported = lpmt_import_legacy::import_file(&input)?;
         let output = output.unwrap_or_else(|| input.with_extension("json"));
@@ -84,9 +94,70 @@ fn main() -> Result<()> {
     let gpu = Gpu::new(instance)?;
 
     let mut app = App::new(gpu)?;
-    app.startup_project = parse_startup_project();
+    app.startup_project = options.project;
+    app.run_seconds = options.run_seconds;
+    app.force_outputs = options.open_outputs;
     event_loop.run_app(&mut app).context("event loop failed")?;
     Ok(())
+}
+
+#[derive(Debug, Default)]
+struct StartupOptions {
+    project: Option<PathBuf>,
+    run_seconds: Option<f32>,
+    open_outputs: bool,
+    help: bool,
+    version: bool,
+}
+
+fn parse_startup_options() -> Result<StartupOptions> {
+    parse_startup_options_from(std::env::args().skip(1))
+}
+
+fn parse_startup_options_from(
+    arguments: impl IntoIterator<Item = String>,
+) -> Result<StartupOptions> {
+    let mut options = StartupOptions::default();
+    let mut arguments = arguments.into_iter();
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--project" => {
+                options.project = Some(PathBuf::from(
+                    arguments.next().context("--project needs a file path")?,
+                ));
+            }
+            "--run-seconds" => {
+                let value = arguments.next().context("--run-seconds needs a number")?;
+                let seconds = value
+                    .parse::<f32>()
+                    .with_context(|| format!("invalid --run-seconds value: {value}"))?;
+                anyhow::ensure!(
+                    seconds.is_finite() && seconds > 0.0,
+                    "--run-seconds must be a positive number"
+                );
+                options.run_seconds = Some(seconds);
+            }
+            "--open-outputs" => options.open_outputs = true,
+            "--help" | "-h" => options.help = true,
+            "--version" | "-V" => options.version = true,
+            // Handled before the event loop starts.
+            "--import-legacy" | "--out" => {
+                let _ = arguments.next();
+            }
+            argument if !argument.starts_with('-') => {
+                options.project = Some(PathBuf::from(argument));
+            }
+            _ => {}
+        }
+    }
+    Ok(options)
+}
+
+fn print_usage() {
+    println!(
+        "LPMT {}\n\nUsage:\n  lpmt [--project FILE] [--run-seconds N] [--open-outputs]\n  lpmt --import-legacy INPUT [--out OUTPUT]\n\nOptions:\n  --project FILE      load a project JSON file\n  --run-seconds N     run for N seconds, print performance stats, then exit\n  --open-outputs      open output windows even on a single display\n  --import-legacy     convert LPMT 1 XML settings to a project JSON\n  --out FILE          output path for --import-legacy\n  -h, --help          show this help\n  -V, --version       show version",
+        env!("CARGO_PKG_VERSION")
+    );
 }
 
 struct App {
@@ -136,6 +207,11 @@ struct App {
     cue_follow: Option<(Instant, u64)>,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
+    run_seconds: Option<f32>,
+    force_outputs: bool,
+    run_started: Option<Instant>,
+    performance_frames: u64,
+    performance_frame_seconds: f64,
     recovery: Option<recovery::RecoveryCandidate>,
     last_recovery_save: Instant,
     pending_output_sync: bool,
@@ -250,8 +326,13 @@ impl App {
             timeline_last_playhead: 0.0,
             timeline_was_playing: false,
             cue_follow: None,
-            media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            media_base: default_media_base(),
             startup_project: None,
+            run_seconds: None,
+            force_outputs: false,
+            run_started: None,
+            performance_frames: 0,
+            performance_frame_seconds: 0.0,
             recovery: None,
             last_recovery_save: Instant::now(),
             pending_output_sync: false,
@@ -296,7 +377,7 @@ impl App {
         // operation. Keep the editor usable with the live preview instead;
         // outputs open only when explicitly requested from the Outputs panel.
         let single_display = self.monitors.len() < 2;
-        if single_display {
+        if single_display && !self.force_outputs {
             self.status_message =
                 "Single display: using preview only. Open an output from Calibration > Outputs when needed."
                     .to_owned();
@@ -3534,7 +3615,7 @@ impl App {
         self.ui_state.selected_group = 0;
         self.ui_state.reset_text_buffers();
         self.pending_output_open = None;
-        if self.monitors.len() < 2 {
+        if self.monitors.len() < 2 && !self.force_outputs {
             // Do not let a project load cover the editor with output windows on
             // a compositor that cannot raise the editor afterwards.
             self.outputs.clear();
@@ -3879,11 +3960,24 @@ impl App {
         }
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> bool {
         let now = Instant::now();
+        if let Some(limit) = self.run_seconds {
+            let Some(started) = self.run_started else {
+                self.run_started = Some(now);
+                self.last_frame = now;
+                return false;
+            };
+            if now.duration_since(started).as_secs_f32() >= limit {
+                return true;
+            }
+        }
+
         self.clock.advance(now);
         let elapsed = now.duration_since(self.last_frame).as_secs_f32();
         self.last_frame = now;
+        self.performance_frames += 1;
+        self.performance_frame_seconds += f64::from(elapsed);
         if elapsed > 0.0 {
             let instantaneous = 1.0 / elapsed;
             self.fps = if self.fps == 0.0 {
@@ -3894,6 +3988,33 @@ impl App {
             self.frame_ms = self.frame_ms * 0.9 + elapsed * 1000.0 * 0.1;
         }
         self.update_cue_follow(now);
+        false
+    }
+
+    fn report_performance(&self) {
+        let elapsed = self
+            .run_started
+            .map_or(0.0, |started| started.elapsed().as_secs_f64());
+        let frames = self.performance_frames;
+        let average_fps = if elapsed > 0.0 {
+            frames as f64 / elapsed
+        } else {
+            0.0
+        };
+        let average_frame_ms = if frames > 0 {
+            self.performance_frame_seconds * 1000.0 / frames as f64
+        } else {
+            0.0
+        };
+        println!(
+            "performance: elapsed_s={elapsed:.3} frames={frames} avg_fps={average_fps:.2} avg_frame_ms={average_frame_ms:.3} open_outputs={} defined_outputs={}",
+            self.outputs.len(),
+            self.project.outputs.len()
+        );
+        log::info!(
+            "performance run: {elapsed:.3}s, {frames} frames, {average_fps:.2} fps, {average_frame_ms:.3} ms/frame, {} open outputs",
+            self.outputs.len()
+        );
     }
 }
 
@@ -3932,7 +4053,12 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        self.tick();
+        if self.tick() {
+            self.save_recovery_now();
+            self.report_performance();
+            event_loop.exit();
+            return;
+        }
         self.poll_osc();
         self.poll_midi();
         self.track_timeline();
@@ -4710,6 +4836,25 @@ fn media_file_dialog(directory: &Path) -> rfd::FileDialog {
         .add_filter("Audio", &["mp3", "wav", "flac", "ogg", "oga", "m4a", "aac"])
 }
 
+/// Find the sample media directory for the default demo. A portable package
+/// keeps `assets/` beside the binary; an installed package uses
+/// `<prefix>/share/lpmt/assets`.
+fn default_media_base() -> PathBuf {
+    if let Ok(executable) = std::env::current_exe() {
+        if let Some(directory) = executable.parent() {
+            let beside_binary = directory.to_path_buf();
+            if beside_binary.join("assets").is_dir() {
+                return beside_binary;
+            }
+            let share = directory.join("..").join("share").join("lpmt");
+            if share.join("assets").is_dir() {
+                return share;
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
 fn media_kind_from_path(path: &Path, fallback: MediaKind) -> MediaKind {
     let extension = path
         .extension()
@@ -4755,19 +4900,6 @@ fn parse_legacy_import_args_from(
     Ok(input.map(|input| (input, output)))
 }
 
-fn parse_startup_project() -> Option<PathBuf> {
-    let mut arguments = std::env::args().skip(1);
-    while let Some(argument) = arguments.next() {
-        if argument == "--project" {
-            return arguments.next().map(PathBuf::from);
-        }
-        if !argument.starts_with('-') {
-            return Some(PathBuf::from(argument));
-        }
-    }
-    None
-}
-
 fn configure_egui_surface(
     gpu: &Gpu,
     surface: &wgpu::Surface<'_>,
@@ -4803,6 +4935,34 @@ fn configure_egui_surface(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_startup_project_and_performance_options() {
+        let options = parse_startup_options_from(
+            [
+                "--project",
+                "show.json",
+                "--run-seconds",
+                "12.5",
+                "--open-outputs",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+        assert_eq!(options.project, Some(PathBuf::from("show.json")));
+        assert_eq!(options.run_seconds, Some(12.5));
+        assert!(options.open_outputs);
+        assert!(!options.help);
+        assert!(!options.version);
+
+        let positional = parse_startup_options_from(["show.json"].map(str::to_owned)).unwrap();
+        assert_eq!(positional.project, Some(PathBuf::from("show.json")));
+
+        assert!(parse_startup_options_from(["--run-seconds", "0"].map(str::to_owned)).is_err());
+        assert!(parse_startup_options_from(["--run-seconds"].map(str::to_owned)).is_err());
+        assert!(parse_startup_options_from(["--project"].map(str::to_owned)).is_err());
+    }
 
     #[test]
     fn parses_legacy_import_arguments() {

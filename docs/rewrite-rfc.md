@@ -172,12 +172,20 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   presents a modal restore/discard choice. Restore loads the snapshot as unsaved edits against the
   on-disk project; identical snapshots are removed automatically; a successful save clears the
   snapshot. The path and serialization logic live in `lpmt-app` with unit coverage.
+- **Packaging and performance checks:** `scripts/package-linux.sh` builds a release binary and
+  portable Linux tarball with assets, docs, desktop entry and installer; installed packages resolve
+  demo assets beside the binary or under `<prefix>/share/lpmt`. `scripts/performance-check.sh` runs
+  the app with `--run-seconds`, forces output windows open on a single display and requires a
+  performance summary. A 120 s release baseline with two outputs held ~59.7 fps on the reference
+  Linux/Wayland machine. Details are in [`packaging.md`](packaging.md).
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
-  DMX/Art-Net, MIDI hotplug/device selection, packaging and validated macOS/Windows builds.
-  Tempo maps and additional cue commands are explicitly post-v1.
-- **Next implementation slice:** packaging and performance/long-run validation for M7, followed by
-  M6 media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
+  DMX/Art-Net, MIDI hotplug/device selection, packaging for macOS/Windows, real LPMT 1 show
+  validation and a longer production soak. Tempo maps and additional cue commands are explicitly
+  post-v1.
+- **Next implementation slice:** validate the legacy importer on a real show, run a longer soak on
+  production output hardware, and decide/execute macOS/Windows packaging if in v1 scope; then M6
+  media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
   [`acceptance.md`](acceptance.md); 3D LUT support is deferred to post-v1.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
@@ -776,7 +784,7 @@ dangling.
 | M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
 | M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
 | M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
-| M7 — Migration/release | In progress | Legacy importer and crash recovery implemented; packaging and performance validation remain |
+| M7 — Migration/release | In progress | Legacy importer, crash recovery, Linux packaging and 120 s performance baseline done; real-show, cross-platform and long soak remain |
 
 ### M0 — Bootstrap and spikes
 
@@ -883,9 +891,11 @@ dangling.
 
 - [x] Legacy XML importer with representative LPMT 1 fixtures and editor/CLI migration paths.
 - [ ] Import and run a real LPMT 1 show, documenting remaining differences.
-- [ ] Packaging for target platforms.
+- [x] Linux portable packaging, installer and installed-asset resolution.
+- [ ] Packaging for macOS/Windows (scope decision pending).
 - [x] Crash/recovery UX and project backup path (automatic sibling snapshots, restore/discard).
-- [ ] Performance and long-run validation.
+- [x] Repeatable release performance check and 120 s two-output baseline.
+- [ ] Long production soak/thermal validation on target output hardware.
 - [ ] Acceptance: import a real LPMT 1 show and run it with documented differences.
 
 ### Post-v1 backlog
@@ -938,8 +948,9 @@ These are deliberately deferred and must not block milestone acceptance:
 1. M2/M3/M4/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep
    the smoke script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
-3. Validate the implemented legacy importer against a real LPMT 1 show, then finish M7 packaging
-   and performance/long-run validation. Crash recovery is implemented and covered by tests.
+3. Validate the legacy importer against a real LPMT 1 show, run a longer production soak and decide
+   macOS/Windows packaging scope. Linux packaging, crash recovery and a 120 s release baseline are
+   implemented and covered by the packaging/performance scripts.
 4. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
    decode.
 5. Only then revisit the post-v1 backlog.

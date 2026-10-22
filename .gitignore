@@ -10,3 +10,6 @@
 *.lpmt-recovery
 .DS_Store
 Thumbs.db
+
+# Packaging output
+/dist/

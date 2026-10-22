@@ -8,9 +8,11 @@ real editor, independent output windows and a portable rendering stack.
 The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
-**Current status (2026-10-22):** Linux-first M0–M5 accepted; the M7 legacy XML
-importer is implemented and packaging/release validation is next. Ordered layer
-compositing, optional video and audio playback, a shared show clock,
+**Current status (2026-10-22):** Linux-first M0–M5 accepted. The M7 legacy XML
+importer, crash recovery and Linux release packaging are implemented; a 120 s
+release performance baseline passes with two outputs. Real-show, cross-platform
+and longer soak validation remain. Ordered layer compositing, optional video and
+audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
 diagnostics, 1D calibration LUTs, projection test patterns, temporary output
@@ -207,8 +209,8 @@ M2/M3/M4/M5 acceptance was recorded on **2026-10-22** in
 
 The immediate order is:
 
-1. Validate the **LPMT 1 legacy XML importer** against a real show, then finish
-   packaging and performance validation (M7). Crash recovery is implemented.
+1. Validate the **LPMT 1 legacy XML importer** against a real show and run a
+   longer production soak; package macOS/Windows builds if they are in v1 scope.
 2. Keep 3D LUT support and Bézier patches deferred to post-v1.
 3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
    per-layer audio mixing and hardware decode.
@@ -238,7 +240,22 @@ cargo run -p lpmt-app
 cargo run -p lpmt-app --features midi
 # open a saved show directly
 cargo run -p lpmt-app -- --project show.json
+# timed performance run with output windows forced open
+cargo run -p lpmt-app --release -- --run-seconds 30 --open-outputs
 ```
+
+Packaging and performance checks:
+
+```bash
+./scripts/package-linux.sh
+./scripts/performance-check.sh
+```
+
+`package-linux.sh` creates a portable Linux tarball with the binary, sample
+assets, docs and an installer. `performance-check.sh` builds release, runs the
+app for a fixed duration and requires a performance summary. See
+[`docs/packaging.md`](docs/packaging.md) for options, feature builds and the
+validated baseline.
 
 File pickers use the desktop portal on Linux; the typed path fields remain
 available as a fallback in minimal window managers without a portal.

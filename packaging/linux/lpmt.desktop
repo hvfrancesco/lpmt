@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=LPMT
+GenericName=Projection Mapping Tool
+Comment=Little Projection-Mapping Tool
+Exec=lpmt
+Icon=lpmt
+Terminal=false
+Categories=AudioVideo;Graphics;
+Keywords=projection;mapping;video;show;
+StartupNotify=true

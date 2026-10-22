@@ -212,20 +212,25 @@ Checklist:
       video references.
 - [ ] Import a real LPMT 1 show, run the converted project and record remaining
       differences (timeline, cameras, slideshows, edge blending, deform).
-- [ ] Produce and launch a packaged build for each target platform.
+- [x] Produce, extract, launch and install the Linux release package.
+- [ ] Produce and launch packages for macOS and Windows (scope decision pending).
 - [x] Verify crash/recovery UX and the atomic-backup path: autosave snapshot on
       dirty projects, restore/discard modal, stale-snapshot cleanup and save
       removal.
-- [ ] Run a long-duration performance test with the target output topology.
+- [x] Run the repeatable release performance check with two output windows:
+      120 s, 59.67 fps average, 16.76 ms/frame.
+- [ ] Run a longer production soak/thermal test with the target output topology.
 
 Result: `PENDING`
 
 Notes / blockers:
 
 ```text
-Importer and crash recovery are implemented and covered by automated/unit tests;
-the recovery modal and autosave path were verified in the running app. Real-show,
-packaging and long-run performance validation are not yet recorded.
+Importer, crash recovery and Linux packaging are implemented and covered by
+automated/unit checks. The portable package was extracted, launched and installed
+into a temporary prefix. A 120 s release run with two forced output windows held
+59.67 fps / 16.76 ms per frame on the reference machine. Real-show validation,
+macOS/Windows packaging and a longer production soak are still pending.
 ```
 
 ## Evidence log
@@ -236,7 +241,7 @@ packaging and long-run performance validation are not yet recorded.
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
 | 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
-|  |  |  |  | M7 | PENDING | Legacy importer and crash recovery pass automated/unit checks; real-show, packaging and performance validation remain. |
+| 2026-10-22 |  | Linux / Wayland / Quadro M520 | default | M7 (partial) | PENDING | Linux package extract/launch/install passed; 120 s two-output release run: 59.67 fps, 16.76 ms/frame. Real-show, macOS/Windows and long soak remain. |
 
 ## Known constraints
 
