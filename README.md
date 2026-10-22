@@ -202,7 +202,11 @@ The immediate order is:
 5. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
    and per-stage timelines.
 
-Milestone status, deferred scope and acceptance evidence are tracked in the
+The executable checklist and evidence template live in
+[`docs/acceptance.md`](docs/acceptance.md). Run the automated portion with
+`./scripts/acceptance-smoke.sh` (and `LPMT_ALL_FEATURES=1` on a Linux machine
+with FFmpeg/ALSA development packages). Milestone status, deferred scope and
+acceptance decisions are tracked in the
 [rewrite RFC](docs/rewrite-rfc.md#14-milestones).
 
 ## Build and run
@@ -516,7 +520,8 @@ The first run compiles `wgpu`, `winit` and `egui`, so it can take a few minutes.
 ```text
 crates/          Rust workspace and the LPMT 2 application
 assets/          Small sample media used by demos and tests
-docs/            Architecture and rewrite RFC
+docs/            Architecture, rewrite RFC and acceptance checklist
+scripts/         Acceptance smoke runner
 archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 ```
 

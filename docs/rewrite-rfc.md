@@ -916,7 +916,8 @@ These are deliberately deferred and must not block milestone acceptance:
 ## 17. Immediate next steps
 
 1. Run and record the manual acceptance checks for M2, M3 and M5. Fix only blockers found by those
-   checks; do not add new M5 features while they are pending.
+   checks; do not add new M5 features while they are pending. Use the checklist and evidence template
+   in [`acceptance.md`](acceptance.md) and run `scripts/acceptance-smoke.sh` first.
 2. Freeze M5 feature work. Move tempo maps, additional cue commands and DMX to the post-v1 backlog.
 3. Implement M4 colourisation and chroma key for LPMT 1 parity, then make and record the 3D LUT
    scope decision. Keep Bézier deferred.
