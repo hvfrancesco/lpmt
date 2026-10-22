@@ -161,8 +161,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
   DMX/Art-Net, MIDI hotplug/device selection, the legacy XML importer, packaging and validated
   macOS/Windows builds. Tempo maps and additional cue commands are explicitly post-v1.
-- **Next implementation slice:** close M2/M3/M5 acceptance, then M4 colourisation/chroma key,
-  followed by the M7 legacy importer and release work.
+- **Next implementation slice:** M4 colourisation/chroma key, followed by the M7 legacy importer
+  and release work. M2/M3/M5 acceptance was recorded on 2026-10-22 in
+  [`acceptance.md`](acceptance.md).
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -674,7 +675,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
   parameter edits while paused suspend the overlay until the next seek/play/timeline edit.
 - Undoable timeline edits and project persistence.
 
-Post-v1 backlog (M5 is feature-frozen until acceptance):
+Post-v1 backlog (M5 is feature-frozen for v1; acceptance recorded 2026-10-22):
 
 - Tempo maps and additional command triggers.
 - Per-stage timelines or independent cue stacks, MTC/LTC input, OSC timecode.
@@ -803,8 +804,9 @@ dangling.
 - [x] Project show-audio track on the shared clock, with volume/mute and loop restart (optional
       `audio` feature).
 - [x] Live preview viewport separate from output, with corner snapping.
-- [ ] Acceptance (manual): create a two-surface show from scratch, save, reload and play video.
+- [x] Acceptance (manual): create a two-surface show from scratch, save, reload and play video.
       Per-layer audio mixing and hardware decode moved to M6; they are not M2 gates.
+      Evidence: [`acceptance.md`](acceptance.md), 2026-10-22.
 
 ### M3 — Multi-output and edge blending
 
@@ -813,8 +815,8 @@ dangling.
 - [x] Output groups and a shared frame barrier.
 - [x] Explicit display assignment per output.
 - [x] Per-output pacing diagnostics and missed-present reporting.
-- [ ] Acceptance (manual): two overlapping 1080p outputs with a blended seam; confidence monitor
-      unaffected.
+- [x] Acceptance (manual): two overlapping 1080p outputs with a blended seam; confidence monitor
+      unaffected. Evidence: [`acceptance.md`](acceptance.md), 2026-10-22.
 
 ### M4 — Mapping depth
 
@@ -846,9 +848,10 @@ dangling.
 - [x] Configurable time/beat/bar snap driven by BPM, beats-per-bar and denominator.
 - [x] Multi-track key selection with path-based copy/paste.
 - [x] Cue follow delays that advance the stack after a configurable interval.
-- [ ] Acceptance (manual): run a timed show via OSC and timeline with no GUI on outputs.
-- M5 is **feature-frozen** until that acceptance check is recorded. Tempo maps, additional cue
-  commands and DMX/Art-Net are post-v1 work, not reasons to postpone acceptance.
+- [x] Acceptance (manual): run a timed show via OSC and timeline with no GUI on outputs.
+      Evidence: [`acceptance.md`](acceptance.md), 2026-10-22.
+- M5 is **feature-frozen for v1** now that acceptance is recorded. Tempo maps, additional cue
+  commands and DMX/Art-Net are post-v1 work.
 
 ### M6 — Media breadth and sync
 
@@ -915,10 +918,9 @@ These are deliberately deferred and must not block milestone acceptance:
 
 ## 17. Immediate next steps
 
-1. Run and record the manual acceptance checks for M2, M3 and M5. Fix only blockers found by those
-   checks; do not add new M5 features while they are pending. Use the checklist and evidence template
-   in [`acceptance.md`](acceptance.md) and run `scripts/acceptance-smoke.sh` first.
-2. Freeze M5 feature work. Move tempo maps, additional cue commands and DMX to the post-v1 backlog.
+1. M2/M3/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep the
+   smoke script in the release checklist and fix only regressions found by re-runs.
+2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
 3. Implement M4 colourisation and chroma key for LPMT 1 parity, then make and record the 3D LUT
    scope decision. Keep Bézier deferred.
 4. Build the M7 legacy XML importer with real fixtures, then packaging, recovery and performance

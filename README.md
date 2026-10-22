@@ -190,20 +190,21 @@ control, timeline automation and cue stack are now substantially implemented.
 The project is no longer planning the next timeline feature by default:
 milestone acceptance and breadth take priority over adding more M5 depth.
 
+M2/M3/M5 acceptance was recorded on **2026-10-22** in
+[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen for v1.
+
 The immediate order is:
 
-1. Run and record the manual acceptance checks for M2, M3 and M5.
-2. Finish M4 parity with **colourisation and chroma key**, then decide whether
+1. Finish M4 parity with **colourisation and chroma key**, then decide whether
    3D LUT support is in v1. Bézier patches are explicitly deferred.
-3. Build the **LPMT 1 legacy XML importer** with real fixtures, followed by
+2. Build the **LPMT 1 legacy XML importer** with real fixtures, followed by
    packaging, recovery and performance validation (M7).
-4. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
+3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
    per-layer audio mixing and hardware decode.
-5. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
+4. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
    and per-stage timelines.
 
-The executable checklist and evidence template live in
-[`docs/acceptance.md`](docs/acceptance.md). Run the automated portion with
+Keep the checklist and smoke runner in the release process:
 `./scripts/acceptance-smoke.sh` (and `LPMT_ALL_FEATURES=1` on a Linux machine
 with FFmpeg/ALSA development packages). Milestone status, deferred scope and
 acceptance decisions are tracked in the
