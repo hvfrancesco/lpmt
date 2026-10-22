@@ -7,5 +7,6 @@
 *#
 *.swp
 *.log
+*.lpmt-recovery
 .DS_Store
 Thumbs.db

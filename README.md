@@ -171,12 +171,18 @@ shelf; Calibration and Show are separate modes.
   project file; picked files inside the show directory are stored relative.
   Saves write a temporary file in the destination directory and rename it into
   place, so an interrupted save cannot leave a half-written project.
+- **Crash recovery:** while a project has unsaved changes, a hidden sibling
+  recovery snapshot is written every five seconds and again when the editor
+  closes. The next launch offers **Restore snapshot** or **Discard snapshot**;
+  an identical snapshot is removed automatically, and a successful save clears
+  it. The restore path loads the snapshot as unsaved edits against the file on
+  disk, so nothing is overwritten until the user saves.
 - Undo/redo for project edits, with coalesced drags, sliders and typing;
   **Ctrl+Z**, **Ctrl+Shift+Z** or **Ctrl+Y** work when no text field has focus.
   The top bar marks unsaved changes.
 - Startup project loading with `cargo run -p lpmt-app -- --project show.json`.
 - Homography, grid mesh, LUT parsing, test-pattern generation, media decoding,
-  undo history, atomic-save and JSON compatibility unit tests.
+  undo history, atomic-save, crash-recovery and JSON compatibility unit tests.
 - On machines with multiple displays, outputs claim an unused secondary
   monitor or open as windows so the editor stays reachable. On a single display,
   **output windows are not opened automatically**; the live preview is used for
@@ -202,7 +208,7 @@ M2/M3/M4/M5 acceptance was recorded on **2026-10-22** in
 The immediate order is:
 
 1. Validate the **LPMT 1 legacy XML importer** against a real show, then finish
-   packaging, recovery and performance validation (M7).
+   packaging and performance validation (M7). Crash recovery is implemented.
 2. Keep 3D LUT support and Bézier patches deferred to post-v1.
 3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
    per-layer audio mixing and hardware decode.

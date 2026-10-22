@@ -42,8 +42,16 @@ pub struct EditorStatus {
     pub output_guides: Vec<GuideMode>,
     pub osc: OscStatus,
     pub midi: MidiStatus,
+    /// A crash-recovery snapshot that differs from the project on disk.
+    pub recovery: Option<RecoveryStatus>,
     /// egui native textures for image and video thumbnails.
     pub media_thumbnails: HashMap<MediaId, egui::TextureId>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecoveryStatus {
+    pub project_path: String,
+    pub recovery_path: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -778,6 +786,8 @@ pub enum EditorAction {
     },
     OpenProjectDialog,
     ImportLegacyDialog,
+    RestoreRecovery,
+    DiscardRecovery,
     AddMedia,
     RemoveMedia {
         media: usize,
@@ -1055,6 +1065,38 @@ pub fn draw(
                 }
             });
         state.about_open = open && !close;
+    }
+
+    if let Some(recovery) = &status.recovery {
+        egui::Modal::new(egui::Id::unique("lpmt-recovery")).show(ui.ctx(), |ui| {
+            ui.set_max_width(560.0);
+            ui.heading("Recover unsaved project?");
+            ui.add_space(6.0);
+            ui.label(
+                "LPMT found an automatic recovery snapshot that differs from the project on disk.",
+            );
+            ui.add_space(4.0);
+            ui.label("Project:");
+            ui.monospace(&recovery.project_path);
+            ui.label("Snapshot:");
+            ui.monospace(&recovery.recovery_path);
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new(
+                    "Restoring loads the snapshot as unsaved changes. Discarding deletes it permanently.",
+                )
+                .small()
+                .color(Color32::from_rgb(160, 170, 188)),
+            );
+            ui.horizontal(|ui| {
+                if ui.button("Restore snapshot").clicked() {
+                    actions.push(EditorAction::RestoreRecovery);
+                }
+                if ui.button("Discard snapshot").clicked() {
+                    actions.push(EditorAction::DiscardRecovery);
+                }
+            });
+        });
     }
 
     egui::Panel::bottom("lpmt-status").show(ui, |ui| {

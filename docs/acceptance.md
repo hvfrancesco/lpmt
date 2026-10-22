@@ -213,7 +213,9 @@ Checklist:
 - [ ] Import a real LPMT 1 show, run the converted project and record remaining
       differences (timeline, cameras, slideshows, edge blending, deform).
 - [ ] Produce and launch a packaged build for each target platform.
-- [ ] Verify crash/recovery UX and the atomic-backup path.
+- [x] Verify crash/recovery UX and the atomic-backup path: autosave snapshot on
+      dirty projects, restore/discard modal, stale-snapshot cleanup and save
+      removal.
 - [ ] Run a long-duration performance test with the target output topology.
 
 Result: `PENDING`
@@ -221,8 +223,9 @@ Result: `PENDING`
 Notes / blockers:
 
 ```text
-Importer is implemented and covered by automated fixtures. Real-show and release
-validation are not yet recorded.
+Importer and crash recovery are implemented and covered by automated/unit tests;
+the recovery modal and autosave path were verified in the running app. Real-show,
+packaging and long-run performance validation are not yet recorded.
 ```
 
 ## Evidence log
@@ -233,7 +236,7 @@ validation are not yet recorded.
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
 | 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
-|  |  |  |  | M7 | PENDING | Legacy importer automated fixture passes; real-show, packaging, recovery and performance validation remain. |
+|  |  |  |  | M7 | PENDING | Legacy importer and crash recovery pass automated/unit checks; real-show, packaging and performance validation remain. |
 
 ## Known constraints
 

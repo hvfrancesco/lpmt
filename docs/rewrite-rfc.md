@@ -167,12 +167,17 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   references, and reports unsupported slideshow, camera, timeline and per-quad edge-blend data.
   The editor exposes **Project → Import LPMT 1 XML…**; a headless `--import-legacy` path writes
   JSON directly. Fixtures and round-trip tests live in the crate.
+- **Crash recovery:** while a project is dirty, the app writes a hidden sibling recovery snapshot
+  every five seconds and on editor close. Startup detects a differing or orphaned snapshot and
+  presents a modal restore/discard choice. Restore loads the snapshot as unsaved edits against the
+  on-disk project; identical snapshots are removed automatically; a successful save clears the
+  snapshot. The path and serialization logic live in `lpmt-app` with unit coverage.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
   DMX/Art-Net, MIDI hotplug/device selection, packaging and validated macOS/Windows builds.
   Tempo maps and additional cue commands are explicitly post-v1.
-- **Next implementation slice:** packaging, crash recovery and performance/long-run validation for
-  M7, followed by M6 media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
+- **Next implementation slice:** packaging and performance/long-run validation for M7, followed by
+  M6 media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
   [`acceptance.md`](acceptance.md); 3D LUT support is deferred to post-v1.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
@@ -771,7 +776,7 @@ dangling.
 | M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
 | M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
 | M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
-| M7 — Migration/release | In progress | Legacy XML importer implemented; packaging, recovery and performance validation remain |
+| M7 — Migration/release | In progress | Legacy importer and crash recovery implemented; packaging and performance validation remain |
 
 ### M0 — Bootstrap and spikes
 
@@ -879,7 +884,7 @@ dangling.
 - [x] Legacy XML importer with representative LPMT 1 fixtures and editor/CLI migration paths.
 - [ ] Import and run a real LPMT 1 show, documenting remaining differences.
 - [ ] Packaging for target platforms.
-- [ ] Crash/recovery UX and project backup path.
+- [x] Crash/recovery UX and project backup path (automatic sibling snapshots, restore/discard).
 - [ ] Performance and long-run validation.
 - [ ] Acceptance: import a real LPMT 1 show and run it with documented differences.
 
@@ -933,8 +938,8 @@ These are deliberately deferred and must not block milestone acceptance:
 1. M2/M3/M4/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep
    the smoke script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
-3. Validate the implemented legacy importer against a real LPMT 1 show, then finish M7 packaging,
-   recovery and performance/long-run validation.
+3. Validate the implemented legacy importer against a real LPMT 1 show, then finish M7 packaging
+   and performance/long-run validation. Crash recovery is implemented and covered by tests.
 4. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
    decode.
 5. Only then revisit the post-v1 backlog.

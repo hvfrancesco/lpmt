@@ -8,6 +8,7 @@ mod audio_runtime;
 mod clock;
 mod history;
 mod project_io;
+mod recovery;
 mod video_runtime;
 
 use audio_runtime::AudioRuntime;
@@ -48,6 +49,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::monitor::MonitorHandle;
 use winit::window::{Fullscreen, Window, WindowId};
+
+const RECOVERY_INTERVAL: Duration = Duration::from_secs(5);
 
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -133,6 +136,8 @@ struct App {
     cue_follow: Option<(Instant, u64)>,
     media_base: PathBuf,
     startup_project: Option<PathBuf>,
+    recovery: Option<recovery::RecoveryCandidate>,
+    last_recovery_save: Instant,
     pending_output_sync: bool,
     pending_output_open: Option<OutputId>,
     status_message: String,
@@ -247,6 +252,8 @@ impl App {
             cue_follow: None,
             media_base: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             startup_project: None,
+            recovery: None,
+            last_recovery_save: Instant::now(),
             pending_output_sync: false,
             pending_output_open: None,
             status_message: String::new(),
@@ -270,14 +277,18 @@ impl App {
         log::info!("available displays: {:?}", self.monitors);
 
         if let Some(path) = self.startup_project.take() {
+            let recovery_path = path.clone();
             let path = path.to_string_lossy().into_owned();
             if let Err(error) = self.load_project(&path) {
                 log::error!("failed to load startup project: {error:#}");
                 self.status_message = format!("Startup project failed: {error}");
                 self.reload_media();
+                self.check_recovery_for_path(&recovery_path);
             }
         } else {
             self.reload_media();
+            let default_path = PathBuf::from(&self.ui_state.project_path);
+            self.check_recovery_for_path(&default_path);
         }
 
         // On a single display, output windows can be stacked over the editor
@@ -449,6 +460,9 @@ impl App {
         }
 
         if close {
+            // Keep the last unsaved edit even when the user closes the window
+            // instead of saving; the next launch offers to restore it.
+            self.save_recovery_now();
             event_loop.exit();
             return;
         }
@@ -3096,6 +3110,15 @@ impl App {
                         }
                     }
                 }
+                EditorAction::RestoreRecovery => {
+                    if let Err(error) = self.restore_recovery() {
+                        log::error!("failed to restore recovery snapshot: {error:#}");
+                        self.status_message = format!("Recovery failed: {error}");
+                    }
+                }
+                EditorAction::DiscardRecovery => {
+                    self.discard_recovery();
+                }
                 EditorAction::AddMedia => {
                     let selected_layer = self.ui_state.selected_layer;
                     let dialog = media_file_dialog(&self.media_base);
@@ -3430,9 +3453,20 @@ impl App {
 
     fn save_project(&mut self, path: &str) -> Result<()> {
         let path = PathBuf::from(path);
+        let previous_path = PathBuf::from(&self.ui_state.project_path);
         let json =
             serde_json::to_string_pretty(&self.project).context("failed to serialize project")?;
         project_io::write_atomic(&path, json.as_bytes())?;
+        if previous_path != path {
+            if let Err(error) = recovery::remove(&previous_path) {
+                log::warn!("failed to remove old recovery snapshot: {error:#}");
+            }
+        }
+        if let Err(error) = recovery::remove(&path) {
+            log::warn!("failed to remove recovery snapshot after save: {error:#}");
+        }
+        self.recovery = None;
+        self.last_recovery_save = Instant::now();
         self.ui_state.project_path = path.display().to_string();
         self.saved_project = self.project.clone();
         self.status_message = format!("Saved {}", path.display());
@@ -3442,6 +3476,9 @@ impl App {
 
     fn load_project(&mut self, path: &str) -> Result<()> {
         let path = PathBuf::from(path);
+        // Preserve edits from the project that is about to be replaced. The
+        // recovery file is intentionally left for the next session.
+        self.save_recovery_now();
         let json = std::fs::read_to_string(&path)
             .with_context(|| format!("failed to read {}", path.display()))?;
         let project: Project =
@@ -3452,8 +3489,25 @@ impl App {
             project.schema_version
         );
 
+        let saved_project = project.clone();
+        self.install_project(project, &path, saved_project);
+        let media_status = self.status_message.clone();
+        self.check_recovery_for_path(&path);
+        self.status_message = if self.recovery.is_some() {
+            format!(
+                "Loaded {} · {media_status} · recovery snapshot available",
+                path.display()
+            )
+        } else {
+            format!("Loaded {} · {media_status}", path.display())
+        };
+        log::info!("loaded project from {}", path.display());
+        Ok(())
+    }
+
+    fn install_project(&mut self, project: Project, path: &Path, saved_project: Project) {
         self.project = project;
-        self.saved_project = self.project.clone();
+        self.saved_project = saved_project;
         self.history.clear();
         self.cue_follow = None;
         self.midi_learn = None;
@@ -3494,10 +3548,94 @@ impl App {
             .first()
             .map_or_else(String::new, |asset| asset.path.clone());
         self.reload_media();
-        let media_status = self.status_message.clone();
-        self.status_message = format!("Loaded {} · {media_status}", path.display());
-        log::info!("loaded project from {}", path.display());
+    }
+
+    fn check_recovery_for_path(&mut self, project_path: &Path) {
+        if self.recovery.is_some() {
+            return;
+        }
+        match recovery::detect(project_path) {
+            Ok(Some(candidate)) => {
+                log::warn!(
+                    "recovery snapshot available for {}",
+                    candidate.project_path.display()
+                );
+                self.status_message = format!(
+                    "Recovery snapshot available for {}",
+                    candidate.project_path.display()
+                );
+                self.recovery = Some(candidate);
+                self.last_recovery_save = Instant::now();
+            }
+            Ok(None) => {}
+            Err(error) => log::warn!("failed to inspect recovery snapshot: {error:#}"),
+        }
+    }
+
+    fn save_recovery_now(&mut self) {
+        if self.recovery.is_some() || self.project == self.saved_project {
+            return;
+        }
+        let project_path = PathBuf::from(&self.ui_state.project_path);
+        if project_path.as_os_str().is_empty() {
+            return;
+        }
+        match recovery::write(&project_path, &self.project) {
+            Ok(path) => {
+                log::debug!("wrote recovery snapshot to {}", path.display());
+            }
+            Err(error) => log::warn!("failed to write recovery snapshot: {error:#}"),
+        }
+        self.last_recovery_save = Instant::now();
+    }
+
+    fn autosave_recovery(&mut self) {
+        if self.recovery.is_some() || self.project == self.saved_project {
+            return;
+        }
+        if self.last_recovery_save.elapsed() < RECOVERY_INTERVAL {
+            return;
+        }
+        self.save_recovery_now();
+    }
+
+    fn restore_recovery(&mut self) -> Result<()> {
+        let Some(candidate) = self.recovery.take() else {
+            return Ok(());
+        };
+        let saved_project = std::fs::read_to_string(&candidate.project_path)
+            .ok()
+            .and_then(|json| serde_json::from_str::<Project>(&json).ok())
+            .filter(|project| project.schema_version <= 2)
+            .unwrap_or_else(Project::demo);
+        let path = candidate.project_path.clone();
+        self.install_project(candidate.project, &path, saved_project);
+        self.status_message = format!(
+            "Recovered unsaved project for {} · Save to keep it",
+            path.display()
+        );
+        log::info!("restored recovery snapshot for {}", path.display());
         Ok(())
+    }
+
+    fn discard_recovery(&mut self) {
+        let Some(candidate) = self.recovery.take() else {
+            return;
+        };
+        match recovery::remove(&candidate.project_path) {
+            Ok(()) => {
+                self.status_message = "Discarded recovery snapshot".to_owned();
+                log::info!(
+                    "discarded recovery snapshot for {}",
+                    candidate.project_path.display()
+                );
+            }
+            Err(error) => {
+                self.recovery = Some(candidate);
+                log::warn!("failed to discard recovery snapshot: {error:#}");
+                self.status_message = format!("Could not discard recovery snapshot: {error}");
+            }
+        }
     }
 
     fn status(&self) -> EditorStatus {
@@ -3583,6 +3721,13 @@ impl App {
                         .unwrap_or(GuideMode::None)
                 })
                 .collect(),
+            recovery: self
+                .recovery
+                .as_ref()
+                .map(|candidate| editor::RecoveryStatus {
+                    project_path: candidate.project_path.display().to_string(),
+                    recovery_path: candidate.recovery_path.display().to_string(),
+                }),
             media_thumbnails: self.media_thumbnails.clone(),
         }
     }
@@ -3826,6 +3971,7 @@ impl ApplicationHandler for App {
         if let Some(editor) = self.editor.as_ref() {
             editor.window.request_redraw();
         }
+        self.autosave_recovery();
     }
 }
 
@@ -4508,6 +4654,8 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         | LoadProject { .. }
         | OpenProjectDialog
         | ImportLegacyDialog
+        | RestoreRecovery
+        | DiscardRecovery
         | AddMedia
         | PickMediaFile { .. }
         | SetOutputGuide { .. }
