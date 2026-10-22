@@ -115,7 +115,7 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   gives pads and buttons latching control of bool parameters. A parameter timeline evaluates float
   curves and bool state tracks from the shared show clock in the Show panel, with transport triggers,
   named markers and a render-time overlay so playback does not dirty the project. OSC addresses
-  remain session-only; DMX, colour tracks and richer command triggers are next.
+  remain session-only; DMX, cue lists and richer command triggers are next.
 - **Output groups and frame barrier:** outputs assigned to an `OutputGroup` are prepared in one
   application tick, submitted in a single `queue.submit` call and presented as a batch. Outputs
   outside a group keep rendering independently, so a confidence monitor does not stall the wall.
@@ -141,7 +141,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
 - **Workspace structure:** Mapping is a single editable hierarchy beside a large preview, with a
   bottom media shelf. The active surface and active layer expand inline, keeping rename, source,
   assigned surfaces, opacity and order next to the object they affect. Calibration and Show are
-  separate modes (`F1`/`F2`/`F3`), and project open/save lives in the top Project menu. The media
+  separate modes (`F1`/`F2`/`F3`), project open/save lives in the top Project menu and Help →
+  About LPMT reports the build/renderer version. The media
   shelf has an explicit target-layer selector, image/video thumbnails, reports each asset's role and
   can assign visual media to that layer or create a new layer on the selected surfaces. The layer
   card opens an in-app thumbnail picker without leaving Mapping.
@@ -155,11 +156,10 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   grid warp off preserves the stored deformation, with explicit Reset grid and Reset to full stage
   actions. Grid point drags coalesce in undo.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, timeline
-  colour tracks and richer command triggers/cue lists, the legacy XML importer, packaging and
-  validated macOS/Windows builds.
-- **Next implementation slice:** timeline colour tracks, cue lists and richer command triggers, all
-  targeting the stable parameter paths.
+  Bézier-compatible patches, 3D LUTs, DMX/Art-Net bindings, MIDI hotplug/device selection, richer
+  command triggers/cue lists, the legacy XML importer, packaging and validated macOS/Windows builds.
+- **Next implementation slice:** cue lists, richer command triggers and colour-track key copy/paste,
+  all targeting the stable parameter paths.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
 two windowed outputs: the full-stage main output and a “Right half” view (`x=0.5..1.0`). On a
@@ -646,8 +646,8 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 - One global project timeline driven by the shared show clock.
 - Float tracks targeting stable parameter paths, with Step, Linear and smoothstep interpolation.
-  Output RGB tint channels use the same mechanism, giving colour animation without a separate
-  colour-track type yet.
+  Output RGB tint channels use the same mechanism.
+- Dedicated output colour tracks with RGB keys, editing and playback overlay.
 - Multi-key selection with shift-click and copy/paste at the playhead, preserving relative timing
   with range clamping on the target track.
 - Bool state tracks for surface/layer visibility and mask enable/invert, using on/off Step keys.
@@ -664,7 +664,7 @@ Timeline should be core functionality, not an addon. The current v1 implements:
 
 Still planned:
 
-- Dedicated multi-channel colour tracks and richer command triggers/cue lists.
+- Richer command triggers/cue lists and colour-track key copy/paste.
 - BPM, time signature, snap-to-grid and multi-track key selection.
 - Per-stage timelines or cue lists, MTC/LTC input, OSC timecode.
 
@@ -810,8 +810,8 @@ Do not build this in v1. Do keep `OutputSink` and frame IDs in the design from d
 - [x] Float and bool-state timeline tracks with scrubbing and render-time playback.
 - [x] Timed transport triggers (pause, stop/rewind, restart, loop on/off and marker jumps).
 - [x] Smooth easing, multi-key copy/paste and named timeline markers.
-- [x] Per-output RGB tint parameters animated by numeric timeline tracks.
-- [ ] Dedicated colour tracks, cue lists and richer command triggers.
+- [x] Per-output RGB tint parameters and dedicated output colour tracks.
+- [ ] Cue lists, richer command triggers and colour-track key copy/paste.
 - [ ] DMX/Art-Net bindings on the same parameter layer.
 - Acceptance: run a timed show via OSC and timeline with no GUI on outputs.
 

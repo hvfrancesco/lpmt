@@ -7,6 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::model::OutputId;
+
 pub const MIN_TIMELINE_DURATION: f32 = 0.1;
 pub const MAX_TIMELINE_DURATION: f32 = 3600.0;
 const DEFAULT_TIMELINE_DURATION: f32 = 10.0;
@@ -134,6 +136,69 @@ impl TimelineCommand {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TimelineColourKey {
+    pub time: f32,
+    pub tint: [f32; 3],
+    #[serde(default)]
+    pub interpolation: TimelineInterpolation,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TimelineColourTrack {
+    pub output: OutputId,
+    #[serde(default)]
+    pub keys: Vec<TimelineColourKey>,
+}
+
+impl TimelineColourTrack {
+    pub fn new(output: OutputId) -> Self {
+        Self {
+            output,
+            keys: Vec::new(),
+        }
+    }
+
+    pub fn value_at(&self, seconds: f32) -> Option<[f32; 3]> {
+        let first = self.keys.first()?;
+        if seconds <= first.time {
+            return Some(first.tint);
+        }
+        let last = self.keys.last()?;
+        if seconds >= last.time {
+            return Some(last.tint);
+        }
+        for pair in self.keys.windows(2) {
+            let a = pair[0];
+            let b = pair[1];
+            if seconds < b.time {
+                let span = b.time - a.time;
+                if span.abs() <= DUPLICATE_TIME_EPSILON {
+                    return Some(b.tint);
+                }
+                let t = ((seconds - a.time) / span).clamp(0.0, 1.0);
+                let t = match a.interpolation {
+                    TimelineInterpolation::Step => 0.0,
+                    TimelineInterpolation::Linear => t,
+                    TimelineInterpolation::Smooth => t * t * (3.0 - 2.0 * t),
+                };
+                return Some([
+                    a.tint[0] + (b.tint[0] - a.tint[0]) * t,
+                    a.tint[1] + (b.tint[1] - a.tint[1]) * t,
+                    a.tint[2] + (b.tint[2] - a.tint[2]) * t,
+                ]);
+            }
+        }
+        Some(last.tint)
+    }
+
+    pub fn sort_keys(&mut self) {
+        self.keys.sort_by(|a, b| a.time.total_cmp(&b.time));
+        self.keys
+            .dedup_by(|a, b| (a.time - b.time).abs() <= DUPLICATE_TIME_EPSILON);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TimelineTrigger {
     pub time: f32,
     pub command: TimelineCommand,
@@ -153,6 +218,8 @@ pub struct Timeline {
     #[serde(default)]
     pub tracks: Vec<TimelineTrack>,
     #[serde(default)]
+    pub colour_tracks: Vec<TimelineColourTrack>,
+    #[serde(default)]
     pub triggers: Vec<TimelineTrigger>,
     #[serde(default)]
     pub markers: Vec<TimelineMarker>,
@@ -167,6 +234,7 @@ impl Default for Timeline {
         Self {
             duration: DEFAULT_TIMELINE_DURATION,
             tracks: Vec::new(),
+            colour_tracks: Vec::new(),
             triggers: Vec::new(),
             markers: Vec::new(),
         }
@@ -175,7 +243,10 @@ impl Default for Timeline {
 
 impl Timeline {
     pub fn is_empty(&self) -> bool {
-        self.tracks.is_empty() && self.triggers.is_empty() && self.markers.is_empty()
+        self.tracks.is_empty()
+            && self.colour_tracks.is_empty()
+            && self.triggers.is_empty()
+            && self.markers.is_empty()
     }
 
     pub fn is_active(&self) -> bool {
@@ -197,6 +268,15 @@ impl Timeline {
         for track in &mut self.tracks {
             for key in &mut track.keys {
                 key.time = key.time.clamp(0.0, self.duration);
+            }
+            track.sort_keys();
+        }
+        for track in &mut self.colour_tracks {
+            for key in &mut track.keys {
+                key.time = key.time.clamp(0.0, self.duration);
+                for channel in &mut key.tint {
+                    *channel = channel.clamp(0.0, 4.0);
+                }
             }
             track.sort_keys();
         }
@@ -240,6 +320,23 @@ impl Timeline {
                 track
                     .value_at(seconds)
                     .map(|value| (track.parameter.clone(), value))
+            })
+            .collect()
+    }
+
+    pub fn colour_track_index(&self, output: &OutputId) -> Option<usize> {
+        self.colour_tracks
+            .iter()
+            .position(|track| &track.output == output)
+    }
+
+    pub fn sample_colours(&self, seconds: f32) -> Vec<(OutputId, [f32; 3])> {
+        self.colour_tracks
+            .iter()
+            .filter_map(|track| {
+                track
+                    .value_at(seconds)
+                    .map(|tint| (track.output.clone(), tint))
             })
             .collect()
     }
@@ -323,6 +420,7 @@ mod tests {
         let mut timeline = Timeline {
             duration: 5.0,
             tracks: Vec::new(),
+            colour_tracks: Vec::new(),
             triggers: vec![
                 TimelineTrigger {
                     time: 4.0,
@@ -359,6 +457,30 @@ mod tests {
     }
 
     #[test]
+    fn colour_tracks_interpolate_each_channel() {
+        let mut track = TimelineColourTrack::new(OutputId::new("output-1"));
+        track.keys = vec![
+            TimelineColourKey {
+                time: 0.0,
+                tint: [0.0, 0.0, 0.0],
+                interpolation: TimelineInterpolation::Linear,
+            },
+            TimelineColourKey {
+                time: 2.0,
+                tint: [1.0, 0.5, 2.0],
+                interpolation: TimelineInterpolation::Linear,
+            },
+        ];
+        assert_eq!(track.value_at(1.0), Some([0.5, 0.25, 1.0]));
+        let mut timeline = Timeline::default();
+        timeline.colour_tracks.push(track);
+        assert_eq!(
+            timeline.sample_colours(1.0),
+            vec![(OutputId::new("output-1"), [0.5, 0.25, 1.0])]
+        );
+    }
+
+    #[test]
     fn normalize_sorts_keys_and_clamps_time() {
         let mut timeline = Timeline {
             duration: 2.0,
@@ -377,6 +499,7 @@ mod tests {
                     },
                 ],
             }],
+            colour_tracks: Vec::new(),
             triggers: Vec::new(),
             markers: Vec::new(),
         };

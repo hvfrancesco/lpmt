@@ -180,12 +180,17 @@ pub struct EditorState {
     timeline_selected_trigger: Option<usize>,
     timeline_drag_trigger: Option<usize>,
     timeline_trigger_command: TimelineCommand,
+    timeline_selected_colour_track: Option<usize>,
+    timeline_selected_colour_key: Option<usize>,
+    timeline_drag_colour_key: Option<(usize, usize)>,
+    timeline_add_colour_output: Option<usize>,
     timeline_clipboard: Option<TimelineClipboard>,
     timeline_selected_keys: BTreeSet<usize>,
     timeline_selected_marker: Option<usize>,
     timeline_drag_marker: Option<usize>,
     timeline_marker_name: String,
     timeline_marker_name_id: Option<usize>,
+    about_open: bool,
     drag_corner: Option<usize>,
     drag_grid: Option<(u16, u16)>,
     drag_mask_point: Option<usize>,
@@ -227,12 +232,17 @@ impl Default for EditorState {
             timeline_selected_trigger: None,
             timeline_drag_trigger: None,
             timeline_trigger_command: TimelineCommand::Pause,
+            timeline_selected_colour_track: None,
+            timeline_selected_colour_key: None,
+            timeline_drag_colour_key: None,
+            timeline_add_colour_output: None,
             timeline_clipboard: None,
             timeline_selected_keys: BTreeSet::new(),
             timeline_selected_marker: None,
             timeline_drag_marker: None,
             timeline_marker_name: String::new(),
             timeline_marker_name_id: None,
+            about_open: false,
             drag_corner: None,
             drag_grid: None,
             drag_mask_point: None,
@@ -262,6 +272,10 @@ impl EditorState {
         self.timeline_add_parameter = None;
         self.timeline_selected_trigger = None;
         self.timeline_drag_trigger = None;
+        self.timeline_selected_colour_track = None;
+        self.timeline_selected_colour_key = None;
+        self.timeline_drag_colour_key = None;
+        self.timeline_add_colour_output = None;
         self.timeline_clipboard = None;
         self.timeline_selected_keys.clear();
         self.timeline_selected_marker = None;
@@ -466,6 +480,27 @@ pub enum EditorAction {
     },
     RemoveTimelineMarker {
         marker: usize,
+    },
+    AddTimelineColourTrack {
+        output: usize,
+    },
+    RemoveTimelineColourTrack {
+        track: usize,
+    },
+    AddTimelineColourKey {
+        track: usize,
+        time: f32,
+    },
+    SetTimelineColourKey {
+        track: usize,
+        key: usize,
+        time: f32,
+        tint: [f32; 3],
+        interpolation: TimelineInterpolation,
+    },
+    RemoveTimelineColourKey {
+        track: usize,
+        key: usize,
     },
     ResetSurface {
         surface: usize,
@@ -814,6 +849,12 @@ pub fn draw(
                     ui.close();
                 }
             });
+            ui.menu_button("Help", |ui| {
+                if ui.button("About LPMT").clicked() {
+                    state.about_open = true;
+                    ui.close();
+                }
+            });
             ui.separator();
             ui.label(&project.name);
             if status.dirty {
@@ -840,6 +881,35 @@ pub fn draw(
         });
         ui.add_space(4.0);
     });
+
+    if state.about_open {
+        let mut open = true;
+        let mut close = false;
+        egui::Window::new("About LPMT")
+            .open(&mut open)
+            .resizable(false)
+            .collapsible(false)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ui.ctx(), |ui| {
+                ui.set_min_width(360.0);
+                ui.label(RichText::new("LPMT 2").heading());
+                ui.label("Little Projection-Mapping Tool — Rust/GPU rewrite");
+                ui.add_space(6.0);
+                ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
+                ui.label("License: GPL-3.0-or-later");
+                ui.add_space(6.0);
+                ui.label(format!(
+                    "Built with Rust, egui, wgpu and winit on {}.",
+                    std::env::consts::OS
+                ));
+                ui.label(format!("Renderer: {}", status.adapter));
+                ui.add_space(8.0);
+                if ui.button("Close").clicked() {
+                    close = true;
+                }
+            });
+        state.about_open = open && !close;
+    }
 
     egui::Panel::bottom("lpmt-status").show(ui, |ui| {
         ui.add_space(2.0);
@@ -2458,8 +2528,41 @@ fn draw_timeline(
     {
         state.timeline_drag_marker = None;
     }
+    if state
+        .timeline_selected_colour_track
+        .is_some_and(|track| track >= timeline.colour_tracks.len())
+    {
+        state.timeline_selected_colour_track = None;
+        state.timeline_selected_colour_key = None;
+    }
+    if let Some(track) = state.timeline_selected_colour_track {
+        if state
+            .timeline_selected_colour_key
+            .is_some_and(|key| key >= timeline.colour_tracks[track].keys.len())
+        {
+            state.timeline_selected_colour_key = None;
+        }
+    }
+    if state.timeline_drag_colour_key.is_some_and(|(track, key)| {
+        timeline
+            .colour_tracks
+            .get(track)
+            .is_none_or(|track| key >= track.keys.len())
+    }) {
+        state.timeline_drag_colour_key = None;
+    }
+    if state.timeline_selected_colour_track.is_some()
+        && (state.timeline_selected_track.is_some()
+            || state.timeline_selected_trigger.is_some()
+            || state.timeline_selected_marker.is_some())
+    {
+        state.timeline_selected_colour_track = None;
+        state.timeline_selected_colour_key = None;
+    }
     if state.timeline_selected_marker.is_some()
-        && (state.timeline_selected_track.is_some() || state.timeline_selected_trigger.is_some())
+        && (state.timeline_selected_track.is_some()
+            || state.timeline_selected_trigger.is_some()
+            || state.timeline_selected_colour_track.is_some())
     {
         state.timeline_selected_marker = None;
         state.timeline_marker_name_id = None;
@@ -2589,6 +2692,74 @@ fn draw_timeline(
                         keys: clipboard.keys,
                     });
                 }
+            }
+        }
+
+        let colour_candidates: Vec<usize> = project
+            .outputs
+            .iter()
+            .enumerate()
+            .filter(|(_, output)| {
+                !timeline
+                    .colour_tracks
+                    .iter()
+                    .any(|track| track.output == output.id)
+            })
+            .map(|(index, _)| index)
+            .collect();
+        if colour_candidates.is_empty() {
+            ui.label("All outputs have colour tracks.");
+        } else {
+            let selected_output = state
+                .timeline_add_colour_output
+                .filter(|output| colour_candidates.contains(output))
+                .or_else(|| colour_candidates.first().copied());
+            state.timeline_add_colour_output = selected_output;
+            let selected_label = selected_output
+                .and_then(|output| project.outputs.get(output))
+                .map_or("Select output", |output| output.name.as_str());
+            egui::ComboBox::from_id_salt("timeline-add-colour-output")
+                .selected_text(selected_label)
+                .show_ui(ui, |ui| {
+                    for output in &colour_candidates {
+                        if ui
+                            .selectable_label(
+                                selected_output == Some(*output),
+                                &project.outputs[*output].name,
+                            )
+                            .clicked()
+                        {
+                            state.timeline_add_colour_output = Some(*output);
+                        }
+                    }
+                });
+            if ui
+                .add_enabled(
+                    selected_output.is_some(),
+                    egui::Button::new("Add colour track"),
+                )
+                .clicked()
+            {
+                if let Some(output) = selected_output {
+                    let track = timeline
+                        .colour_track_index(&project.outputs[output].id)
+                        .unwrap_or(timeline.colour_tracks.len());
+                    state.timeline_selected_colour_track = Some(track);
+                    state.timeline_selected_colour_key = Some(0);
+                    state.timeline_selected_track = None;
+                    state.timeline_selected_key = None;
+                    state.timeline_selected_keys.clear();
+                    state.timeline_selected_trigger = None;
+                    state.timeline_selected_marker = None;
+                    actions.push(EditorAction::AddTimelineColourTrack { output });
+                }
+            }
+        }
+        if let Some(track) = state.timeline_selected_colour_track {
+            if ui.button("Remove colour track").clicked() {
+                actions.push(EditorAction::RemoveTimelineColourTrack { track });
+                state.timeline_selected_colour_track = None;
+                state.timeline_selected_colour_key = None;
             }
         }
 
@@ -2832,7 +3003,9 @@ fn draw_timeline(
                 });
             }
         }
-    } else if state.timeline_selected_trigger.is_none() {
+    } else if state.timeline_selected_trigger.is_none()
+        && state.timeline_selected_colour_track.is_none()
+    {
         ui.label(
             RichText::new(
                 "Double-click a track lane to add a key. Drag a key to move it; right-click to remove it.",
@@ -2840,6 +3013,70 @@ fn draw_timeline(
             .small()
             .color(Color32::from_rgb(132, 144, 166)),
         );
+    }
+
+    if let Some((colour_track, colour_key)) = state
+        .timeline_selected_colour_track
+        .zip(state.timeline_selected_colour_key)
+    {
+        if let Some(track) = timeline.colour_tracks.get(colour_track) {
+            if let Some(key) = track.keys.get(colour_key).copied() {
+                let output_name = project
+                    .outputs
+                    .iter()
+                    .find(|output| output.id == track.output)
+                    .map_or_else(|| track.output.to_string(), |output| output.name.clone());
+                let mut time = key.time;
+                let mut tint = key.tint;
+                let mut interpolation = key.interpolation;
+                ui.horizontal_wrapped(|ui| {
+                    ui.label(RichText::new(format!("Tint · {output_name}")).strong());
+                    ui.label("time");
+                    ui.add(
+                        egui::DragValue::new(&mut time)
+                            .range(0.0..=duration)
+                            .speed(0.01)
+                            .suffix(" s"),
+                    );
+                    for (label, value) in ["R", "G", "B"].into_iter().zip(tint.iter_mut()) {
+                        ui.label(label);
+                        ui.add(
+                            egui::Slider::new(value, 0.0..=4.0)
+                                .fixed_decimals(2)
+                                .show_value(true),
+                        );
+                    }
+                    egui::ComboBox::from_id_salt("timeline-colour-interpolation")
+                        .selected_text(interpolation.label())
+                        .show_ui(ui, |ui| {
+                            for candidate in TimelineInterpolation::ALL {
+                                if ui
+                                    .selectable_label(interpolation == candidate, candidate.label())
+                                    .clicked()
+                                {
+                                    interpolation = candidate;
+                                }
+                            }
+                        });
+                    if ui.button("Delete colour key").clicked() {
+                        actions.push(EditorAction::RemoveTimelineColourKey {
+                            track: colour_track,
+                            key: colour_key,
+                        });
+                        state.timeline_selected_colour_key = None;
+                    }
+                });
+                if time != key.time || tint != key.tint || interpolation != key.interpolation {
+                    actions.push(EditorAction::SetTimelineColourKey {
+                        track: colour_track,
+                        key: colour_key,
+                        time,
+                        tint,
+                        interpolation,
+                    });
+                }
+            }
+        }
     }
 
     if let Some(trigger_index) = state.timeline_selected_trigger {
@@ -3236,6 +3473,234 @@ fn draw_timeline(
                 });
             }
 
+            for (colour_track_index, colour_track) in
+                timeline.colour_tracks.iter().enumerate()
+            {
+                let output_name = project
+                    .outputs
+                    .iter()
+                    .find(|output| output.id == colour_track.output)
+                    .map_or_else(
+                        || colour_track.output.to_string(),
+                        |output| output.name.clone(),
+                    );
+                let selected_track =
+                    state.timeline_selected_colour_track == Some(colour_track_index);
+                ui.horizontal(|ui| {
+                    let (label_rect, label_response) = ui.allocate_exact_size(
+                        Vec2::new(LABEL_WIDTH, LANE_HEIGHT),
+                        Sense::click(),
+                    );
+                    ui.painter().rect_filled(
+                        label_rect,
+                        3.0,
+                        if selected_track {
+                            Color32::from_rgb(60, 45, 65)
+                        } else {
+                            Color32::from_rgb(30, 34, 43)
+                        },
+                    );
+                    ui.painter().text(
+                        Pos2::new(label_rect.left() + 7.0, label_rect.center().y),
+                        Align2::LEFT_CENTER,
+                        short_label(&format!("Tint · {output_name}"), 25),
+                        FontId::proportional(12.0),
+                        if selected_track {
+                            Color32::WHITE
+                        } else {
+                            Color32::from_rgb(215, 190, 220)
+                        },
+                    );
+                    if label_response.clicked() {
+                        state.timeline_selected_colour_track =
+                            Some(colour_track_index);
+                        state.timeline_selected_colour_key = None;
+                        state.timeline_selected_track = None;
+                        state.timeline_selected_key = None;
+                        state.timeline_selected_keys.clear();
+                        state.timeline_selected_trigger = None;
+                        state.timeline_selected_marker = None;
+                        state.timeline_marker_name_id = None;
+                        state.timeline_drag_colour_key = None;
+                    }
+                    label_response.on_hover_text(colour_track.output.to_string());
+
+                    let width = ui.available_width().max(1.0);
+                    let (lane_rect, response) = ui.allocate_exact_size(
+                        Vec2::new(width, LANE_HEIGHT),
+                        Sense::click_and_drag(),
+                    );
+                    let painter = ui.painter();
+                    painter.rect_filled(
+                        lane_rect,
+                        3.0,
+                        if selected_track {
+                            Color32::from_rgb(30, 25, 34)
+                        } else {
+                            Color32::from_rgb(20, 23, 30)
+                        },
+                    );
+                    let mut tick = 0.0;
+                    while tick <= duration + 0.0001 {
+                        let x = timeline_time_x(lane_rect, tick, duration);
+                        painter.line_segment(
+                            [
+                                Pos2::new(x, lane_rect.top()),
+                                Pos2::new(x, lane_rect.bottom()),
+                            ],
+                            Stroke::new(1.0, Color32::from_rgb(38, 43, 55)),
+                        );
+                        tick += tick_step;
+                    }
+                    let playhead = timeline_time_x(
+                        lane_rect,
+                        status.transport.position_seconds as f32,
+                        duration,
+                    );
+                    painter.line_segment(
+                        [
+                            Pos2::new(playhead, lane_rect.top()),
+                            Pos2::new(playhead, lane_rect.bottom()),
+                        ],
+                        Stroke::new(1.5, Color32::from_rgb(255, 120, 90)),
+                    );
+
+                    let key_points: Vec<Pos2> = colour_track
+                        .keys
+                        .iter()
+                        .map(|key| {
+                            Pos2::new(
+                                timeline_time_x(lane_rect, key.time, duration),
+                                lane_rect.center().y,
+                            )
+                        })
+                        .collect();
+                    for (key_index, point) in key_points.iter().enumerate() {
+                        let selected = state.timeline_selected_colour_track
+                            == Some(colour_track_index)
+                            && state.timeline_selected_colour_key == Some(key_index);
+                        let key = colour_track.keys[key_index];
+                        let maximum = key.tint.iter().copied().fold(1.0, f32::max);
+                        let colour = Color32::from_rgb(
+                            (key.tint[0] / maximum * 255.0).clamp(0.0, 255.0) as u8,
+                            (key.tint[1] / maximum * 255.0).clamp(0.0, 255.0) as u8,
+                            (key.tint[2] / maximum * 255.0).clamp(0.0, 255.0) as u8,
+                        );
+                        painter.circle_filled(
+                            *point,
+                            if selected { 6.0 } else { 5.0 },
+                            colour,
+                        );
+                        painter.circle_stroke(
+                            *point,
+                            if selected { 6.0 } else { 5.0 },
+                            Stroke::new(
+                                if selected { 2.0 } else { 1.0 },
+                                if selected {
+                                    Color32::from_rgb(255, 210, 90)
+                                } else {
+                                    Color32::from_rgb(20, 24, 30)
+                                },
+                            ),
+                        );
+                    }
+
+                    let pointer = response.interact_pointer_pos();
+                    let hit = pointer.and_then(|pointer| {
+                        key_points
+                            .iter()
+                            .enumerate()
+                            .map(|(index, point)| (index, point.distance(pointer)))
+                            .filter(|(_, distance)| *distance <= 9.0)
+                            .min_by(|left, right| left.1.total_cmp(&right.1))
+                            .map(|(index, _)| index)
+                    });
+
+                    if response.secondary_clicked() {
+                        if let Some(key) = hit {
+                            actions.push(EditorAction::RemoveTimelineColourKey {
+                                track: colour_track_index,
+                                key,
+                            });
+                            state.timeline_selected_colour_track =
+                                Some(colour_track_index);
+                            state.timeline_selected_colour_key = None;
+                            state.timeline_drag_colour_key = None;
+                        }
+                    } else if response.double_clicked() {
+                        if let Some(pointer) = pointer {
+                            if hit.is_none() {
+                                let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                let insert_at = colour_track
+                                    .keys
+                                    .iter()
+                                    .position(|key| key.time > time)
+                                    .unwrap_or(colour_track.keys.len());
+                                state.timeline_selected_colour_track =
+                                    Some(colour_track_index);
+                                state.timeline_selected_colour_key = Some(insert_at);
+                                state.timeline_selected_track = None;
+                                state.timeline_selected_key = None;
+                                state.timeline_selected_keys.clear();
+                                state.timeline_selected_trigger = None;
+                                state.timeline_selected_marker = None;
+                                state.timeline_marker_name_id = None;
+                                actions.push(EditorAction::AddTimelineColourKey {
+                                    track: colour_track_index,
+                                    time,
+                                });
+                            }
+                        }
+                    } else if response.clicked() {
+                        state.timeline_selected_colour_track = Some(colour_track_index);
+                        state.timeline_selected_colour_key = hit;
+                        state.timeline_selected_track = None;
+                        state.timeline_selected_key = None;
+                        state.timeline_selected_keys.clear();
+                        state.timeline_selected_trigger = None;
+                        state.timeline_selected_marker = None;
+                        state.timeline_marker_name_id = None;
+                    }
+
+                    if response.drag_started() {
+                        if let Some(key) = hit {
+                            state.timeline_selected_colour_track =
+                                Some(colour_track_index);
+                            state.timeline_selected_colour_key = Some(key);
+                            state.timeline_selected_track = None;
+                            state.timeline_selected_key = None;
+                            state.timeline_selected_keys.clear();
+                            state.timeline_selected_trigger = None;
+                            state.timeline_selected_marker = None;
+                            state.timeline_marker_name_id = None;
+                            state.timeline_drag_colour_key =
+                                Some((colour_track_index, key));
+                        }
+                    }
+                    if response.dragged() {
+                        if let (Some((track, key_index)), Some(pointer)) =
+                            (state.timeline_drag_colour_key, pointer)
+                        {
+                            if track == colour_track_index {
+                                if let Some(key) = colour_track.keys.get(key_index) {
+                                    let time = timeline_x_time(lane_rect, pointer.x, duration);
+                                    actions.push(EditorAction::SetTimelineColourKey {
+                                        track: colour_track_index,
+                                        key: key_index,
+                                        time,
+                                        tint: key.tint,
+                                        interpolation: key.interpolation,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    if response.drag_stopped() {
+                        state.timeline_drag_colour_key = None;
+                    }
+                });
+            }
+
             let selected_trigger = state.timeline_selected_trigger.is_some();
             ui.horizontal(|ui| {
                 let (label_rect, label_response) = ui.allocate_exact_size(
@@ -3613,13 +4078,14 @@ fn draw_timeline(
             });
 
             if timeline.tracks.is_empty()
+                && timeline.colour_tracks.is_empty()
                 && timeline.triggers.is_empty()
                 && timeline.markers.is_empty()
             {
                 ui.add_space(8.0);
                 ui.label(
                     RichText::new(
-                        "No timeline tracks, triggers or markers yet. Choose a parameter or add an item.",
+                        "No timeline tracks, colour tracks, triggers or markers yet. Choose a parameter or add an item.",
                     )
                     .small()
                     .color(Color32::from_rgb(132, 144, 166)),

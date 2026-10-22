@@ -96,7 +96,8 @@ shelf; Calibration and Show are separate modes.
   target layer selected.
 - **Workspace modes:** **F1 Mapping**, **F2 Calibration** and **F3 Show** switch
   between authoring, output calibration and transport/audio. Project open/save
-  lives in the top **Project** menu.
+  lives in the top **Project** menu; **Help → About LPMT** shows version,
+  renderer and license information.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, one-or-more surface assignment and `Normal`, `Add`, `Screen` or
   `Multiply` blending. A single layer can drive several surfaces without
@@ -136,12 +137,12 @@ shelf; Calibration and Show are separate modes.
   turns a pad or button into a latching control. Project changes made through
   MIDI use the same actions and undo/redo path as the editor.
 - **Parameter timeline:** Show mode has a bottom timeline panel targeting float
-  parameters such as surface/layer opacity, output brightness/contrast/gamma,
-  RGB tint and edge blending, plus bool state tracks for surface/layer visibility and mask
-  enable/invert. Double-click a lane to add a key, drag keys to move them,
-  right-click to remove, and choose Step, Linear or Smooth interpolation for
-  floats; shift-click selects multiple keys, which can be copied and pasted at
-  the playhead. Bool tracks use Step
+  parameters such as surface/layer opacity, output brightness/contrast/gamma
+  and edge blending, plus dedicated output colour tracks with RGB keys and bool
+  state tracks for surface/layer visibility and mask enable/invert. Double-click
+  a lane to add a key, drag keys to move them, right-click to remove, and choose
+  Step, Linear or Smooth interpolation. Shift-click selects multiple numeric
+  keys, which can be copied and pasted at the playhead. Bool tracks use Step
   values. A trigger lane can pause, stop/rewind, restart, switch looping on/off
   or jump to the next/previous marker at a chosen time, and named markers provide
   seek points with header navigation. The ruler seeks the shared show clock, so
@@ -179,9 +180,9 @@ crops, stable parameter paths, OSC control, persisted hotkey bindings, MIDI
 learn, parameter timeline tracks, transport triggers and named markers are now
 in place. The next timeline work is:
 
-- dedicated multi-channel colour tracks;
 - cue lists and richer command triggers;
-- marker-driven shortcuts and multi-track key selection.
+- marker-driven shortcuts and multi-track key selection;
+- colour-track key copy/paste and richer interpolation.
 
 Remaining M4 work is Bézier-compatible patches and 3D LUT support. Audio is on
 the shared clock; a per-layer mix bus and hardware decode remain later work. The
@@ -429,6 +430,12 @@ invert), press **Add track**, then edit its keys:
   the target track's range;
 - click or drag the ruler to seek the shared show clock;
 - use the normal transport to play, pause, restart and loop the timeline.
+
+Choose an output and press **Add colour track** for a dedicated RGB tint lane.
+Double-click to add colour keys, drag to retime, right-click to remove, and edit
+R/G/B plus Step/Linear/Smooth interpolation in the colour-key row. Colour tracks
+override the output tint channels during playback while remaining a render-time
+overlay.
 
 The **Triggers** lane schedules transport commands. Choose **Pause transport**,
 **Stop and rewind**, **Restart transport**, **Loop on**, **Loop off**, **Jump to

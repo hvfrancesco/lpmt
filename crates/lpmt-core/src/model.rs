@@ -1121,7 +1121,8 @@ impl Project {
 mod tests {
     use super::*;
     use crate::timeline::{
-        TimelineCommand, TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
+        TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineInterpolation,
+        TimelineKey, TimelineMarker, TimelineTrigger,
     };
 
     #[test]
@@ -1211,6 +1212,13 @@ mod tests {
             time: 4.0,
             name: "Verse".to_owned(),
         });
+        let mut colour_track = TimelineColourTrack::new(OutputId::new("output-1"));
+        colour_track.keys.push(TimelineColourKey {
+            time: 2.0,
+            tint: [0.8, 0.5, 0.2],
+            interpolation: TimelineInterpolation::Smooth,
+        });
+        project.timeline.colour_tracks.push(colour_track);
         let json = serde_json::to_string(&project).unwrap();
         let round_trip: Project = serde_json::from_str(&json).unwrap();
         assert_eq!(project, round_trip);

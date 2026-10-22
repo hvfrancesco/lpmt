@@ -31,7 +31,8 @@ use lpmt_core::model::{
 };
 use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue, TintChannel};
 use lpmt_core::timeline::{
-    Timeline, TimelineCommand, TimelineInterpolation, TimelineKey, TimelineMarker, TimelineTrigger,
+    Timeline, TimelineColourKey, TimelineColourTrack, TimelineCommand, TimelineInterpolation,
+    TimelineKey, TimelineMarker, TimelineTrigger,
 };
 use lpmt_render::gpu::Gpu;
 use lpmt_render::media::MediaCache;
@@ -1908,6 +1909,129 @@ impl App {
                         self.status_message = "Removed timeline marker".to_owned();
                     }
                 }
+                EditorAction::AddTimelineColourTrack { output } => {
+                    let Some(spec) = self.project.outputs.get(output) else {
+                        continue;
+                    };
+                    let output_id = spec.id.clone();
+                    let tint = spec.color.tint;
+                    if self.project.timeline.is_empty() {
+                        let duration = self
+                            .clock
+                            .duration_seconds()
+                            .map_or(10.0, |duration| duration as f32);
+                        self.project.timeline.duration = duration;
+                    }
+                    let track = self
+                        .project
+                        .timeline
+                        .colour_track_index(&output_id)
+                        .unwrap_or_else(|| {
+                            self.project
+                                .timeline
+                                .colour_tracks
+                                .push(TimelineColourTrack::new(output_id.clone()));
+                            self.project.timeline.colour_tracks.len() - 1
+                        });
+                    if self.project.timeline.colour_tracks[track].keys.is_empty() {
+                        let time = (self.clock.position_seconds() as f32)
+                            .clamp(0.0, self.project.timeline.duration);
+                        self.project.timeline.colour_tracks[track]
+                            .keys
+                            .push(TimelineColourKey {
+                                time,
+                                tint: [tint[0], tint[1], tint[2]],
+                                interpolation: TimelineInterpolation::Linear,
+                            });
+                    }
+                    self.project.timeline.normalize();
+                    self.timeline_preview_active = true;
+                    self.sync_clock_duration();
+                    self.status_message = format!(
+                        "Colour track: {}",
+                        self.project.timeline.colour_tracks[track].output
+                    );
+                }
+                EditorAction::RemoveTimelineColourTrack { track } => {
+                    if track < self.project.timeline.colour_tracks.len() {
+                        self.project.timeline.colour_tracks.remove(track);
+                        self.sync_clock_duration();
+                        self.status_message = "Removed colour track".to_owned();
+                    }
+                }
+                EditorAction::AddTimelineColourKey { track, time } => {
+                    let Some(track_ref) = self.project.timeline.colour_tracks.get(track) else {
+                        continue;
+                    };
+                    let Some(output) = self
+                        .project
+                        .outputs
+                        .iter()
+                        .find(|output| output.id == track_ref.output)
+                    else {
+                        continue;
+                    };
+                    let tint = output.color.tint;
+                    let time = time.clamp(0.0, self.project.timeline.duration);
+                    let tint = tint.map(|channel| channel.clamp(0.0, 4.0));
+                    let keys = &mut self.project.timeline.colour_tracks[track].keys;
+                    if let Some(existing) = keys
+                        .iter_mut()
+                        .find(|key| (key.time - time).abs() <= 1.0e-4)
+                    {
+                        existing.tint = tint;
+                    } else {
+                        keys.push(TimelineColourKey {
+                            time,
+                            tint,
+                            interpolation: TimelineInterpolation::Linear,
+                        });
+                        self.project.timeline.colour_tracks[track].sort_keys();
+                    }
+                    self.timeline_preview_active = true;
+                    self.status_message = format!("Added colour key at {time:.2}s");
+                }
+                EditorAction::SetTimelineColourKey {
+                    track,
+                    key,
+                    time,
+                    tint,
+                    interpolation,
+                } => {
+                    let Some(track_ref) = self.project.timeline.colour_tracks.get(track) else {
+                        continue;
+                    };
+                    if key >= track_ref.keys.len() {
+                        continue;
+                    }
+                    let minimum_time = if key > 0 {
+                        track_ref.keys[key - 1].time + 1.0e-4
+                    } else {
+                        0.0
+                    };
+                    let maximum_time = if key + 1 < track_ref.keys.len() {
+                        track_ref.keys[key + 1].time - 1.0e-4
+                    } else {
+                        self.project.timeline.duration
+                    };
+                    let key_ref = &mut self.project.timeline.colour_tracks[track].keys[key];
+                    key_ref.time = time.clamp(
+                        minimum_time.min(maximum_time),
+                        maximum_time.max(minimum_time),
+                    );
+                    key_ref.tint = tint.map(|channel| channel.clamp(0.0, 4.0));
+                    key_ref.interpolation = interpolation;
+                    self.timeline_preview_active = true;
+                }
+                EditorAction::RemoveTimelineColourKey { track, key } => {
+                    if let Some(track_ref) = self.project.timeline.colour_tracks.get_mut(track) {
+                        if key < track_ref.keys.len() {
+                            track_ref.keys.remove(key);
+                            self.timeline_preview_active = true;
+                            self.status_message = "Removed colour key".to_owned();
+                        }
+                    }
+                }
                 EditorAction::ResetSurface { surface } => {
                     if let Some(surface) = self
                         .project
@@ -3233,6 +3357,18 @@ impl App {
                 apply_timeline_value_to_project(&mut project, &parameter, value);
             }
         }
+        let colours = project
+            .timeline
+            .sample_colours(self.clock.position_seconds() as f32);
+        for (output_id, tint) in colours {
+            if let Some(output) = project
+                .outputs
+                .iter_mut()
+                .find(|output| output.id == output_id)
+            {
+                output.color.tint = tint;
+            }
+        }
         project
     }
 
@@ -3870,6 +4006,14 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
             (HistoryKey::TimelineMarker(*marker), "move timeline marker")
         }
         RemoveTimelineMarker { .. } => (HistoryKey::Discrete, "remove timeline marker"),
+        AddTimelineColourTrack { .. } => (HistoryKey::Discrete, "add colour track"),
+        RemoveTimelineColourTrack { .. } => (HistoryKey::Discrete, "remove colour track"),
+        AddTimelineColourKey { .. } => (HistoryKey::Discrete, "add colour key"),
+        SetTimelineColourKey { track, key, .. } => (
+            HistoryKey::TimelineColourKey(*track, *key),
+            "move colour key",
+        ),
+        RemoveTimelineColourKey { .. } => (HistoryKey::Discrete, "remove colour key"),
         ResetSurface { .. } => (HistoryKey::Discrete, "reset surface"),
         AddSurface => (HistoryKey::Discrete, "add surface"),
         DeleteSurface { .. } => (HistoryKey::Discrete, "delete surface"),
