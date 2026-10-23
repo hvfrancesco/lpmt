@@ -276,8 +276,8 @@ packaging and a longer production soak on target hardware.
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
 | 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
-| 2026-10-23 |  | Linux / Wayland / Quadro M520 | default | M7 | PASS (Linux-only) | Linux package extract/launch/install passed; 120 s release run 59.67 fps; 300 s telemetry soak 59.84 fps, +2.7 MiB steady RSS, GPU 46 °C. Real-show, macOS/Windows and long production soak documented post-v1. |
-| 2026-10-23 |  | Linux / Wayland / Quadro M520 | default | M6 (partial) | IN PROGRESS | Slideshow source, editor settings and LPMT 1 folder import implemented and tested. |
+| 2026-10-23 | 5ae8f37 | Linux / Wayland / Quadro M520 | default | M7 | PASS (Linux-only) | Linux package extract/launch/install passed; 120 s release run 59.67 fps; 300 s telemetry soak 59.84 fps, +2.7 MiB steady RSS, GPU 46 °C. Real-show, macOS/Windows and long production soak documented post-v1. |
+| 2026-10-23 | 5ae8f37 | Linux / Wayland / Quadro M520 | default | M6 (partial) | IN PROGRESS | Slideshow source, editor settings and LPMT 1 folder import implemented and tested. |
 
 ## Known constraints
 
