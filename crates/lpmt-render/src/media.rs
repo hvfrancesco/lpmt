@@ -205,11 +205,16 @@ impl MediaCache {
         &mut self,
         gpu: &Gpu,
         source: &SourceSpec,
+        seconds: f32,
     ) -> Result<&wgpu::BindGroup> {
         match source {
             SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => Ok(self
                 .media
                 .get(media_id)
+                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group)),
+            SourceSpec::Slideshow { slideshow } => Ok(slideshow
+                .media_at(seconds)
+                .and_then(|media_id| self.media.get(media_id))
                 .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group)),
             SourceSpec::TestPattern { pattern } => {
                 let entry = self

@@ -28,6 +28,7 @@ pub(crate) enum HistoryKey {
     LayerCrop(usize),
     LayerColor(usize),
     LayerChroma(usize),
+    LayerSlideshow(usize),
     ShowAudioVolume,
     OutputView(usize),
     OutputEdgeBlend(usize),

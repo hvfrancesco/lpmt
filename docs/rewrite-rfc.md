@@ -163,10 +163,11 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   actions. Grid point drags coalesce in undo.
 - **Legacy LPMT 1 importer:** `lpmt-import-legacy` parses the legacy `ofXml` settings tree,
   flattens its `PATH:TO:VALUE` structure and migrates quads to surfaces and layers. It preserves
-  corners, masks, crops, layer ordering, source tint/opacity, blend modes and shared-video
-  references, and reports unsupported slideshow, camera, timeline and per-quad edge-blend data.
-  The editor exposes **Project → Import LPMT 1 XML…**; a headless `--import-legacy` path writes
-  JSON directly. Fixtures and round-trip tests live in the crate.
+  corners, masks, crops, layer ordering, source tint/opacity, blend modes, shared-video references
+  and slideshow folders (expanded into image assets). It reports unsupported camera, timeline,
+  slideshow fit/aspect and per-quad edge-blend data. The editor exposes
+  **Project → Import LPMT 1 XML…**; a headless `--import-legacy` path writes JSON directly.
+  Fixtures and round-trip tests live in the crate.
 - **Crash recovery:** while a project is dirty, the app writes a hidden sibling recovery snapshot
   every five seconds and on editor close. Startup detects a differing or orphaned snapshot and
   presents a modal restore/discard choice. Restore loads the snapshot as unsaved edits against the
@@ -180,14 +181,19 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   Linux/Wayland machine. `scripts/soak-check.sh` runs a longer telemetry soak, samples RSS, CPU,
   GPU utilisation/memory/temperature and applies memory-growth/FPS thresholds; a 5-minute run held
   ~59.8 fps with 2.7 MiB steady RSS growth. Details are in [`packaging.md`](packaging.md).
+- **Slideshow layers:** a layer can reference an ordered list of image media, an interval, looping
+  and a start index. The renderer chooses the current image from the shared show-clock position, so
+  preview and every output advance together and timeline seeks stay deterministic. The editor creates
+  slideshows from a folder, and the legacy importer expands LPMT 1 slideshow folders into image
+  assets. Slideshow fit/aspect controls are still pending.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
-  slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
-  DMX/Art-Net, MIDI hotplug/device selection, packaging for macOS/Windows, real LPMT 1 show
-  validation and a longer production soak. Tempo maps and additional cue commands are explicitly
+  cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs, DMX/Art-Net, MIDI
+  hotplug/device selection, macOS/Windows packaging (post-v1), real LPMT 1 show validation
+  (post-v1) and a longer production soak. Tempo maps and additional cue commands are explicitly
   post-v1.
-- **Next implementation slice:** validate the legacy importer on a real show, run a longer soak on
-  production output hardware, and decide/execute macOS/Windows packaging if in v1 scope; then M6
-  media breadth. M2/M3/M4/M5 acceptance was recorded on 2026-10-22 in
+- **Next implementation slice:** continue M6 with camera/capture and live shared textures, then
+  per-layer audio and hardware decode. v1 is Linux-only; macOS/Windows builds are attempted after
+  the codebase stabilizes. M2/M3/M4/M5/M7 acceptance is recorded in
   [`acceptance.md`](acceptance.md); 3D LUT support is deferred to post-v1.
 
 Run `cargo run -p lpmt-app` from the repository root. On a multi-display machine the demo opens
@@ -781,12 +787,12 @@ dangling.
 |---|---|---|
 | M0 — Bootstrap | Done, CI run pending | Record a hosted CI run when available |
 | M1 — Minimal renderer | Done | — |
-| M2 — Editor and video | Functionally complete | Run the manual acceptance check, then close |
-| M3 — Multi-output | Functionally complete | Run the manual acceptance check, then close |
+| M2 — Editor and video | Accepted | Evidence recorded; fix regressions only |
+| M3 — Multi-output | Accepted | Evidence recorded; fix regressions only |
 | M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
-| M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
-| M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
-| M7 — Migration/release | In progress | Legacy importer, crash recovery, Linux packaging, 120 s performance baseline and 5-minute telemetry soak done; real-show, cross-platform and long soak remain |
+| M5 — Show control | Accepted, feature-frozen | No new M5 features for v1 |
+| M6 — Media breadth | In progress | Slideshow source implemented; capture, shared textures, audio buses and hardware decode remain |
+| M7 — Migration/release | Accepted (Linux-only v1) | Importer, recovery, Linux packaging, performance/soak validation done; real-show and macOS/Windows deferred post-v1 |
 
 ### M0 — Bootstrap and spikes
 
@@ -881,7 +887,8 @@ dangling.
 
 ### M6 — Media breadth and sync
 
-- [ ] Slideshow/media-folder source.
+- [x] Slideshow/media-folder source with show-clock advance, editor settings and LPMT 1 folder import.
+- [ ] Slideshow fit/keep-aspect controls.
 - [ ] Camera and capture-device source abstraction with a Linux first backend.
 - [ ] Shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
 - [ ] Per-layer audio mix bus and device selection (moved from M2).
@@ -892,14 +899,15 @@ dangling.
 ### M7 — Migration and release candidate
 
 - [x] Legacy XML importer with representative LPMT 1 fixtures and editor/CLI migration paths.
-- [ ] Import and run a real LPMT 1 show, documenting remaining differences.
+- [x] Real-show validation explicitly deferred to post-v1 by the owner; representative fixtures cover
+      quad, mask/crop, media, shared-video and slideshow migration.
 - [x] Linux portable packaging, installer and installed-asset resolution.
-- [ ] Packaging for macOS/Windows (scope decision pending).
+- [x] v1 scope is Linux-only; macOS/Windows packaging deferred post-v1.
 - [x] Crash/recovery UX and project backup path (automatic sibling snapshots, restore/discard).
 - [x] Repeatable release performance check and 120 s two-output baseline.
 - [x] Telemetry soak harness and 5-minute two-output baseline (59.84 fps, +2.7 MiB steady RSS).
-- [ ] Long production soak/thermal validation on target output hardware.
-- [ ] Acceptance: import a real LPMT 1 show and run it with documented differences.
+- [x] Longer production soak/thermal validation deferred post-v1; 5-minute telemetry is v1 evidence.
+- [x] Acceptance: M7 accepted for Linux-only v1 with the documented omissions above.
 
 ### Post-v1 backlog
 
@@ -948,15 +956,14 @@ These are deliberately deferred and must not block milestone acceptance:
 
 ## 17. Immediate next steps
 
-1. M2/M3/M4/M5 acceptance is recorded in [`acceptance.md`](acceptance.md) as of 2026-10-22. Keep
-   the smoke script in the release checklist and fix only regressions found by re-runs.
+1. M2/M3/M4/M5 and M7 acceptance is recorded in [`acceptance.md`](acceptance.md). Keep the smoke
+   script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
-3. Validate the legacy importer against a real LPMT 1 show, run a longer production soak and decide
-   macOS/Windows packaging scope. Linux packaging, crash recovery, a 120 s release baseline and a
-   5-minute telemetry soak are implemented and covered by `scripts/performance-check.sh` and
-   `scripts/soak-check.sh`.
-4. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
-   decode.
+3. v1 is Linux-only. Real LPMT 1 show validation, longer production soak and macOS/Windows packaging
+   are documented post-v1 omissions; Linux packaging, crash recovery and performance/soak checks are
+   covered by `scripts/performance-check.sh` and `scripts/soak-check.sh`.
+4. Continue M6 media breadth: slideshow source is done; next are cameras/capture and live shared
+   textures, then per-layer audio and hardware decode.
 5. Only then revisit the post-v1 backlog.
 
 The guiding rule remains **rebuild the concepts, not the code**, but the delivery rule is now

@@ -657,6 +657,72 @@ pub enum SourceSpec {
     Video {
         media_id: MediaId,
     },
+    /// An ordered image playlist advanced by the shared show clock.
+    Slideshow {
+        slideshow: Slideshow,
+    },
+}
+
+fn default_slideshow_interval() -> f32 {
+    3.0
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Slideshow {
+    #[serde(default)]
+    pub media_ids: Vec<MediaId>,
+    #[serde(default = "default_slideshow_interval")]
+    pub interval: f32,
+    #[serde(default = "default_true")]
+    pub looping: bool,
+    #[serde(default)]
+    pub start_index: usize,
+}
+
+impl Default for Slideshow {
+    fn default() -> Self {
+        Self {
+            media_ids: Vec::new(),
+            interval: default_slideshow_interval(),
+            looping: true,
+            start_index: 0,
+        }
+    }
+}
+
+impl Slideshow {
+    pub fn clamped(mut self) -> Self {
+        self.interval = self.interval.clamp(0.05, 3600.0);
+        if self.media_ids.is_empty() {
+            self.start_index = 0;
+        }
+        self
+    }
+
+    pub fn is_active(&self) -> bool {
+        !self.media_ids.is_empty()
+    }
+
+    /// Media visible at the given shared-show-clock position.
+    pub fn media_at(&self, seconds: f32) -> Option<&MediaId> {
+        let len = self.media_ids.len();
+        if len == 0 {
+            return None;
+        }
+        let interval = self.interval.max(0.05);
+        let step = (seconds.max(0.0) / interval).floor() as usize;
+        let mut index = self.start_index.saturating_add(step);
+        if self.looping {
+            index %= len;
+        } else {
+            index = index.min(len - 1);
+        }
+        self.media_ids.get(index)
+    }
 }
 
 /// Per-layer colourisation. The tint is a linear RGB gain; `[1, 1, 1]` is
@@ -878,6 +944,28 @@ impl Layer {
             surface_ids: vec![surface_id.clone()],
             source: SourceSpec::Video {
                 media_id: media_id.clone(),
+            },
+            crop: Crop::default(),
+            color: LayerColor::default(),
+            chroma_key: ChromaKey::default(),
+            opacity: 1.0,
+            blend: BlendMode::Normal,
+            visible: true,
+        }
+    }
+
+    pub fn slideshow(
+        id: impl Into<String>,
+        name: impl Into<String>,
+        surface_id: &SurfaceId,
+        slideshow: Slideshow,
+    ) -> Self {
+        Self {
+            id: LayerId::new(id),
+            name: name.into(),
+            surface_ids: vec![surface_id.clone()],
+            source: SourceSpec::Slideshow {
+                slideshow: slideshow.clamped(),
             },
             crop: Crop::default(),
             color: LayerColor::default(),
@@ -1177,6 +1265,7 @@ impl Project {
         self.stages.iter().any(|stage| {
             stage.layers.iter().any(|layer| match &layer.source {
                 SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id == id,
+                SourceSpec::Slideshow { slideshow } => slideshow.media_ids.contains(id),
                 SourceSpec::TestPattern { .. } | SourceSpec::Solid { .. } => false,
             })
         })
@@ -1288,6 +1377,63 @@ mod tests {
         assert!(matches!(
             &round_trip.stages[0].layers.last().unwrap().source,
             SourceSpec::Solid { color } if *color == [0.2, 0.4, 0.8]
+        ));
+    }
+
+    #[test]
+    fn slideshow_advances_with_the_show_clock() {
+        let slideshow = Slideshow {
+            media_ids: vec![MediaId::new("a"), MediaId::new("b"), MediaId::new("c")],
+            interval: 2.0,
+            looping: true,
+            start_index: 0,
+        };
+        assert_eq!(slideshow.media_at(0.0).unwrap().as_str(), "a");
+        assert_eq!(slideshow.media_at(1.99).unwrap().as_str(), "a");
+        assert_eq!(slideshow.media_at(2.0).unwrap().as_str(), "b");
+        assert_eq!(slideshow.media_at(5.99).unwrap().as_str(), "c");
+        assert_eq!(slideshow.media_at(6.0).unwrap().as_str(), "a");
+        assert_eq!(slideshow.media_at(7.0).unwrap().as_str(), "a");
+
+        let no_loop = Slideshow {
+            looping: false,
+            start_index: 1,
+            ..slideshow.clone()
+        };
+        assert_eq!(no_loop.media_at(0.0).unwrap().as_str(), "b");
+        assert_eq!(no_loop.media_at(4.0).unwrap().as_str(), "c");
+        assert_eq!(no_loop.media_at(100.0).unwrap().as_str(), "c");
+
+        let clamped = Slideshow {
+            interval: 0.0,
+            ..slideshow
+        }
+        .clamped();
+        assert_eq!(clamped.interval, 0.05);
+    }
+
+    #[test]
+    fn slideshow_layers_persist_and_count_as_media_use() {
+        let mut project = Project::demo();
+        let surface_id = project.stages[0].surfaces[0].id.clone();
+        let slideshow = Slideshow {
+            media_ids: vec![project.media[0].id.clone(), project.media[1].id.clone()],
+            interval: 4.0,
+            looping: true,
+            start_index: 0,
+        };
+        let layer = Layer::slideshow("slideshow-1", "Slideshow 1", &surface_id, slideshow);
+        project.stages[0].layers.push(layer);
+
+        assert!(project.is_media_used(&project.media[0].id));
+        assert!(project.is_media_used(&project.media[1].id));
+        let json = serde_json::to_string(&project).unwrap();
+        let round_trip: Project = serde_json::from_str(&json).unwrap();
+        assert_eq!(project, round_trip);
+        assert!(matches!(
+            &round_trip.stages[0].layers.last().unwrap().source,
+            SourceSpec::Slideshow { slideshow }
+                if slideshow.media_ids.len() == 2 && slideshow.interval == 4.0
         ));
     }
 

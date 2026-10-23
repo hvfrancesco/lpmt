@@ -891,6 +891,7 @@ impl StageRenderer {
         gpu: &Gpu,
         media: &mut MediaCache,
         stage: &Stage,
+        seconds: f32,
         target: StageTarget<'_>,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<()> {
@@ -919,7 +920,7 @@ impl StageRenderer {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
-            let bind_group = media.bind_group(gpu, &layer.source)?.clone();
+            let bind_group = media.bind_group(gpu, &layer.source, seconds)?.clone();
             let blend_index = pipeline_index(layer.blend);
             for surface_id in &layer.surface_ids {
                 if draws.len() >= MAX_LAYER_SLOTS {
@@ -1232,6 +1233,7 @@ impl OutputRenderer {
         gpu: &Gpu,
         media: &mut MediaCache,
         stage: &Stage,
+        seconds: f32,
         output: &OutputSpec,
         guide: GuideMode,
     ) -> Result<Option<PreparedFrame>> {
@@ -1275,6 +1277,7 @@ impl OutputRenderer {
             gpu,
             media,
             stage,
+            seconds,
             StageTarget {
                 view: output.view,
                 edge_blend: output.edge_blend.clamped(),
@@ -1333,7 +1336,13 @@ impl PreviewRenderer {
 
     /// Render the full stage, with no output-specific edge blending or colour
     /// correction. The result is gamma encoded for egui's texture sampler.
-    pub fn render(&mut self, gpu: &Gpu, media: &mut MediaCache, stage: &Stage) -> Result<()> {
+    pub fn render(
+        &mut self,
+        gpu: &Gpu,
+        media: &mut MediaCache,
+        stage: &Stage,
+        seconds: f32,
+    ) -> Result<()> {
         let mut encoder = gpu
             .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -1343,6 +1352,7 @@ impl PreviewRenderer {
             gpu,
             media,
             stage,
+            seconds,
             StageTarget {
                 view: Rect::FULL,
                 edge_blend: EdgeBlend::NONE,

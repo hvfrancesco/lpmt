@@ -8,11 +8,12 @@ real editor, independent output windows and a portable rendering stack.
 The original LPMT 1 source and data are preserved in
 [`archive/lpmt-1/`](archive/lpmt-1/) as the behavioral reference.
 
-**Current status (2026-10-22):** Linux-first M0–M5 accepted. The M7 legacy XML
-importer, crash recovery and Linux release packaging are implemented; a 120 s
-release baseline and a 5-minute telemetry soak pass with two outputs. Real-show,
-cross-platform and longer production soak validation remain. Ordered layer
-compositing, optional video and
+**Current status (2026-10-23):** Linux-first v1: M0–M5 and M7 are accepted, and
+M6 media breadth is in progress. The M7 legacy XML importer, crash recovery and
+Linux release packaging are implemented; a 120 s release baseline and a
+5-minute telemetry soak pass with two outputs. macOS/Windows packaging is
+post-v1. Slideshow layers now advance image playlists from the shared show
+clock. Ordered layer compositing, optional video and
 audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
@@ -114,6 +115,12 @@ shelf; Calibration and Show are separate modes.
   chroma key with key colour, tolerance, softness and spill suppression. Both
   are applied before surface masking, work in the quad and grid warp paths, and
   participate in undo/redo and JSON persistence.
+- **Slideshow layers:** choose a folder of PNG/JPEG images in the layer card.
+  Slides advance from the shared show clock, so playback, seeking and output
+  groups stay in sync. Each layer stores its own playlist, interval, looping and
+  start slide; imported LPMT 1 slideshow folders are expanded into image assets.
+  The initial slideshow source stretches images through the normal layer
+  crop/surface warp; fit/keep-aspect UI is still pending.
 - The demo has two warped surfaces and two layers.
 - Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
   `OutputSpec`, `OutputGroup`) with stable IDs and JSON serialization.
@@ -204,20 +211,20 @@ control, timeline automation and cue stack are now substantially implemented.
 The project is no longer planning the next timeline feature by default:
 milestone acceptance and breadth take priority over adding more M5 depth.
 
-M2/M3/M4/M5 acceptance was recorded on **2026-10-22** in
-[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen for v1;
-3D LUT and Bézier support are deferred to post-v1.
+M2–M5 acceptance was recorded on **2026-10-22**; M7 was accepted on
+**2026-10-23** for Linux-only v1. M6 is in progress. See
+[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen; 3D LUT
+and Bézier support are deferred to post-v1.
 
 The immediate order is:
 
-1. Validate the **LPMT 1 legacy XML importer** against a real show and run a
-   longer production soak on target output hardware; package macOS/Windows
-   builds if they are in v1 scope.
-2. Keep 3D LUT support and Bézier patches deferred to post-v1.
-3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
+1. Continue M6 media breadth: camera/capture and live shared textures, then
    per-layer audio mixing and hardware decode.
-4. Post-v1 backlog: tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC
-   and per-stage timelines.
+2. Add slideshow fit/keep-aspect controls and finish the slideshow UI polish.
+3. Keep 3D LUT support and Bézier patches deferred to post-v1.
+4. Post-v1: real LPMT 1 show validation, longer production soak, macOS/Windows
+   packaging, tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC and
+   per-stage timelines.
 
 Keep the checklist and smoke runner in the release process:
 `./scripts/acceptance-smoke.sh` (and `LPMT_ALL_FEATURES=1` on a Linux machine
@@ -614,12 +621,13 @@ cargo run -p lpmt-app -- --import-legacy /path/to/legacy-settings.xml --out show
 ```
 
 Unsupported legacy features are reported on stderr and in a summary after the
-import. The importer currently migrates solid, image, video and shared-video
-content; slideshows and cameras are reported and skipped, while timeline data
-is not reconstructed. Per-quad edge blending, Bézier deformation, source flips
-and source scaling require manual review because LPMT 2 expresses them at the
-surface/output level. Legacy media paths are kept as written; saving the JSON
-next to the legacy settings file preserves the usual relative-path layout.
+import. The importer migrates solid, image, video, shared-video and slideshow
+folder content; cameras are reported and skipped, while timeline data is not
+reconstructed. Per-quad edge blending, Bézier deformation, slideshow fit/aspect,
+source flips and source scaling require manual review because LPMT 2 expresses
+them at the surface/output level. Legacy media paths are kept as written; saving
+the JSON next to the legacy settings file preserves the usual relative-path
+layout.
 
 ## Legacy LPMT 1 archive
 

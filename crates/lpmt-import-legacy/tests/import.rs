@@ -1,5 +1,7 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use lpmt_core::model::{BlendMode, SourceSpec};
-use lpmt_import_legacy::{import_xml, ImportedProject};
+use lpmt_import_legacy::{import_file, import_xml, ImportedProject};
 
 const FIXTURE: &str = include_str!("fixtures/legacy-show.xml");
 
@@ -167,9 +169,69 @@ fn unsupported_content_does_not_create_a_layer() {
         .any(|item| item == "cameras"));
     assert!(imported
         .report
-        .unsupported_features
+        .warnings
         .iter()
-        .any(|item| item == "slideshows"));
+        .any(|warning| warning.contains("slideshow is active but no folder")));
+}
+
+#[test]
+fn imports_slideshow_folders_relative_to_the_xml_file() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let directory = std::env::temp_dir().join(format!(
+        "lpmt-import-slideshow-{}-{unique}",
+        std::process::id()
+    ));
+    let slides = directory.join("slides");
+    std::fs::create_dir_all(&slides).unwrap();
+    std::fs::write(slides.join("b.jpg"), b"").unwrap();
+    std::fs::write(slides.join("a.png"), b"").unwrap();
+    std::fs::write(slides.join("ignore.txt"), b"").unwrap();
+    let xml_path = directory.join("_lpmt_settings.xml");
+    std::fs::write(
+        &xml_path,
+        r#"
+        <LPMT>
+          <GENERAL><N_OF_QUADS>1</N_OF_QUADS></GENERAL>
+          <QUADS>
+            <QUAD_0>
+              <NUMBER>1</NUMBER><LAYER>0</LAYER><IS_ON>1</IS_ON>
+              <CORNERS>
+                <CORNER_0><X>0.0</X><Y>0.0</Y></CORNER_0>
+                <CORNER_1><X>1.0</X><Y>0.0</Y></CORNER_1>
+                <CORNER_2><X>1.0</X><Y>1.0</Y></CORNER_2>
+                <CORNER_3><X>0.0</X><Y>1.0</Y></CORNER_3>
+              </CORNERS>
+              <SLIDESHOW>
+                <ACTIVE>1</ACTIVE>
+                <LOADED_SLIDESHOW>slides</LOADED_SLIDESHOW>
+                <SPEED>2.5</SPEED>
+              </SLIDESHOW>
+              <IMG><COLORIZE><R>0.9</R><G>0.9</G><B>0.9</B><A>1.0</A></COLORIZE></IMG>
+            </QUAD_0>
+          </QUADS>
+        </LPMT>
+        "#,
+    )
+    .unwrap();
+
+    let imported = import_file(&xml_path).expect("slideshow show imports");
+    let project = &imported.project;
+    assert_eq!(project.media.len(), 2);
+    assert_eq!(project.media[0].path, "slides/a.png");
+    assert_eq!(project.media[1].path, "slides/b.jpg");
+    let layer = &project.stages[0].layers[0];
+    let SourceSpec::Slideshow { slideshow } = &layer.source else {
+        panic!("slideshow source expected");
+    };
+    assert_eq!(slideshow.media_ids.len(), 2);
+    assert_eq!(slideshow.interval, 2.5);
+    assert!(slideshow.looping);
+    assert_eq!(layer.color.tint, [0.9, 0.9, 0.9]);
+
+    std::fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]

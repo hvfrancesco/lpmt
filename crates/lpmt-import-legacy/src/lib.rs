@@ -15,8 +15,8 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use lpmt_core::model::{
     BlendMode, CircleCrop, Crop, Layer, LayerColor, MediaAsset, MediaId, MediaKind, OutputSpec,
-    OutputTarget, Point2, Project, ProjectId, ShowAudio, Stage, StageId, Surface, SurfaceId,
-    SurfaceMask,
+    OutputTarget, Point2, Project, ProjectId, ShowAudio, Slideshow, Stage, StageId, Surface,
+    SurfaceId, SurfaceMask,
 };
 use lpmt_core::timeline::Timeline;
 use roxmltree::Document;
@@ -79,11 +79,20 @@ pub fn import_file(path: impl AsRef<Path>) -> Result<ImportedProject> {
         .and_then(|stem| stem.to_str())
         .filter(|stem| !stem.trim().is_empty())
         .unwrap_or("Imported LPMT 1 show");
-    import_xml(&xml, name)
+    import_xml_with_base(
+        &xml,
+        name,
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty()),
+    )
 }
 
 /// Import LPMT 1 settings from an in-memory XML string.
 pub fn import_xml(xml: &str, name: &str) -> Result<ImportedProject> {
+    import_xml_with_base(xml, name, None)
+}
+
+fn import_xml_with_base(xml: &str, name: &str, base: Option<&Path>) -> Result<ImportedProject> {
     let values = flatten_xml(xml)?;
     if values.is_empty() {
         bail!("legacy XML contains no settings");
@@ -175,16 +184,10 @@ pub fn import_xml(xml: &str, name: &str) -> Result<ImportedProject> {
                 format!("Quad {display_number}: camera content is not migrated."),
             );
         }
-        if get_bool(&values, &format!("{prefix}:SLIDESHOW:ACTIVE")) {
-            report.unsupported(
-                "slideshows",
-                format!("Quad {display_number}: slideshow content is not migrated."),
-            );
-        }
-
         // LPMT 1 can draw several content sources on the same quad. Keep that
-        // ordering: solid colour, video, shared video, camera/slideshow
-        // (unsupported), then image. Camera and slideshow are skipped above.
+        // ordering: solid colour, video, shared video, camera/slideshow, then
+        // image. Camera is unsupported; slideshow is imported when the legacy
+        // folder can be resolved from the XML file location.
         if get_bool(&values, &format!("{prefix}:COLOR:ACTIVE")) {
             let color = [
                 get_f32(&values, &format!("{prefix}:COLOR:R"), 0.0).clamp(0.0, 1.0),
@@ -287,6 +290,102 @@ pub fn import_xml(xml: &str, name: &str) -> Result<ImportedProject> {
                 report.warn(format!(
                     "Quad {display_number}: shared video {shared_number} is active but that shared video slot is empty."
                 ));
+            }
+        }
+
+        if get_bool(&values, &format!("{prefix}:SLIDESHOW:ACTIVE")) {
+            let folder = get_string(&values, &format!("{prefix}:SLIDESHOW:LOADED_SLIDESHOW"));
+            if folder.is_empty() {
+                report.warn(format!(
+                    "Quad {display_number}: slideshow is active but no folder was saved."
+                ));
+            } else if let Some(base) = base {
+                let folder_path = Path::new(&folder);
+                let resolved = if folder_path.is_absolute() {
+                    folder_path.to_path_buf()
+                } else {
+                    base.join(folder_path)
+                };
+                match slideshow_images(&resolved) {
+                    Ok(images) if images.is_empty() => report.warn(format!(
+                        "Quad {display_number}: no PNG/JPEG images found in slideshow folder {}.",
+                        resolved.display()
+                    )),
+                    Ok(images) => {
+                        let mut media_ids = Vec::with_capacity(images.len());
+                        for image in images {
+                            let stored = if folder_path.is_absolute() {
+                                image.display().to_string()
+                            } else {
+                                folder_path
+                                    .join(
+                                        image
+                                            .file_name()
+                                            .unwrap_or_else(|| std::ffi::OsStr::new("slide")),
+                                    )
+                                    .to_string_lossy()
+                                    .into_owned()
+                            };
+                            media_ids.push(ensure_media(
+                                &mut media,
+                                &mut media_by_path,
+                                &stored,
+                                MediaKind::Image,
+                                "",
+                            ));
+                        }
+                        let interval = get_f32(&values, &format!("{prefix}:SLIDESHOW:SPEED"), 1.0);
+                        let mut layer = Layer::slideshow(
+                            format!("layer-quad-{quad_index}-slideshow"),
+                            format!("{surface_name} slideshow"),
+                            &surface_id,
+                            Slideshow {
+                                media_ids,
+                                interval,
+                                looping: true,
+                                start_index: 0,
+                            },
+                        );
+                        apply_legacy_layer_style(
+                            &mut layer,
+                            &values,
+                            &prefix,
+                            LegacyLayerStyle {
+                                source: "IMG",
+                                is_on,
+                                crop,
+                                blend,
+                                display_number,
+                            },
+                            &mut report,
+                        );
+                        pending_layers.push(PendingLayer {
+                            legacy_layer,
+                            quad_index,
+                            source_order: 4,
+                            layer,
+                        });
+                        if get_bool(&values, &format!("{prefix}:SLIDESHOW:FIT")) {
+                            report.unsupported(
+                                "slideshow fit/aspect",
+                                format!(
+                                    "Quad {display_number}: slideshow fit/keep-aspect is not migrated; images use the layer crop and surface warp."
+                                ),
+                            );
+                        }
+                    }
+                    Err(error) => report.warn(format!(
+                        "Quad {display_number}: could not read slideshow folder {}: {error:#}",
+                        resolved.display()
+                    )),
+                }
+            } else {
+                report.unsupported(
+                    "slideshows",
+                    format!(
+                        "Quad {display_number}: slideshow needs file context; import through the XML file path to resolve its folder."
+                    ),
+                );
             }
         }
 
@@ -631,6 +730,30 @@ fn inferred_quad_count(values: &HashMap<String, String>) -> usize {
         }
     }
     highest.map_or(0, |index| (index + 1).min(MAX_LEGACY_QUADS))
+}
+
+fn slideshow_images(folder: &Path) -> Result<Vec<std::path::PathBuf>> {
+    let mut images = Vec::new();
+    for entry in fs::read_dir(folder)
+        .with_context(|| format!("failed to read slideshow folder {}", folder.display()))?
+    {
+        let path = entry
+            .with_context(|| format!("failed to read an entry in {}", folder.display()))?
+            .path();
+        if !path.is_file() {
+            continue;
+        }
+        let extension = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_ascii_lowercase);
+        if matches!(extension.as_deref(), Some("png" | "jpg" | "jpeg")) {
+            images.push(path);
+        }
+    }
+    images.sort();
+    images.truncate(512);
+    Ok(images)
 }
 
 fn ensure_media(

@@ -27,8 +27,8 @@ use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::parse_cube_1d;
 use lpmt_core::model::{
     BlendMode, Layer, LayerId, MediaAsset, MediaId, MediaKind, OutputGroup, OutputId, OutputSpec,
-    OutputTarget, Point2, Project, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask, TestPattern,
-    MASK_POINT_LIMIT,
+    OutputTarget, Point2, Project, Slideshow, SourceSpec, Stage, Surface, SurfaceId, SurfaceMask,
+    TestPattern, MASK_POINT_LIMIT,
 };
 use lpmt_core::param::{EdgeSide, ParameterId, ParameterKind, ParameterValue, TintChannel};
 use lpmt_core::timeline::{
@@ -734,6 +734,7 @@ impl App {
     /// prepared first, submitted in one queue call and then presented together.
     fn render_outputs(&mut self) {
         let project = self.timeline_project();
+        let seconds = self.clock.position_seconds() as f32;
         let groups: Vec<Vec<OutputId>> = project
             .output_groups
             .iter()
@@ -753,18 +754,18 @@ impl App {
             for index in &indices {
                 rendered[*index] = true;
             }
-            self.present_outputs(&indices, &project);
+            self.present_outputs(&indices, &project, seconds);
         }
 
         let ungrouped: Vec<usize> = (0..self.outputs.len())
             .filter(|index| !rendered[*index])
             .collect();
         for index in ungrouped {
-            self.present_outputs(&[index], &project);
+            self.present_outputs(&[index], &project, seconds);
         }
     }
 
-    fn present_outputs(&mut self, indices: &[usize], project: &Project) {
+    fn present_outputs(&mut self, indices: &[usize], project: &Project, seconds: f32) {
         let App {
             gpu,
             media,
@@ -799,7 +800,7 @@ impl App {
                 .unwrap_or(GuideMode::None);
             match output
                 .renderer
-                .prepare(gpu, media, stage, output_spec, guide)
+                .prepare(gpu, media, stage, seconds, output_spec, guide)
             {
                 Ok(Some(frame)) => prepared.push((*index, frame)),
                 Ok(None) => output.pacing.note_skipped(),
@@ -3200,6 +3201,105 @@ impl App {
                 EditorAction::DiscardRecovery => {
                     self.discard_recovery();
                 }
+                EditorAction::PickSlideshowFolder { layer } => {
+                    let dialog = rfd::FileDialog::new().set_directory(&self.media_base);
+                    if let Some(folder) = dialog.pick_folder() {
+                        match slideshow_images_in_folder(&folder) {
+                            Ok(images) if images.is_empty() => {
+                                self.status_message =
+                                    format!("No PNG/JPEG images found in {}", folder.display());
+                            }
+                            Ok(images) => {
+                                let mut media_ids = Vec::with_capacity(images.len());
+                                for path in images {
+                                    let stored = self.stored_media_path(&path);
+                                    let existing = self
+                                        .project
+                                        .media
+                                        .iter()
+                                        .find(|asset| {
+                                            asset.kind == MediaKind::Image && asset.path == stored
+                                        })
+                                        .map(|asset| asset.id.clone());
+                                    let media_id = existing.unwrap_or_else(|| {
+                                        let mut index = self.project.media.len() + 1;
+                                        let id = loop {
+                                            let candidate = format!("media-{index}");
+                                            if self
+                                                .project
+                                                .media
+                                                .iter()
+                                                .all(|asset| asset.id.as_str() != candidate)
+                                            {
+                                                break candidate;
+                                            }
+                                            index += 1;
+                                        };
+                                        let name = path
+                                            .file_stem()
+                                            .and_then(|name| name.to_str())
+                                            .unwrap_or("Slide")
+                                            .to_owned();
+                                        self.project.media.push(MediaAsset::image(
+                                            id.clone(),
+                                            name,
+                                            stored,
+                                        ));
+                                        MediaId::new(id)
+                                    });
+                                    media_ids.push(media_id);
+                                }
+
+                                if let Some(layer) = self
+                                    .project
+                                    .primary_stage_mut()
+                                    .and_then(|stage| stage.layers.get_mut(layer))
+                                {
+                                    layer.source = SourceSpec::Slideshow {
+                                        slideshow: Slideshow {
+                                            media_ids: media_ids.clone(),
+                                            interval: 3.0,
+                                            looping: true,
+                                            start_index: 0,
+                                        },
+                                    };
+                                }
+                                self.reload_media();
+                                self.status_message = format!(
+                                    "Slideshow: {} images from {}",
+                                    media_ids.len(),
+                                    folder.display()
+                                );
+                            }
+                            Err(error) => {
+                                log::error!("failed to scan slideshow folder: {error:#}");
+                                self.status_message = format!("Slideshow folder failed: {error}");
+                            }
+                        }
+                    }
+                }
+                EditorAction::SetSlideshowSettings {
+                    layer,
+                    interval,
+                    looping,
+                    start_index,
+                } => {
+                    if let Some(SourceSpec::Slideshow { slideshow }) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                        .map(|layer| &mut layer.source)
+                    {
+                        let count = slideshow.media_ids.len();
+                        slideshow.interval = interval.clamp(0.05, 3600.0);
+                        slideshow.looping = looping;
+                        slideshow.start_index = if count == 0 {
+                            0
+                        } else {
+                            start_index.min(count - 1)
+                        };
+                    }
+                }
                 EditorAction::AddMedia => {
                     let selected_layer = self.ui_state.selected_layer;
                     let dialog = media_file_dialog(&self.media_base);
@@ -3365,7 +3465,7 @@ impl App {
             .selected_group
             .min(self.project.output_groups.len().saturating_sub(1));
         self.ui_state.cancel_drag();
-        if self.monitors.len() < 2 {
+        if self.monitors.len() < 2 && !self.force_outputs {
             // Keep the single-display policy after undo/redo: outputs stay
             // closed so they cannot cover the editor.
             self.outputs.clear();
@@ -3410,6 +3510,17 @@ impl App {
                     MediaKind::Audio => SourceSpec::TestPattern {
                         pattern: TestPattern::Checker,
                     },
+                };
+                continue;
+            }
+            let mut empty_slideshow = false;
+            if let SourceSpec::Slideshow { slideshow } = &mut layer.source {
+                slideshow.media_ids.retain(|id| id != &media_id);
+                empty_slideshow = slideshow.media_ids.is_empty();
+            }
+            if empty_slideshow {
+                layer.source = SourceSpec::TestPattern {
+                    pattern: TestPattern::Checker,
                 };
             }
         }
@@ -3943,6 +4054,7 @@ impl App {
             return;
         }
         let project = self.timeline_project();
+        let seconds = self.clock.position_seconds() as f32;
         let App {
             gpu,
             media,
@@ -3955,7 +4067,7 @@ impl App {
         let Some(preview) = preview.as_mut() else {
             return;
         };
-        if let Err(error) = preview.render(gpu, media, stage) {
+        if let Err(error) = preview.render(gpu, media, stage, seconds) {
             log::error!("preview render failed: {error:#}");
         }
     }
@@ -4738,6 +4850,11 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerCrop { layer, .. } => (HistoryKey::LayerCrop(*layer), "change layer crop"),
         SetLayerColor { layer, .. } => (HistoryKey::LayerColor(*layer), "change layer colour"),
         SetLayerChromaKey { layer, .. } => (HistoryKey::LayerChroma(*layer), "change chroma key"),
+        PickSlideshowFolder { .. } => (HistoryKey::Discrete, "set slideshow"),
+        SetSlideshowSettings { layer, .. } => (
+            HistoryKey::LayerSlideshow(*layer),
+            "change slideshow settings",
+        ),
         SetLayerSurfaces { .. } => (HistoryKey::Discrete, "change layer surfaces"),
         AddLayer { .. } => (HistoryKey::Discrete, "add layer"),
         AddSolidLayer { .. } => (HistoryKey::Discrete, "add solid colour layer"),
@@ -4816,6 +4933,30 @@ fn used_media_ids(project: &Project) -> Vec<MediaId> {
         .filter(|asset| project.is_media_used(&asset.id))
         .map(|asset| asset.id.clone())
         .collect()
+}
+
+fn slideshow_images_in_folder(folder: &Path) -> Result<Vec<PathBuf>> {
+    let mut images = Vec::new();
+    for entry in std::fs::read_dir(folder)
+        .with_context(|| format!("failed to read slideshow folder {}", folder.display()))?
+    {
+        let path = entry
+            .with_context(|| format!("failed to read an entry in {}", folder.display()))?
+            .path();
+        if !path.is_file() {
+            continue;
+        }
+        let extension = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(str::to_ascii_lowercase);
+        if matches!(extension.as_deref(), Some("png" | "jpg" | "jpeg")) {
+            images.push(path);
+        }
+    }
+    images.sort();
+    images.truncate(512);
+    Ok(images)
 }
 
 fn media_file_dialog(directory: &Path) -> rfd::FileDialog {

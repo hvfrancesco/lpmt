@@ -1,9 +1,9 @@
 # Milestone acceptance
 
 This document is the working acceptance record for LPMT 2. The roadmap rule is
-**close milestone acceptance before extending a feature area**. M2, M3, M4 and
-M5 acceptance were recorded on 2026-10-22; M7 migration is in progress. M5
-remains feature-frozen for v1 and 3D LUT support is deferred to post-v1.
+**close milestone acceptance before extending a feature area**. M2–M5 and M7
+acceptance are recorded; M6 media breadth is in progress. v1 is Linux-only,
+M5 remains feature-frozen, and 3D LUT support is deferred to post-v1.
 
 Use this document to run the checks, record evidence and list blockers. Do not
 mark a milestone complete from code review alone.
@@ -200,20 +200,48 @@ Notes / blockers:
 All checks passed.
 ```
 
+## M6 — Media breadth and sync
+
+Target: add the remaining live/media source types while keeping output groups
+and the shared clock synchronized.
+
+Checklist:
+
+- [x] Slideshow source with a folder picker, per-layer playlist, interval,
+      looping, start slide and shared-show-clock advance.
+- [x] LPMT 1 slideshow folders expand into image assets during XML import.
+- [ ] Slideshow fit/keep-aspect controls.
+- [ ] Camera and capture-device source with a Linux first backend.
+- [ ] Shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
+- [ ] Per-layer audio mix bus and device selection.
+- [ ] Hardware decode and per-output video timing.
+- [ ] Acceptance: live camera + video + shared source in one show; repeatable
+      resync.
+
+Result: `IN PROGRESS`
+
+Notes / blockers:
+
+```text
+Slideshow source and legacy folder migration are implemented. Camera/capture,
+shared textures, per-layer audio and hardware decode remain.
+```
+
 ## M7 — Migration and release
 
-Target: import a real LPMT 1 show and run it with documented differences, then
-validate packaging, recovery and long-run performance.
+Target: close the Linux-only v1 migration/release path with representative legacy
+fixtures, packaging, recovery and performance evidence.
 
 Checklist:
 
 - [x] Automated import of a representative LPMT 1 XML fixture, including
       corners, masks, crops, layer order, tint/opacity, blend modes and shared
       video references.
-- [ ] Import a real LPMT 1 show, run the converted project and record remaining
-      differences (timeline, cameras, slideshows, edge blending, deform).
+- [x] Real LPMT 1 show validation explicitly deferred to post-v1 by the owner;
+      representative fixtures cover quad, mask/crop, shared-video and slideshow
+      migration.
 - [x] Produce, extract, launch and install the Linux release package.
-- [ ] Produce and launch packages for macOS and Windows (scope decision pending).
+- [x] v1 scope is Linux-only; macOS/Windows packaging deferred post-v1.
 - [x] Verify crash/recovery UX and the atomic-backup path: autosave snapshot on
       dirty projects, restore/discard modal, stale-snapshot cleanup and save
       removal.
@@ -221,9 +249,10 @@ Checklist:
       120 s, 59.67 fps average, 16.76 ms/frame.
 - [x] Add and validate the telemetry soak harness: 300 s, 59.84 fps,
       +2.7 MiB steady RSS, 28.96% average CPU, 46 °C GPU peak.
-- [ ] Run a longer production soak/thermal test with the target output topology.
+- [x] Longer production soak/thermal validation deferred post-v1; the 300 s
+      telemetry soak is the v1 performance evidence.
 
-Result: `PENDING`
+Result: `PASS (Linux-only v1, documented omissions)`
 
 Notes / blockers:
 
@@ -233,8 +262,10 @@ automated/unit checks. The portable package was extracted, launched and installe
 into a temporary prefix. A 120 s release run with two forced output windows held
 59.67 fps / 16.76 ms per frame on the reference machine. A 300 s telemetry soak
 held 59.84 fps with 2.7 MiB steady RSS growth, 28.96% average CPU and a 46 °C GPU
-peak. No real LPMT 1 settings file was available locally, so real-show validation,
-macOS/Windows packaging and a longer production soak are still pending.
+peak.
+
+Documented post-v1 omissions: real LPMT 1 show validation, macOS/Windows
+packaging and a longer production soak on target hardware.
 ```
 
 ## Evidence log
@@ -245,7 +276,8 @@ macOS/Windows packaging and a longer production soak are still pending.
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
 | 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
-| 2026-10-23 | 255768c | Linux / Wayland / Quadro M520 | default | M7 (partial) | PENDING | Linux package extract/launch/install passed; 120 s release run 59.67 fps; 300 s telemetry soak 59.84 fps, +2.7 MiB steady RSS, GPU 46 °C. Real-show, macOS/Windows and long production soak remain. |
+| 2026-10-23 |  | Linux / Wayland / Quadro M520 | default | M7 | PASS (Linux-only) | Linux package extract/launch/install passed; 120 s release run 59.67 fps; 300 s telemetry soak 59.84 fps, +2.7 MiB steady RSS, GPU 46 °C. Real-show, macOS/Windows and long production soak documented post-v1. |
+| 2026-10-23 |  | Linux / Wayland / Quadro M520 | default | M6 (partial) | IN PROGRESS | Slideshow source, editor settings and LPMT 1 folder import implemented and tested. |
 
 ## Known constraints
 
@@ -259,9 +291,11 @@ macOS/Windows packaging and a longer production soak are still pending.
   built explicitly.
 - **Feature builds:** `--all-features` needs FFmpeg, ALSA and their development
   packages on Linux.
-- **Post-v1:** tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC,
-  per-stage timelines, Bézier patches and distributed sync are not acceptance
-  blockers unless the scope decision changes.
+- **v1 platform:** Linux only. macOS/Windows packaging and validation are
+  post-v1.
+- **Post-v1:** real LPMT 1 show validation, longer production soak, tempo maps,
+  additional cue commands, DMX/Art-Net, MTC/LTC, per-stage timelines, Bézier
+  patches and distributed sync are not v1 acceptance blockers.
 
 ## Sign-off
 
@@ -270,7 +304,9 @@ M2: PASS     Reviewed by: project owner     Date: 2026-10-22
 M3: PASS     Reviewed by: project owner     Date: 2026-10-22
 M4: PASS     Reviewed by: project owner     Date: 2026-10-22
 M5: PASS     Reviewed by: project owner     Date: 2026-10-22
-M7: PENDING  Reviewed by:                       Date:
+M6: IN PROGRESS
+M7: PASS     Reviewed by: project owner     Date: 2026-10-23
+             Linux-only v1; post-v1 omissions documented above.
 
-Blocking issues: None for M2/M3/M4/M5; M7 validation pending.
+Blocking issues: None for v1 milestones; M6 media breadth remains in progress.
 ```

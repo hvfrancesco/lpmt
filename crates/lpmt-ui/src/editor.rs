@@ -788,6 +788,15 @@ pub enum EditorAction {
     ImportLegacyDialog,
     RestoreRecovery,
     DiscardRecovery,
+    PickSlideshowFolder {
+        layer: usize,
+    },
+    SetSlideshowSettings {
+        layer: usize,
+        interval: f32,
+        looping: bool,
+        start_index: usize,
+    },
     AddMedia,
     RemoveMedia {
         media: usize,
@@ -5458,7 +5467,7 @@ fn draw_layer_editor(
     let media_index = layer_media_index(layer, project);
     ui.add_space(4.0);
     ui.label("Source media");
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         if let Some(media_index) = media_index {
             if let Some(asset) = project.media.get(media_index) {
                 let texture = status.media_thumbnails.get(&asset.id).copied();
@@ -5479,6 +5488,7 @@ fn draw_layer_editor(
                 SourceSpec::Solid { color } => Some(*color),
                 _ => None,
             };
+            let is_slideshow = matches!(&layer.source, SourceSpec::Slideshow { .. });
             let (rect, _) = ui.allocate_exact_size(Vec2::new(52.0, 34.0), Sense::hover());
             if let Some(color) = solid {
                 let [r, g, b, _] =
@@ -5491,7 +5501,7 @@ fn draw_layer_editor(
                 ui.painter().text(
                     rect.center(),
                     Align2::CENTER_CENTER,
-                    "pattern",
+                    if is_slideshow { "slides" } else { "pattern" },
                     FontId::proportional(9.0),
                     Color32::from_rgb(130, 140, 160),
                 );
@@ -5499,6 +5509,8 @@ fn draw_layer_editor(
             ui.vertical(|ui| {
                 ui.label(if solid.is_some() {
                     "Solid colour"
+                } else if is_slideshow {
+                    "Slideshow"
                 } else {
                     "Test pattern"
                 });
@@ -5511,6 +5523,9 @@ fn draw_layer_editor(
         }
         if ui.button("Choose media…").clicked() {
             state.media_picker = Some(index);
+        }
+        if ui.button("Slideshow folder…").clicked() {
+            actions.push(EditorAction::PickSlideshowFolder { layer: index });
         }
         if let Some(media_index) = media_index {
             if ui.button("Show in shelf").clicked() {
@@ -5611,6 +5626,64 @@ fn draw_layer_editor(
                 layer: index,
                 color: chosen,
             });
+        }
+    }
+    if let SourceSpec::Slideshow { slideshow } = &layer.source {
+        let mut interval = slideshow.interval;
+        let mut looping = slideshow.looping;
+        let mut start_index = slideshow.start_index;
+        let count = slideshow.media_ids.len();
+        let mut changed = false;
+        ui.label(format!(
+            "{count} image{} · advances with the show clock",
+            if count == 1 { "" } else { "s" }
+        ));
+        if ui
+            .add(
+                egui::Slider::new(&mut interval, 0.1..=60.0)
+                    .text("Seconds per slide")
+                    .fixed_decimals(1),
+            )
+            .changed()
+        {
+            changed = true;
+        }
+        if ui.checkbox(&mut looping, "Loop slideshow").changed() {
+            changed = true;
+        }
+        let max_start = count.saturating_sub(1);
+        if ui
+            .add_enabled(
+                count > 1,
+                egui::DragValue::new(&mut start_index)
+                    .range(0..=max_start)
+                    .prefix("Start slide "),
+            )
+            .changed()
+        {
+            changed = true;
+        }
+        if changed {
+            actions.push(EditorAction::SetSlideshowSettings {
+                layer: index,
+                interval,
+                looping,
+                start_index,
+            });
+        }
+        let names: Vec<&str> = slideshow
+            .media_ids
+            .iter()
+            .filter_map(|id| project.media_asset(id))
+            .map(|asset| asset.name.as_str())
+            .take(4)
+            .collect();
+        if !names.is_empty() {
+            ui.label(
+                RichText::new(names.join(" · "))
+                    .small()
+                    .color(Color32::from_rgb(132, 144, 166)),
+            );
         }
     }
 
@@ -6301,6 +6374,9 @@ fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
         SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => project
             .media_asset(media_id)
             .map_or_else(|| "missing media".to_owned(), |asset| asset.name.clone()),
+        SourceSpec::Slideshow { slideshow } => {
+            format!("slideshow · {} images", slideshow.media_ids.len())
+        }
         SourceSpec::TestPattern { pattern } => format!("test pattern · {}", pattern.label()),
         SourceSpec::Solid { .. } => "solid colour".to_owned(),
     }
@@ -6340,7 +6416,9 @@ fn layer_surface_label(stage: &Stage, layer: &lpmt_core::model::Layer) -> String
 fn layer_media_index(layer: &lpmt_core::model::Layer, project: &Project) -> Option<usize> {
     let media_id = match &layer.source {
         SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => media_id,
-        SourceSpec::TestPattern { .. } | SourceSpec::Solid { .. } => return None,
+        SourceSpec::Slideshow { .. }
+        | SourceSpec::TestPattern { .. }
+        | SourceSpec::Solid { .. } => return None,
     };
     project.media.iter().position(|asset| &asset.id == media_id)
 }
@@ -6537,11 +6615,13 @@ fn media_usage(project: &Project, asset: &MediaAsset) -> String {
     }
     for stage in &project.stages {
         for layer in &stage.layers {
-            let uses_asset = matches!(
-                &layer.source,
-                SourceSpec::Image { media_id } | SourceSpec::Video { media_id }
-                    if media_id == &asset.id
-            );
+            let uses_asset = match &layer.source {
+                SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => {
+                    media_id == &asset.id
+                }
+                SourceSpec::Slideshow { slideshow } => slideshow.media_ids.contains(&asset.id),
+                SourceSpec::TestPattern { .. } | SourceSpec::Solid { .. } => false,
+            };
             if uses_asset {
                 roles.push(format!(
                     "layer {} on {}",
