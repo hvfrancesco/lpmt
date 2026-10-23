@@ -10,8 +10,9 @@ The original LPMT 1 source and data are preserved in
 
 **Current status (2026-10-22):** Linux-first M0–M5 accepted. The M7 legacy XML
 importer, crash recovery and Linux release packaging are implemented; a 120 s
-release performance baseline passes with two outputs. Real-show, cross-platform
-and longer soak validation remain. Ordered layer compositing, optional video and
+release baseline and a 5-minute telemetry soak pass with two outputs. Real-show,
+cross-platform and longer production soak validation remain. Ordered layer
+compositing, optional video and
 audio playback, a shared show clock,
 undo/redo and atomic saves, multiple output windows, grouped output
 presentation, a live editor preview, corner snapping, per-output pacing
@@ -210,7 +211,8 @@ M2/M3/M4/M5 acceptance was recorded on **2026-10-22** in
 The immediate order is:
 
 1. Validate the **LPMT 1 legacy XML importer** against a real show and run a
-   longer production soak; package macOS/Windows builds if they are in v1 scope.
+   longer production soak on target output hardware; package macOS/Windows
+   builds if they are in v1 scope.
 2. Keep 3D LUT support and Bézier patches deferred to post-v1.
 3. Add M6 media breadth: slideshows, cameras/capture, live shared textures,
    per-layer audio mixing and hardware decode.
@@ -249,13 +251,14 @@ Packaging and performance checks:
 ```bash
 ./scripts/package-linux.sh
 ./scripts/performance-check.sh
+./scripts/soak-check.sh
 ```
 
 `package-linux.sh` creates a portable Linux tarball with the binary, sample
-assets, docs and an installer. `performance-check.sh` builds release, runs the
-app for a fixed duration and requires a performance summary. See
-[`docs/packaging.md`](docs/packaging.md) for options, feature builds and the
-validated baseline.
+assets, docs and an installer. `performance-check.sh` runs a short timed release
+check. `soak-check.sh` adds RSS/CPU/GPU telemetry, writes a summary and applies
+memory-growth/FPS thresholds. See [`docs/packaging.md`](docs/packaging.md) for
+options, feature builds and validated baselines.
 
 File pickers use the desktop portal on Linux; the typed path fields remain
 available as a fallback in minimal window managers without a portal.
@@ -549,8 +552,9 @@ The first run compiles `wgpu`, `winit` and `egui`, so it can take a few minutes.
 ```text
 crates/          Rust workspace and the LPMT 2 application
 assets/          Small sample media used by demos and tests
-docs/            Architecture, rewrite RFC and acceptance checklist
-scripts/         Acceptance smoke runner
+docs/            Architecture, rewrite RFC, packaging and acceptance checklists
+scripts/         Acceptance, packaging, performance and soak runners
+packaging/       Desktop entry and installer for the Linux package
 archive/lpmt-1/  Original C++/openFrameworks application (reference only)
 ```
 

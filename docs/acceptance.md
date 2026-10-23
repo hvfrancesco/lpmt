@@ -219,6 +219,8 @@ Checklist:
       removal.
 - [x] Run the repeatable release performance check with two output windows:
       120 s, 59.67 fps average, 16.76 ms/frame.
+- [x] Add and validate the telemetry soak harness: 300 s, 59.84 fps,
+      +2.7 MiB steady RSS, 28.96% average CPU, 46 °C GPU peak.
 - [ ] Run a longer production soak/thermal test with the target output topology.
 
 Result: `PENDING`
@@ -229,7 +231,9 @@ Notes / blockers:
 Importer, crash recovery and Linux packaging are implemented and covered by
 automated/unit checks. The portable package was extracted, launched and installed
 into a temporary prefix. A 120 s release run with two forced output windows held
-59.67 fps / 16.76 ms per frame on the reference machine. Real-show validation,
+59.67 fps / 16.76 ms per frame on the reference machine. A 300 s telemetry soak
+held 59.84 fps with 2.7 MiB steady RSS growth, 28.96% average CPU and a 46 °C GPU
+peak. No real LPMT 1 settings file was available locally, so real-show validation,
 macOS/Windows packaging and a longer production soak are still pending.
 ```
 
@@ -241,7 +245,7 @@ macOS/Windows packaging and a longer production soak are still pending.
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M3 | PASS | Two 1080p outputs, blended seam, output group and independent confidence monitor. |
 | 2026-10-22 | 8277601 | Linux / Wayland / Quadro M520 | video,audio,midi | M4 | PASS | RGB tint + chroma key verified with image/solid content, masks/crops and warp paths. 3D LUT deferred post-v1. |
 | 2026-10-22 | 4020448 | Linux / Wayland / Quadro M520 | video,audio,midi | M5 | PASS | OSC, hotkeys/MIDI, timeline, cues and no-GUI timed run. |
-| 2026-10-22 | bc0c33a | Linux / Wayland / Quadro M520 | default | M7 (partial) | PENDING | Linux package extract/launch/install passed; 120 s two-output release run: 59.67 fps, 16.76 ms/frame. Real-show, macOS/Windows and long soak remain. |
+| 2026-10-22 | bc0c33a | Linux / Wayland / Quadro M520 | default | M7 (partial) | PENDING | Linux package extract/launch/install passed; 120 s two-output release run: 59.67 fps, 16.76 ms/frame. 300 s telemetry soak: 59.84 fps, +2.7 MiB steady RSS, GPU 46 °C. Real-show, macOS/Windows and long production soak remain. |
 
 ## Known constraints
 

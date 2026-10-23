@@ -177,7 +177,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   demo assets beside the binary or under `<prefix>/share/lpmt`. `scripts/performance-check.sh` runs
   the app with `--run-seconds`, forces output windows open on a single display and requires a
   performance summary. A 120 s release baseline with two outputs held ~59.7 fps on the reference
-  Linux/Wayland machine. Details are in [`packaging.md`](packaging.md).
+  Linux/Wayland machine. `scripts/soak-check.sh` runs a longer telemetry soak, samples RSS, CPU,
+  GPU utilisation/memory/temperature and applies memory-growth/FPS thresholds; a 5-minute run held
+  ~59.8 fps with 2.7 MiB steady RSS growth. Details are in [`packaging.md`](packaging.md).
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   slideshows, cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs,
   DMX/Art-Net, MIDI hotplug/device selection, packaging for macOS/Windows, real LPMT 1 show
@@ -784,7 +786,7 @@ dangling.
 | M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
 | M5 — Show control | Feature-frozen | Run the no-GUI show acceptance check before adding more features |
 | M6 — Media breadth | Planned | Slideshows, capture, shared textures, audio buses and hardware decode |
-| M7 — Migration/release | In progress | Legacy importer, crash recovery, Linux packaging and 120 s performance baseline done; real-show, cross-platform and long soak remain |
+| M7 — Migration/release | In progress | Legacy importer, crash recovery, Linux packaging, 120 s performance baseline and 5-minute telemetry soak done; real-show, cross-platform and long soak remain |
 
 ### M0 — Bootstrap and spikes
 
@@ -895,6 +897,7 @@ dangling.
 - [ ] Packaging for macOS/Windows (scope decision pending).
 - [x] Crash/recovery UX and project backup path (automatic sibling snapshots, restore/discard).
 - [x] Repeatable release performance check and 120 s two-output baseline.
+- [x] Telemetry soak harness and 5-minute two-output baseline (59.84 fps, +2.7 MiB steady RSS).
 - [ ] Long production soak/thermal validation on target output hardware.
 - [ ] Acceptance: import a real LPMT 1 show and run it with documented differences.
 
@@ -949,8 +952,9 @@ These are deliberately deferred and must not block milestone acceptance:
    the smoke script in the release checklist and fix only regressions found by re-runs.
 2. Keep M5 feature-frozen for v1. Tempo maps, additional cue commands and DMX remain post-v1.
 3. Validate the legacy importer against a real LPMT 1 show, run a longer production soak and decide
-   macOS/Windows packaging scope. Linux packaging, crash recovery and a 120 s release baseline are
-   implemented and covered by the packaging/performance scripts.
+   macOS/Windows packaging scope. Linux packaging, crash recovery, a 120 s release baseline and a
+   5-minute telemetry soak are implemented and covered by `scripts/performance-check.sh` and
+   `scripts/soak-check.sh`.
 4. Add M6 media breadth: slideshows, cameras/capture, shared textures, per-layer audio and hardware
    decode.
 5. Only then revisit the post-v1 backlog.
