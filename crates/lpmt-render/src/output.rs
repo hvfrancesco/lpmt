@@ -14,7 +14,8 @@ use bytemuck::{Pod, Zeroable};
 use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::{CalibrationLut, LUT_SAMPLES};
 use lpmt_core::model::{
-    BlendMode, ColorCorrection, EdgeBlend, Layer, OutputSpec, Rect, Stage, WarpGrid,
+    BlendMode, ColorCorrection, EdgeBlend, Layer, OutputSpec, Rect, SourceFit, Stage, Surface,
+    WarpGrid,
 };
 use winit::window::Window;
 
@@ -43,6 +44,8 @@ struct SurfaceEffects {
     chroma: vec4<f32>,
     // Softness, spill, enabled flag, unused.
     chroma_extra: vec4<f32>,
+    // Fit mode, source aspect, surface aspect, unused.
+    fit: vec4<f32>,
 };
 
 fn apply_layer_effects(color: vec4<f32>) -> vec4<f32> {
@@ -71,6 +74,34 @@ fn apply_layer_effects(color: vec4<f32>) -> vec4<f32> {
     }
 
     return vec4<f32>(rgb, alpha);
+}
+
+fn fit_source_uv(uv: vec2<f32>) -> vec2<f32> {
+    let mode = @EFFECTS@.fit.x;
+    if (mode < 0.5) {
+        return uv;
+    }
+    let source_aspect = max(@EFFECTS@.fit.y, 0.0001);
+    let surface_aspect = max(@EFFECTS@.fit.z, 0.0001);
+    var result = uv;
+    if (mode < 1.5) {
+        if (source_aspect > surface_aspect) {
+            let scale = surface_aspect / source_aspect;
+            result.y = (uv.y - 0.5) / scale + 0.5;
+        } else {
+            let scale = source_aspect / surface_aspect;
+            result.x = (uv.x - 0.5) / scale + 0.5;
+        }
+    } else {
+        if (source_aspect > surface_aspect) {
+            let scale = surface_aspect / source_aspect;
+            result.x = (uv.x - 0.5) * scale + 0.5;
+        } else {
+            let scale = source_aspect / surface_aspect;
+            result.y = (uv.y - 0.5) * scale + 0.5;
+        }
+    }
+    return result;
 }
 
 fn crop_visible(uv: vec2<f32>) -> bool {
@@ -133,7 +164,7 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     let stage_uv = uniforms.view.xy + output_uv * uniforms.view.zw;
 
     let source_h = uniforms.inv_surface * vec4<f32>(stage_uv, 0.0, 1.0);
-    let source_uv = source_h.xy / source_h.w;
+    let source_uv = fit_source_uv(source_h.xy / source_h.w);
 
     if (any(source_uv < vec2<f32>(0.0)) || any(source_uv > vec2<f32>(1.0))) {
         discard;
@@ -164,10 +195,11 @@ struct SurfaceEffects {
     tint: [f32; 4],
     chroma: [f32; 4],
     chroma_extra: [f32; 4],
+    fit: [f32; 4],
 }
 
 impl SurfaceEffects {
-    fn new(layer: &Layer) -> Self {
+    fn new(layer: &Layer, source_aspect: f32, surface_aspect: f32) -> Self {
         let crop = layer.crop.clamped();
         let circle = crop.circle.map_or([0.0; 4], |circle| {
             [circle.center.x, circle.center.y, circle.radius, 1.0]
@@ -188,6 +220,16 @@ impl SurfaceEffects {
                 chroma.softness,
                 chroma.spill,
                 if chroma.enabled { 1.0 } else { 0.0 },
+                0.0,
+            ],
+            fit: [
+                match layer.fit {
+                    SourceFit::Stretch => 0.0,
+                    SourceFit::Contain => 1.0,
+                    SourceFit::Cover => 2.0,
+                },
+                source_aspect,
+                surface_aspect,
                 0.0,
             ],
         }
@@ -248,15 +290,19 @@ fn vs_main(vertex: VertexIn) -> VertexOut {
 
 @fragment
 fn fs_main(vertex: VertexOut) -> @location(0) vec4<f32> {
-    if (!crop_visible(vertex.uv)) {
+    let source_uv = fit_source_uv(vertex.uv);
+    if (any(source_uv < vec2<f32>(0.0)) || any(source_uv > vec2<f32>(1.0))) {
+        discard;
+    }
+    if (!crop_visible(source_uv)) {
         discard;
     }
     let color = apply_layer_effects(textureSample(
         source_texture,
         source_sampler,
-        vertex.uv,
+        source_uv,
     ));
-    let coverage = textureSample(mask_texture, mask_sampler, vertex.uv).r;
+    let coverage = textureSample(mask_texture, mask_sampler, source_uv).r;
     let alpha = color.a * vertex.opacity * coverage;
     return vec4<f32>(color.rgb * alpha, alpha);
 }
@@ -920,7 +966,8 @@ impl StageRenderer {
             if draws.len() >= MAX_LAYER_SLOTS {
                 break;
             }
-            let bind_group = media.bind_group(gpu, &layer.source, seconds)?.clone();
+            let (bind_group, source_size) = media.source_binding(gpu, &layer.source, seconds)?;
+            let source_aspect = source_size[0] / source_size[1].max(1.0);
             let blend_index = pipeline_index(layer.blend);
             for surface_id in &layer.surface_ids {
                 if draws.len() >= MAX_LAYER_SLOTS {
@@ -937,7 +984,11 @@ impl StageRenderer {
                 if opacity <= 0.0 {
                     continue;
                 }
-                let effects = SurfaceEffects::new(layer);
+                let effects = SurfaceEffects::new(
+                    layer,
+                    source_aspect,
+                    surface_aspect(stage.aspect, surface),
+                );
                 let mask_bind_group = media.mask_bind_group(gpu, surface)?;
 
                 if let Some(grid) = surface
@@ -1370,6 +1421,15 @@ impl PreviewRenderer {
     }
 }
 
+fn surface_aspect(stage_aspect: f32, surface: &Surface) -> f32 {
+    let [top_left, top_right, bottom_right, bottom_left] = surface.corners;
+    let edge =
+        |a: lpmt_core::model::Point2, b: lpmt_core::model::Point2| (b.x - a.x).hypot(b.y - a.y);
+    let width = (edge(top_left, top_right) + edge(bottom_left, bottom_right)) * 0.5 * stage_aspect;
+    let height = (edge(top_left, bottom_left) + edge(top_right, bottom_right)) * 0.5;
+    (width / height.max(1.0e-4)).clamp(0.05, 20.0)
+}
+
 fn append_grid_vertices(out: &mut Vec<GridVertex>, grid: &WarpGrid, opacity: f32) {
     let columns = f32::from(grid.columns);
     let rows = f32::from(grid.rows);
@@ -1698,12 +1758,13 @@ mod tests {
         assert_eq!(offset_of!(SurfaceEffects, tint), 32);
         assert_eq!(offset_of!(SurfaceEffects, chroma), 48);
         assert_eq!(offset_of!(SurfaceEffects, chroma_extra), 64);
-        assert_eq!(size_of::<SurfaceEffects>(), 80);
+        assert_eq!(offset_of!(SurfaceEffects, fit), 80);
+        assert_eq!(size_of::<SurfaceEffects>(), 96);
         assert_eq!(offset_of!(Uniforms, effects), 112);
-        assert_eq!(size_of::<Uniforms>(), 192);
+        assert_eq!(size_of::<Uniforms>(), 208);
         assert_eq!(offset_of!(GridFrameUniforms, view), 0);
         assert_eq!(offset_of!(GridFrameUniforms, effects), 16);
-        assert_eq!(size_of::<GridFrameUniforms>(), 96);
+        assert_eq!(size_of::<GridFrameUniforms>(), 112);
     }
 
     #[test]

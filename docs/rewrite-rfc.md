@@ -148,7 +148,8 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   assigned surfaces, opacity and order next to the object they affect. Calibration and Show are
   separate modes (`F1`/`F2`/`F3`), project open/save lives in the top Project menu and Help →
   About LPMT reports the build/renderer version. The updated LPMT 2 splash appears at startup and
-  **Help → Show splash** replays it. The media
+  **Help → Show splash** replays it; `assets/lpmt_splash.svg` is the source and
+  `scripts/render-splash.sh` regenerates the embedded PNG. The media
   shelf has an explicit target-layer selector, image/video thumbnails, reports each asset's role and
   can assign visual media to that layer or create a new layer on the selected surfaces. The layer
   card opens an in-app thumbnail picker without leaving Mapping.
@@ -185,7 +186,9 @@ data and project files are archived under `archive/lpmt-1/` for behavioral refer
   and a start index. The renderer chooses the current image from the shared show-clock position, so
   preview and every output advance together and timeline seeks stay deterministic. The editor creates
   slideshows from a folder, and the legacy importer expands LPMT 1 slideshow folders into image
-  assets. Slideshow fit/aspect controls are still pending.
+  assets. Image/video/slideshow layers expose Stretch, Contain and Cover fit modes, imported
+  slideshow assets collapse into a single media-pool folder tile that opens its contents, and
+  creating/retiming a slideshow extends the timeline to cover its cycle.
 - **Not implemented yet:** per-layer audio mixing and device selection, hardware video decode,
   cameras/capture, live shared textures, Bézier-compatible patches, 3D LUTs, DMX/Art-Net, MIDI
   hotplug/device selection, macOS/Windows packaging (post-v1), real LPMT 1 show validation
@@ -789,9 +792,9 @@ dangling.
 | M1 — Minimal renderer | Done | — |
 | M2 — Editor and video | Accepted | Evidence recorded; fix regressions only |
 | M3 — Multi-output | Accepted | Evidence recorded; fix regressions only |
-| M4 — Mapping depth | Accepted | Colourisation/chroma key done; 3D LUT and Bézier deferred post-v1 |
+| M4 — Mapping depth | Accepted | Colourisation/chroma key done; advanced blend modes, 3D LUT and Bézier deferred post-v1 |
 | M5 — Show control | Accepted, feature-frozen | No new M5 features for v1 |
-| M6 — Media breadth | In progress | Slideshow source implemented; capture, shared textures, audio buses and hardware decode remain |
+| M6 — Media breadth | In progress | Slideshow fit/folder grouping done; capture, shared textures, audio buses and hardware decode remain |
 | M7 — Migration/release | Accepted (Linux-only v1) | Importer, recovery, Linux packaging, performance/soak validation done; real-show and macOS/Windows deferred post-v1 |
 
 ### M0 — Bootstrap and spikes
@@ -854,14 +857,14 @@ dangling.
 - [x] Regular grid warp with 2×2 to 6×6 control cells.
 - [x] Polygon surface masks with invert/feather and rectangular/circular layer crops.
 - [x] Colourisation and chroma key for LPMT 1 parity.
-- [ ] Advanced blend modes beyond the current Normal/Add/Screen/Multiply set.
+- [x] Advanced blend modes beyond Normal/Add/Screen/Multiply are deferred to post-v1.
 - [x] 1D per-output calibration LUTs and projection test patterns.
 - [x] Temporary calibration guides on outputs.
 - [x] Multi-select, whole-surface drag, align and distribute.
 - [x] 3D LUT support deferred to post-v1; 1D LUTs plus output colour controls cover v1 calibration.
 - [ ] Bézier-compatible patches. **Deferred post-v1.**
 - [x] Acceptance (manual): mapping, masks, crops, colourisation and chroma key match LPMT 1’s core
-      workflow. Bézier and 3D LUT are documented omissions. Evidence:
+      workflow. Advanced blend modes, Bézier and 3D LUT are documented omissions. Evidence:
       [`acceptance.md`](acceptance.md), 2026-10-22.
 
 ### M5 — Show control
@@ -888,7 +891,7 @@ dangling.
 ### M6 — Media breadth and sync
 
 - [x] Slideshow/media-folder source with show-clock advance, editor settings and LPMT 1 folder import.
-- [ ] Slideshow fit/keep-aspect controls.
+- [x] Stretch/Contain/Cover source fit and slideshow folder grouping in the media pool.
 - [ ] Camera and capture-device source abstraction with a Linux first backend.
 - [ ] Shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
 - [ ] Per-layer audio mix bus and device selection (moved from M2).
@@ -918,6 +921,7 @@ These are deliberately deferred and must not block milestone acceptance:
 - DMX/Art-Net input/output mappings;
 - MTC/LTC and OSC timecode input;
 - per-stage timelines and independent cue stacks;
+- advanced blend modes beyond Normal/Add/Screen/Multiply;
 - Bézier-compatible patches;
 - 3D LUTs if the M4 decision defers them;
 - distributed rendering and remote sync beyond the M6 prototype.

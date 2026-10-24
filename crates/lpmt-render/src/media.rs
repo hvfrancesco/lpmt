@@ -201,28 +201,34 @@ impl MediaCache {
     /// Solid colours are cached as one-pixel textures keyed by their quantized
     /// RGBA value, so changing a colour picker does not allocate a texture every
     /// frame.
-    pub(crate) fn bind_group(
+    pub(crate) fn source_binding(
         &mut self,
         gpu: &Gpu,
         source: &SourceSpec,
         seconds: f32,
-    ) -> Result<&wgpu::BindGroup> {
+    ) -> Result<(wgpu::BindGroup, [f32; 2])> {
         match source {
-            SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => Ok(self
-                .media
-                .get(media_id)
-                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group)),
-            SourceSpec::Slideshow { slideshow } => Ok(slideshow
-                .media_at(seconds)
-                .and_then(|media_id| self.media.get(media_id))
-                .map_or_else(|| self.checker_bind_group(), |entry| &entry.bind_group)),
+            SourceSpec::Image { media_id } | SourceSpec::Video { media_id } => {
+                let entry = self
+                    .media
+                    .get(media_id)
+                    .unwrap_or_else(|| self.checker_entry());
+                Ok((entry.bind_group.clone(), entry_size(entry)))
+            }
+            SourceSpec::Slideshow { slideshow } => {
+                let entry = slideshow
+                    .media_at(seconds)
+                    .and_then(|media_id| self.media.get(media_id))
+                    .unwrap_or_else(|| self.checker_entry());
+                Ok((entry.bind_group.clone(), entry_size(entry)))
+            }
             SourceSpec::TestPattern { pattern } => {
                 let entry = self
                     .test_patterns
                     .get(pattern)
                     .or_else(|| self.test_patterns.get(&TestPattern::Checker))
                     .expect("the checker test pattern is always generated");
-                Ok(&entry.bind_group)
+                Ok((entry.bind_group.clone(), entry_size(entry)))
             }
             SourceSpec::Solid { color } => {
                 let key = solid_color_key(*color);
@@ -240,17 +246,16 @@ impl MediaCache {
                     )?;
                     self.solids.insert(key, entry);
                 }
-                Ok(&self.solids[&key].bind_group)
+                let entry = &self.solids[&key];
+                Ok((entry.bind_group.clone(), entry_size(entry)))
             }
         }
     }
 
-    fn checker_bind_group(&self) -> &wgpu::BindGroup {
-        &self
-            .test_patterns
+    fn checker_entry(&self) -> &TextureEntry {
+        self.test_patterns
             .get(&TestPattern::Checker)
             .expect("the checker test pattern is always generated")
-            .bind_group
     }
 
     /// Coverage texture for a surface mask. Disabled or incomplete masks use a
@@ -565,6 +570,10 @@ fn write_image(gpu: &Gpu, texture: &wgpu::Texture, image: ImageData<'_>) -> Resu
     );
 
     Ok(())
+}
+
+fn entry_size(entry: &TextureEntry) -> [f32; 2] {
+    [entry.width as f32, entry.height as f32]
 }
 
 fn solid_color_key(color: [f32; 3]) -> [u8; 4] {

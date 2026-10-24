@@ -1097,12 +1097,39 @@ impl App {
     }
 
     fn sync_clock_duration(&mut self) {
+        let timeline_duration = self.project.timeline.duration_seconds();
+        let slideshow_duration = self.slideshow_duration();
         let duration = if self.project.timeline.is_active() {
-            Some(self.project.timeline.duration_seconds())
+            Some(timeline_duration)
+        } else if slideshow_duration > 0.0 {
+            Some(
+                self.media_duration()
+                    .unwrap_or(0.0)
+                    .max(timeline_duration)
+                    .max(f64::from(slideshow_duration)),
+            )
         } else {
             self.media_duration()
         };
         self.clock.set_duration(duration);
+    }
+
+    fn slideshow_duration(&self) -> f32 {
+        project_slideshow_duration(&self.project)
+    }
+
+    /// Extend the timeline when a slideshow needs more time than the current
+    /// show duration. Never shorten a user-defined timeline.
+    fn ensure_timeline_covers_slideshows(&mut self) -> Option<f32> {
+        let required = self.slideshow_duration();
+        if required > self.project.timeline.duration + 1.0e-4 {
+            self.project.timeline.duration = required;
+            self.project.timeline.normalize();
+            self.sync_clock_duration();
+            Some(self.project.timeline.duration)
+        } else {
+            None
+        }
     }
 
     fn handle_midi_event(&mut self, event: MidiEvent) {
@@ -2602,6 +2629,15 @@ impl App {
                         layer.blend = blend;
                     }
                 }
+                EditorAction::SetLayerFit { layer, fit } => {
+                    if let Some(layer) = self
+                        .project
+                        .primary_stage_mut()
+                        .and_then(|stage| stage.layers.get_mut(layer))
+                    {
+                        layer.fit = fit;
+                    }
+                }
                 EditorAction::SetLayerTestPattern { layer, pattern } => {
                     if let Some(layer) = self
                         .project
@@ -2825,8 +2861,13 @@ impl App {
                 }
                 EditorAction::SetTransportLoop { looping } => self.clock.set_looping(looping),
                 EditorAction::SeekTransport { position } => {
-                    self.clock.seek(position);
-                    log::info!("transport seek to {:.3}s", self.clock.position_seconds());
+                    // The timeline can emit the same position twice in one
+                    // frame (click plus drag). Do not restart every decoder
+                    // for a seek that is already the current clock position.
+                    if (self.clock.position_seconds() - position).abs() > 1.0e-4 {
+                        self.clock.seek(position);
+                        log::info!("transport seek to {:.3}s", self.clock.position_seconds());
+                    }
                 }
                 EditorAction::SetShowAudio { media } => {
                     let selected_layer = self.ui_state.selected_layer;
@@ -3210,6 +3251,7 @@ impl App {
                                     format!("No PNG/JPEG images found in {}", folder.display());
                             }
                             Ok(images) => {
+                                let folder_label = self.stored_media_path(&folder);
                                 let mut media_ids = Vec::with_capacity(images.len());
                                 for path in images {
                                     let stored = self.stored_media_path(&path);
@@ -3247,6 +3289,14 @@ impl App {
                                         ));
                                         MediaId::new(id)
                                     });
+                                    if let Some(asset) = self
+                                        .project
+                                        .media
+                                        .iter_mut()
+                                        .find(|asset| asset.id == media_id)
+                                    {
+                                        asset.folder = Some(folder_label.clone());
+                                    }
                                     media_ids.push(media_id);
                                 }
 
@@ -3264,12 +3314,22 @@ impl App {
                                         },
                                     };
                                 }
+                                self.ui_state.media_folder_filter = Some(folder_label.clone());
                                 self.reload_media();
-                                self.status_message = format!(
-                                    "Slideshow: {} images from {}",
-                                    media_ids.len(),
-                                    folder.display()
-                                );
+                                let extended = self.ensure_timeline_covers_slideshows();
+                                self.status_message = match extended {
+                                    Some(duration) => format!(
+                                        "Slideshow: {} images from {} · timeline extended to {:.1}s",
+                                        media_ids.len(),
+                                        folder.display(),
+                                        duration
+                                    ),
+                                    None => format!(
+                                        "Slideshow: {} images from {}",
+                                        media_ids.len(),
+                                        folder.display()
+                                    ),
+                                };
                             }
                             Err(error) => {
                                 log::error!("failed to scan slideshow folder: {error:#}");
@@ -3299,6 +3359,7 @@ impl App {
                             start_index.min(count - 1)
                         };
                     }
+                    self.ensure_timeline_covers_slideshows();
                 }
                 EditorAction::AddMedia => {
                     let selected_layer = self.ui_state.selected_layer;
@@ -4362,6 +4423,22 @@ fn choose_monitor(
         .cloned()
 }
 
+fn project_slideshow_duration(project: &Project) -> f32 {
+    project
+        .primary_stage()
+        .map(|stage| {
+            stage
+                .layers
+                .iter()
+                .filter_map(|layer| match &layer.source {
+                    SourceSpec::Slideshow { slideshow } => Some(slideshow.duration_seconds()),
+                    _ => None,
+                })
+                .fold(0.0, f32::max)
+        })
+        .unwrap_or(0.0)
+}
+
 fn apply_timeline_value_to_project(project: &mut Project, parameter: &ParameterId, value: f32) {
     let value = match parameter.kind() {
         ParameterKind::Float => {
@@ -4846,6 +4923,7 @@ fn history_key(action: &EditorAction) -> Option<(HistoryKey, &'static str)> {
         SetLayerVisibility { .. } => (HistoryKey::Discrete, "toggle layer visibility"),
         SetLayerOpacity { layer, .. } => (HistoryKey::LayerOpacity(*layer), "change layer opacity"),
         SetLayerBlend { .. } => (HistoryKey::Discrete, "change layer blend"),
+        SetLayerFit { layer, .. } => (HistoryKey::LayerFit(*layer), "change layer fit"),
         SetLayerTestPattern { .. } => (HistoryKey::Discrete, "change test pattern"),
         SetLayerCrop { layer, .. } => (HistoryKey::LayerCrop(*layer), "change layer crop"),
         SetLayerColor { layer, .. } => (HistoryKey::LayerColor(*layer), "change layer colour"),
@@ -5176,6 +5254,36 @@ mod tests {
         assert_eq!(visible.keys[0].time, 5.0);
         assert_eq!(visible.keys[0].value, 1.0);
         assert_eq!(visible.keys[0].interpolation, TimelineInterpolation::Step);
+    }
+
+    #[test]
+    fn slideshow_duration_covers_a_full_playlist_cycle() {
+        let mut project = Project::demo();
+        let surface_id = project.stages[0].surfaces[0].id.clone();
+        let slideshow = Slideshow {
+            media_ids: (0..10)
+                .map(|index| MediaId::new(format!("slide-{index}")))
+                .collect(),
+            interval: 3.0,
+            looping: true,
+            start_index: 0,
+        };
+        project.stages[0].layers.push(Layer::slideshow(
+            "slideshow-1",
+            "Slideshow",
+            &surface_id,
+            slideshow.clone(),
+        ));
+        assert_eq!(project_slideshow_duration(&project), 30.0);
+
+        project.stages[0].layers.last_mut().unwrap().source = SourceSpec::Slideshow {
+            slideshow: Slideshow {
+                looping: false,
+                start_index: 8,
+                ..slideshow
+            },
+        };
+        assert_eq!(project_slideshow_duration(&project), 6.0);
     }
 
     #[test]

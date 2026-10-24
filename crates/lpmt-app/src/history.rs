@@ -25,6 +25,7 @@ pub(crate) enum HistoryKey {
     LayerName(usize),
     LayerOpacity(usize),
     LayerSolidColor(usize),
+    LayerFit(usize),
     LayerCrop(usize),
     LayerColor(usize),
     LayerChroma(usize),

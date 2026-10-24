@@ -222,6 +222,8 @@ fn imports_slideshow_folders_relative_to_the_xml_file() {
     assert_eq!(project.media.len(), 2);
     assert_eq!(project.media[0].path, "slides/a.png");
     assert_eq!(project.media[1].path, "slides/b.jpg");
+    assert_eq!(project.media[0].folder.as_deref(), Some("slides"));
+    assert_eq!(project.media[1].folder.as_deref(), Some("slides"));
     let layer = &project.stages[0].layers[0];
     let SourceSpec::Slideshow { slideshow } = &layer.source else {
         panic!("slideshow source expected");

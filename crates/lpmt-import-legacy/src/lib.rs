@@ -334,6 +334,14 @@ fn import_xml_with_base(xml: &str, name: &str, base: Option<&Path>) -> Result<Im
                                 "",
                             ));
                         }
+                        let folder_label = folder_path.to_string_lossy().into_owned();
+                        for media_id in &media_ids {
+                            if let Some(asset) =
+                                media.iter_mut().find(|asset| &asset.id == media_id)
+                            {
+                                asset.folder = Some(folder_label.clone());
+                            }
+                        }
                         let interval = get_f32(&values, &format!("{prefix}:SLIDESHOW:SPEED"), 1.0);
                         let mut layer = Layer::slideshow(
                             format!("layer-quad-{quad_index}-slideshow"),

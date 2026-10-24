@@ -9,8 +9,8 @@ use lpmt_core::guide::GuideMode;
 use lpmt_core::lut::LUT_SAMPLES;
 use lpmt_core::model::{
     BlendMode, ChromaKey, CircleCrop, ColorCorrection, Crop, EdgeBlend, LayerColor, LayerId,
-    MediaAsset, MediaId, MediaKind, OutputTarget, Point2, Project, Rect, SourceSpec, Stage,
-    Surface, SurfaceId, TestPattern, WarpGrid,
+    MediaAsset, MediaId, MediaKind, OutputTarget, Point2, Project, Rect, SourceFit, SourceSpec,
+    Stage, Surface, SurfaceId, TestPattern, WarpGrid,
 };
 use lpmt_core::param::{project_parameters, ParameterDescriptor, ParameterKind};
 use lpmt_core::timeline::{
@@ -182,6 +182,7 @@ pub struct EditorState {
     selected_surfaces: BTreeSet<usize>,
     pub selected_layer: usize,
     pub selected_media: usize,
+    pub media_folder_filter: Option<String>,
     pub selected_output: usize,
     pub selected_group: usize,
     pub project_path: String,
@@ -248,6 +249,7 @@ impl Default for EditorState {
             selected_surfaces: BTreeSet::from([0]),
             selected_layer: 0,
             selected_media: 0,
+            media_folder_filter: None,
             selected_output: 0,
             selected_group: 0,
             project_path: "project.lpmt.json".to_owned(),
@@ -311,6 +313,7 @@ impl EditorState {
         self.surface_name_id = None;
         self.layer_name_id = None;
         self.media_picker = None;
+        self.media_folder_filter = None;
         self.binding_parameter = None;
         self.binding_learn = None;
         self.midi_parameter = None;
@@ -665,6 +668,10 @@ pub enum EditorAction {
     SetLayerBlend {
         layer: usize,
         blend: BlendMode,
+    },
+    SetLayerFit {
+        layer: usize,
+        fit: SourceFit,
     },
     SetLayerTestPattern {
         layer: usize,
@@ -2775,10 +2782,7 @@ fn draw_splash(ui: &mut egui::Ui, state: &mut EditorState, now: f64, visible: bo
     painter.text(
         Pos2::new(footer_center, image_rect.bottom() + 16.0),
         Align2::CENTER_TOP,
-        format!(
-            "LPMT 2 · Rust/GPU rewrite · preview {}",
-            env!("CARGO_PKG_VERSION")
-        ),
+        format!("Rust/GPU rewrite · preview {}", env!("CARGO_PKG_VERSION")),
         FontId::proportional(11.5),
         text_color,
     );
@@ -2798,6 +2802,114 @@ fn load_splash_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
     let size = [image.width() as usize, image.height() as usize];
     let pixels = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
     Some(ctx.load_texture("lpmt-splash", pixels, egui::TextureOptions::LINEAR))
+}
+
+fn media_folders(project: &Project) -> Vec<String> {
+    let mut folders = BTreeSet::new();
+    for asset in &project.media {
+        if let Some(folder) = asset.folder.as_ref().filter(|folder| !folder.is_empty()) {
+            folders.insert(folder.clone());
+        }
+    }
+    folders.into_iter().collect()
+}
+
+fn media_folder_label(folder: &str) -> &str {
+    folder
+        .rsplit(['/', '\\'])
+        .find(|part| !part.is_empty())
+        .unwrap_or(folder)
+}
+
+fn media_matches_folder(asset: &MediaAsset, filter: Option<&str>) -> bool {
+    filter.map_or_else(
+        || asset.folder.is_none(),
+        |folder| asset.folder.as_deref() == Some(folder),
+    )
+}
+
+fn media_folder_count(project: &Project, folder: &str, visual_only: bool) -> usize {
+    project
+        .media
+        .iter()
+        .filter(|asset| !visual_only || asset.kind != MediaKind::Audio)
+        .filter(|asset| asset.folder.as_deref() == Some(folder))
+        .count()
+}
+
+fn media_folder_card(ui: &mut egui::Ui, folder: &str, count: usize, size: Vec2) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    let painter = ui.painter();
+    painter.rect_filled(
+        rect,
+        5.0,
+        if response.hovered() {
+            Color32::from_rgb(42, 55, 70)
+        } else {
+            Color32::from_rgb(25, 30, 39)
+        },
+    );
+    let icon_rect = EguiRect::from_min_size(
+        rect.min + Vec2::new(8.0, 7.0),
+        Vec2::new((size.x - 16.0).max(1.0), (size.y - 28.0).max(1.0)),
+    );
+    painter.rect_filled(icon_rect, 3.0, Color32::from_rgb(62, 95, 130));
+    let tab = EguiRect::from_min_size(
+        icon_rect.min,
+        Vec2::new((icon_rect.width() * 0.42).max(12.0), 6.0),
+    );
+    painter.rect_filled(tab, 2.0, Color32::from_rgb(78, 118, 160));
+    painter.text(
+        icon_rect.center(),
+        Align2::CENTER_CENTER,
+        format!("{count}"),
+        FontId::proportional(14.0),
+        Color32::WHITE,
+    );
+    painter.text(
+        Pos2::new(rect.left() + 7.0, rect.bottom() - 5.0),
+        Align2::LEFT_BOTTOM,
+        short_label(media_folder_label(folder), 16),
+        FontId::proportional(11.0),
+        Color32::from_rgb(210, 220, 235),
+    );
+    response.on_hover_text(folder)
+}
+
+fn media_folder_selector(ui: &mut egui::Ui, state: &mut EditorState, project: &Project) {
+    let folders = media_folders(project);
+    if folders.is_empty() {
+        state.media_folder_filter = None;
+        return;
+    }
+    if state
+        .media_folder_filter
+        .as_ref()
+        .is_some_and(|filter| !folders.contains(filter))
+    {
+        state.media_folder_filter = None;
+    }
+    ui.horizontal_wrapped(|ui| {
+        ui.label(RichText::new("Folders").small());
+        if ui
+            .selectable_label(state.media_folder_filter.is_none(), "All media")
+            .clicked()
+        {
+            state.media_folder_filter = None;
+        }
+        for folder in folders {
+            if ui
+                .selectable_label(
+                    state.media_folder_filter.as_deref() == Some(folder.as_str()),
+                    media_folder_label(&folder),
+                )
+                .on_hover_text(&folder)
+                .clicked()
+            {
+                state.media_folder_filter = Some(folder);
+            }
+        }
+    });
 }
 
 fn draw_media_shelf(
@@ -2838,12 +2950,44 @@ fn draw_media_shelf(
         return;
     }
 
+    media_folder_selector(ui, state, project);
+    let folder_filter = state.media_folder_filter.clone();
+    let root_folders = if folder_filter.is_none() {
+        media_folders(project)
+    } else {
+        Vec::new()
+    };
+    let filtered_empty = root_folders.is_empty()
+        && !project
+            .media
+            .iter()
+            .any(|asset| media_matches_folder(asset, folder_filter.as_deref()));
+    if filtered_empty {
+        ui.label(
+            RichText::new("No media in this folder.")
+                .small()
+                .color(Color32::from_rgb(132, 144, 166)),
+        );
+        return;
+    }
+
     egui::ScrollArea::horizontal()
         .id_salt("media-shelf-scroll")
         .max_height(96.0)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
-                for (index, asset) in project.media.iter().enumerate() {
+                for folder in root_folders {
+                    let count = media_folder_count(project, &folder, false);
+                    if media_folder_card(ui, &folder, count, Vec2::new(104.0, 76.0)).clicked() {
+                        state.media_folder_filter = Some(folder);
+                    }
+                }
+                for (index, asset) in project
+                    .media
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, asset)| media_matches_folder(asset, folder_filter.as_deref()))
+                {
                     let mut clicked = false;
                     ui.vertical(|ui| {
                         ui.set_width(112.0);
@@ -5599,6 +5743,22 @@ fn draw_layer_editor(
             blend,
         });
     }
+    if matches!(
+        layer.source,
+        SourceSpec::Image { .. } | SourceSpec::Video { .. } | SourceSpec::Slideshow { .. }
+    ) {
+        let mut fit = layer.fit;
+        egui::ComboBox::from_label("Fit")
+            .selected_text(fit.label())
+            .show_ui(ui, |ui| {
+                for candidate in SourceFit::ALL {
+                    ui.selectable_value(&mut fit, candidate, candidate.label());
+                }
+            });
+        if fit != layer.fit {
+            actions.push(EditorAction::SetLayerFit { layer: index, fit });
+        }
+    }
     if let SourceSpec::TestPattern { pattern } = &layer.source {
         let mut chosen = *pattern;
         egui::ComboBox::from_label("Test pattern")
@@ -5633,11 +5793,29 @@ fn draw_layer_editor(
         let mut looping = slideshow.looping;
         let mut start_index = slideshow.start_index;
         let count = slideshow.media_ids.len();
+        let slideshow_duration = slideshow.duration_seconds();
         let mut changed = false;
         ui.label(format!(
-            "{count} image{} · advances with the show clock",
+            "{count} image{} · {slideshow_duration:.1}s cycle · advances with the show clock",
             if count == 1 { "" } else { "s" }
         ));
+        let required_duration = stage_slideshow_duration(stage);
+        if required_duration > project.timeline.duration + 1.0e-4 {
+            ui.horizontal_wrapped(|ui| {
+                ui.colored_label(
+                    Color32::from_rgb(255, 184, 92),
+                    format!(
+                        "Timeline is {:.1}s; slideshows need {:.1}s.",
+                        project.timeline.duration, required_duration
+                    ),
+                );
+                if ui.button("Extend timeline").clicked() {
+                    actions.push(EditorAction::SetTimelineDuration {
+                        duration: required_duration,
+                    });
+                }
+            });
+        }
         if ui
             .add(
                 egui::Slider::new(&mut interval, 0.1..=60.0)
@@ -5920,21 +6098,40 @@ fn draw_media_picker(
                     .color(Color32::from_rgb(140, 152, 174)),
             );
             ui.separator();
+            media_folder_selector(ui, state, project);
+            let folder_filter = state.media_folder_filter.clone();
+            let root_folders: Vec<String> = if folder_filter.is_none() {
+                media_folders(project)
+                    .into_iter()
+                    .filter(|folder| media_folder_count(project, folder, true) > 0)
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
             let visual_media: Vec<(usize, &MediaAsset)> = project
                 .media
                 .iter()
                 .enumerate()
                 .filter(|(_, asset)| asset.kind != MediaKind::Audio)
+                .filter(|(_, asset)| media_matches_folder(asset, folder_filter.as_deref()))
                 .collect();
-            if visual_media.is_empty() {
-                ui.label("No visual media yet. Add an image or video in the Media tab.");
+            if root_folders.is_empty() && visual_media.is_empty() {
+                ui.label("No visual media in this folder.");
             } else {
                 let current = layer_media_index(layer, project);
                 egui::ScrollArea::vertical()
                     .max_height(330.0)
                     .show(ui, |ui| {
                         ui.horizontal_wrapped(|ui| {
+                            for folder in root_folders {
+                                let count = media_folder_count(project, &folder, true);
+                                if media_folder_card(ui, &folder, count, Vec2::new(160.0, 126.0))
+                                    .clicked()
+                                {
+                                    state.media_folder_filter = Some(folder);
+                                }
+                            }
                             for (index, asset) in visual_media {
                                 let selected = current == Some(index);
                                 let texture = status.media_thumbnails.get(&asset.id).copied();
@@ -6367,6 +6564,17 @@ fn is_modifier_key(key: egui::Key) -> bool {
             | egui::Key::SuperLeft
             | egui::Key::SuperRight
     )
+}
+
+fn stage_slideshow_duration(stage: &Stage) -> f32 {
+    stage
+        .layers
+        .iter()
+        .filter_map(|layer| match &layer.source {
+            SourceSpec::Slideshow { slideshow } => Some(slideshow.duration_seconds()),
+            _ => None,
+        })
+        .fold(0.0, f32::max)
 }
 
 fn layer_source(layer: &lpmt_core::model::Layer, project: &Project) -> String {
@@ -7373,6 +7581,26 @@ mod tests {
         assert_eq!(state.timeline_zoom, 64.0);
         assert!(state.timeline_view_start >= 0.0);
         assert!(state.timeline_view_start <= 10.0 - 10.0 / 64.0 + 1.0e-5);
+    }
+
+    #[test]
+    fn media_folders_filter_and_use_short_labels() {
+        let mut project = Project::demo();
+        project
+            .media
+            .push(MediaAsset::image("slides-a", "a", "slides/a.png").with_folder("shows/slides"));
+        project
+            .media
+            .push(MediaAsset::image("slides-b", "b", "slides/b.png").with_folder("shows/slides"));
+        assert_eq!(media_folders(&project), vec!["shows/slides".to_owned()]);
+        let asset = project.media.last().unwrap();
+        assert!(media_matches_folder(asset, Some("shows/slides")));
+        assert!(!media_matches_folder(asset, Some("other")));
+        assert!(!media_matches_folder(asset, None));
+        let ungrouped = MediaAsset::image("plain", "plain", "plain.png");
+        assert!(media_matches_folder(&ungrouped, None));
+        assert_eq!(media_folder_label("shows/slides"), "slides");
+        assert_eq!(media_folder_count(&project, "shows/slides", false), 2);
     }
 
     #[test]

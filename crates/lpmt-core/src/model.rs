@@ -610,6 +610,9 @@ pub struct MediaAsset {
     pub name: String,
     pub kind: MediaKind,
     pub path: String,
+    /// Optional media-pool folder label, used for slideshow/import groups.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
 }
 
 impl MediaAsset {
@@ -619,6 +622,7 @@ impl MediaAsset {
             name: name.into(),
             kind: MediaKind::Image,
             path: path.into(),
+            folder: None,
         }
     }
 
@@ -628,6 +632,7 @@ impl MediaAsset {
             name: name.into(),
             kind: MediaKind::Video,
             path: path.into(),
+            folder: None,
         }
     }
 
@@ -637,7 +642,16 @@ impl MediaAsset {
             name: name.into(),
             kind: MediaKind::Audio,
             path: path.into(),
+            folder: None,
         }
+    }
+
+    pub fn with_folder(mut self, folder: impl Into<String>) -> Self {
+        let folder = folder.into();
+        if !folder.trim().is_empty() {
+            self.folder = Some(folder);
+        }
+        self
     }
 }
 
@@ -705,6 +719,19 @@ impl Slideshow {
 
     pub fn is_active(&self) -> bool {
         !self.media_ids.is_empty()
+    }
+
+    /// Duration of one meaningful slideshow sequence. Looping shows cover the
+    /// whole playlist; non-looping shows run from `start_index` to the last
+    /// slide.
+    pub fn duration_seconds(&self) -> f32 {
+        let count = self.media_ids.len();
+        if count == 0 {
+            return 0.0;
+        }
+        let start = self.start_index.min(count - 1);
+        let slides = if self.looping { count } else { count - start };
+        slides as f32 * self.interval.clamp(0.05, 3600.0)
     }
 
     /// Media visible at the given shared-show-clock position.
@@ -822,6 +849,30 @@ impl ChromaKey {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceFit {
+    /// Fill the surface, ignoring the source aspect ratio.
+    #[default]
+    Stretch,
+    /// Fit the whole source inside the surface with empty bars.
+    Contain,
+    /// Fill the surface while cropping the overflow.
+    Cover,
+}
+
+impl SourceFit {
+    pub const ALL: [Self; 3] = [Self::Stretch, Self::Contain, Self::Cover];
+
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Stretch => "Stretch",
+            Self::Contain => "Contain",
+            Self::Cover => "Cover",
+        }
+    }
+}
+
 /// Content drawn through one or more surfaces. A surface is geometry; a layer
 /// is the image, video or generator that goes through it. Assigning the same
 /// layer to several surfaces lets one content stack cover overlapping or
@@ -844,6 +895,9 @@ pub struct Layer {
     /// Optional chroma key applied before surface masking.
     #[serde(default)]
     pub chroma_key: ChromaKey,
+    /// How the source aspect ratio is fitted into the surface.
+    #[serde(default)]
+    pub fit: SourceFit,
     pub opacity: f32,
     pub blend: BlendMode,
     pub visible: bool,
@@ -884,6 +938,7 @@ impl Layer {
             crop: Crop::default(),
             color: LayerColor::default(),
             chroma_key: ChromaKey::default(),
+            fit: SourceFit::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -904,6 +959,7 @@ impl Layer {
             crop: Crop::default(),
             color: LayerColor::default(),
             chroma_key: ChromaKey::default(),
+            fit: SourceFit::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -926,6 +982,7 @@ impl Layer {
             crop: Crop::default(),
             color: LayerColor::default(),
             chroma_key: ChromaKey::default(),
+            fit: SourceFit::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -948,6 +1005,7 @@ impl Layer {
             crop: Crop::default(),
             color: LayerColor::default(),
             chroma_key: ChromaKey::default(),
+            fit: SourceFit::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -970,6 +1028,7 @@ impl Layer {
             crop: Crop::default(),
             color: LayerColor::default(),
             chroma_key: ChromaKey::default(),
+            fit: SourceFit::default(),
             opacity: 1.0,
             blend: BlendMode::Normal,
             visible: true,
@@ -1394,6 +1453,7 @@ mod tests {
         assert_eq!(slideshow.media_at(5.99).unwrap().as_str(), "c");
         assert_eq!(slideshow.media_at(6.0).unwrap().as_str(), "a");
         assert_eq!(slideshow.media_at(7.0).unwrap().as_str(), "a");
+        assert_eq!(slideshow.duration_seconds(), 6.0);
 
         let no_loop = Slideshow {
             looping: false,
@@ -1403,6 +1463,7 @@ mod tests {
         assert_eq!(no_loop.media_at(0.0).unwrap().as_str(), "b");
         assert_eq!(no_loop.media_at(4.0).unwrap().as_str(), "c");
         assert_eq!(no_loop.media_at(100.0).unwrap().as_str(), "c");
+        assert_eq!(no_loop.duration_seconds(), 4.0);
 
         let clamped = Slideshow {
             interval: 0.0,
@@ -1559,6 +1620,19 @@ mod tests {
             project.audio_asset().map(|asset| asset.id.clone()),
             Some(track_id)
         );
+    }
+
+    #[test]
+    fn media_folder_is_optional_and_persisted() {
+        let asset = MediaAsset::image("media-a", "a", "slides/a.png").with_folder("slides");
+        let json = serde_json::to_string(&asset).unwrap();
+        let round_trip: MediaAsset = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip.folder.as_deref(), Some("slides"));
+
+        let ungrouped = MediaAsset::image("media-b", "b", "assets/b.png");
+        let json = serde_json::to_string(&ungrouped).unwrap();
+        let round_trip: MediaAsset = serde_json::from_str(&json).unwrap();
+        assert_eq!(round_trip.folder, None);
     }
 
     #[test]
@@ -1798,13 +1872,15 @@ mod tests {
             let layer = layer.as_object_mut().unwrap();
             layer.remove("color");
             layer.remove("chroma_key");
+            layer.remove("fit");
         }
 
         let project: Project = serde_json::from_value(value).unwrap();
-        assert!(project.stages[0]
-            .layers
-            .iter()
-            .all(|layer| layer.color.is_identity() && !layer.chroma_key.is_active()));
+        assert!(project.stages[0].layers.iter().all(|layer| {
+            layer.color.is_identity()
+                && !layer.chroma_key.is_active()
+                && layer.fit == SourceFit::Stretch
+        }));
     }
 
     #[test]

@@ -51,6 +51,10 @@ struct Shared {
     latest: Mutex<Option<VideoFrame>>,
     state: Mutex<PlaybackState>,
     seek_request: Mutex<Option<f64>>,
+    /// Drop decoded frames forward to this position instead of reopening the
+    /// input. Used to catch up after a seek whose decode finished behind the
+    /// still-running show clock.
+    skip_request: Mutex<Option<f64>>,
     /// Decode exactly one frame after a paused seek, then go back to sleep.
     preview_frame: AtomicBool,
     stop: AtomicBool,
@@ -67,6 +71,7 @@ impl Shared {
                 duration_seconds,
             }),
             seek_request: Mutex::new(None),
+            skip_request: Mutex::new(None),
             preview_frame: AtomicBool::new(false),
             stop: AtomicBool::new(false),
         }
@@ -92,11 +97,25 @@ impl Shared {
             state.playing = playing;
         });
         self.preview_frame.store(false, Ordering::Relaxed);
+        self.clear_skip();
         *lock(&self.seek_request) = Some(position);
     }
 
     fn take_seek(&self) -> Option<f64> {
         lock(&self.seek_request).take()
+    }
+
+    fn request_skip(&self, seconds: f64) {
+        let duration = self.state().duration_seconds;
+        *lock(&self.skip_request) = Some(clamp_position(seconds, duration));
+    }
+
+    fn skip_target(&self) -> Option<f64> {
+        *lock(&self.skip_request)
+    }
+
+    fn clear_skip(&self) {
+        *lock(&self.skip_request) = None;
     }
 
     fn request_preview_frame(&self) {
@@ -207,6 +226,7 @@ impl VideoPlayer {
     }
 
     pub fn pause(&self) {
+        self.shared.clear_skip();
         self.shared.update_state(|state| state.playing = false);
     }
 
@@ -227,6 +247,15 @@ impl VideoPlayer {
     /// position so a paused transport still shows the scrubbed image.
     pub fn seek_paused(&self, seconds: f64) {
         self.shared.request_seek(seconds, false);
+    }
+
+    /// Drop decoded frames until `seconds` is reached, without reopening the
+    /// input. This is a cheap forward catch-up after a seek while the show
+    /// clock kept running. It never resumes a paused player.
+    pub fn skip_to(&self, seconds: f64) {
+        if self.state().playing {
+            self.shared.request_skip(seconds);
+        }
     }
 
     pub fn restart(&self) {
@@ -418,7 +447,7 @@ fn decode_once(
 
     let start = start.max(0.0);
     if start > 0.0 {
-        let timestamp = (start / time_base).round() as i64;
+        let timestamp = seek_timestamp(start);
         input
             .seek(timestamp, ..timestamp)
             .with_context(|| format!("failed to seek video to {start:.3}s"))?;
@@ -567,6 +596,13 @@ fn receive_frames(
         }
         let pts_seconds = pts_seconds.unwrap_or(start);
 
+        if let Some(skip) = shared.skip_target() {
+            if pts_seconds + 0.001 < skip {
+                continue;
+            }
+            shared.clear_skip();
+        }
+
         let mut rgba = RawVideoFrame::empty();
         scaler.run(&decoded, &mut rgba)?;
         let width = rgba.width();
@@ -603,6 +639,15 @@ fn clamp_position(seconds: f64, duration: Option<f64>) -> f64 {
         0.0
     };
     duration.map_or(seconds, |duration| seconds.min(duration.max(0.0)))
+}
+
+/// `Input::seek` calls `avformat_seek_file` with stream index -1, whose
+/// timestamps are in AV_TIME_BASE units (microseconds), not in the video
+/// stream's time base. Converting with the stream time base seeks near the
+/// start of the file and forces the decoder to walk every frame up to the
+/// target, which makes long-GOP videos look frozen.
+fn seek_timestamp(seconds: f64) -> i64 {
+    (seconds * f64::from(ffmpeg::ffi::AV_TIME_BASE)).round() as i64
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -661,6 +706,14 @@ mod tests {
         assert_eq!(clamp_position(f64::NAN, Some(10.0)), 0.0);
     }
 
+    #[test]
+    fn seek_timestamps_use_av_time_base() {
+        let unit = i64::from(ffmpeg::ffi::AV_TIME_BASE);
+        assert_eq!(seek_timestamp(0.0), 0);
+        assert_eq!(seek_timestamp(1.5), unit * 3 / 2);
+        assert_eq!(seek_timestamp(30.0), unit * 30);
+    }
+
     #[cfg(feature = "video")]
     #[test]
     fn paused_seek_decodes_one_preview_frame() {
@@ -683,5 +736,36 @@ mod tests {
         let frame = preview.expect("paused seek should produce a frame");
         assert!(frame.pts_seconds >= 2.9, "frame at {}", frame.pts_seconds);
         assert!(!player.state().playing);
+    }
+
+    #[cfg(feature = "video")]
+    #[test]
+    fn skip_to_drops_frames_until_the_target() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/video/fingers.mov");
+        let player = VideoPlayer::open(&path, true).expect("sample video should open");
+        player.pause();
+        while player.take_frame().is_some() {}
+        player.seek_paused(1.0);
+        wait_for_frame(&player, |frame| frame.pts_seconds >= 0.9);
+
+        player.play();
+        player.skip_to(3.0);
+        let frame = wait_for_frame(&player, |frame| frame.pts_seconds >= 2.9);
+        assert!(frame.pts_seconds < 3.3, "frame at {}", frame.pts_seconds);
+        assert!(player.state().playing);
+    }
+
+    #[cfg(feature = "video")]
+    fn wait_for_frame(player: &VideoPlayer, condition: impl Fn(&VideoFrame) -> bool) -> VideoFrame {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            if let Some(frame) = player.take_frame() {
+                if condition(&frame) {
+                    return frame;
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        panic!("timed out waiting for a video frame");
     }
 }

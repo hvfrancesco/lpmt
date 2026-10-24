@@ -5,6 +5,8 @@
 //! branching on Cargo features.
 
 use std::path::Path;
+#[cfg(feature = "video")]
+use std::time::{Duration, Instant};
 
 use lpmt_core::model::{MediaId, MediaKind, Project};
 use lpmt_render::gpu::Gpu;
@@ -39,7 +41,7 @@ impl VideoRuntime {
     /// Keep every decoder aligned with the shared show clock. Videos that have
     /// drifted are corrected with a seek; paused transports get a one-frame
     /// preview so scrubbing still updates the output.
-    pub fn sync_to_clock(&self, position: f64, playing: bool, looping: bool, force_seek: bool) {
+    pub fn sync_to_clock(&mut self, position: f64, playing: bool, looping: bool, force_seek: bool) {
         self.inner
             .sync_to_clock(position, playing, looping, force_seek);
     }
@@ -64,7 +66,23 @@ impl Default for VideoRuntime {
 #[cfg(feature = "video")]
 struct Inner {
     players: HashMap<MediaId, lpmt_media::VideoPlayer>,
+    /// Last time a seek was requested per player. Timeline scrubbing can emit
+    /// a new seek every frame; coalescing these prevents decoder starvation.
+    last_seek: HashMap<MediaId, Instant>,
+    /// Last target handed to each player, used to discard duplicate seeks.
+    last_target: HashMap<MediaId, f64>,
+    /// While playing, a seek request is held until the timeline has been quiet
+    /// for a moment. Seeking on every drag frame makes the decoder chase a
+    /// moving target and can leave playback frozen until the drag ends.
+    pending_seek: HashMap<MediaId, PendingSeek>,
     logged_first_frame: bool,
+}
+
+#[cfg(feature = "video")]
+#[derive(Clone, Copy)]
+struct PendingSeek {
+    target: f64,
+    updated: Instant,
 }
 
 #[cfg(feature = "video")]
@@ -72,12 +90,18 @@ impl Inner {
     fn new() -> Self {
         Self {
             players: HashMap::new(),
+            last_seek: HashMap::new(),
+            last_target: HashMap::new(),
+            pending_seek: HashMap::new(),
             logged_first_frame: false,
         }
     }
 
     fn load(&mut self, project: &Project, base: &Path) -> (usize, usize) {
         self.players.clear();
+        self.last_seek.clear();
+        self.last_target.clear();
+        self.pending_seek.clear();
         self.logged_first_frame = false;
 
         let mut loaded = 0_usize;
@@ -134,7 +158,8 @@ impl Inner {
         }
     }
 
-    fn sync_to_clock(&self, position: f64, playing: bool, looping: bool, force_seek: bool) {
+    fn sync_to_clock(&mut self, position: f64, playing: bool, looping: bool, force_seek: bool) {
+        let now = Instant::now();
         for (media_id, player) in &self.players {
             let state = player.state();
             if state.looping != looping {
@@ -146,30 +171,140 @@ impl Inner {
             // A natural wrap is only circular while playing. A paused player
             // cannot wrap on its own, so compare raw positions instead.
             let drift = drift_seconds(state.position_seconds, target, duration, looping && playing);
+            let last_target = self.last_target.get(media_id).copied();
+            let target_changed =
+                last_target.is_none_or(|last| (last - target).abs() > SEEK_TARGET_EPSILON);
 
             if playing {
                 if !state.playing {
                     player.play();
                 }
-                if force_seek || drift > 0.25 {
-                    log::debug!(
-                        "resync video {media_id} from {:.3}s to {:.3}s (drift {drift:.3}s)",
-                        state.position_seconds,
-                        target
-                    );
-                    player.seek(target);
+                if force_seek && target_changed {
+                    // Defer the seek until the user stops moving the playhead.
+                    // Each seek reopens the decoder; issuing one per drag frame
+                    // leaves it seeking forever while the clock keeps moving.
+                    if let Some(pending) = self.pending_seek.get_mut(media_id) {
+                        if (pending.target - target).abs() > SEEK_TARGET_EPSILON {
+                            pending.target = target;
+                            pending.updated = now;
+                        }
+                    } else {
+                        self.pending_seek.insert(
+                            media_id.clone(),
+                            PendingSeek {
+                                target,
+                                updated: now,
+                            },
+                        );
+                    }
+                }
+
+                let pending = self.pending_seek.get(media_id).copied();
+                if pending.is_some_and(|pending| {
+                    now.duration_since(pending.updated) >= PLAYING_SEEK_DEBOUNCE
+                }) && can_request_seek(self.last_seek.get(media_id), now, true)
+                {
+                    if target_changed {
+                        log::debug!(
+                            "resync video {media_id} from {:.3}s to {:.3}s (drift {drift:.3}s)",
+                            state.position_seconds,
+                            target
+                        );
+                        player.seek(target);
+                        self.last_seek.insert(media_id.clone(), now);
+                        self.last_target.insert(media_id.clone(), target);
+                    }
+                    self.pending_seek.remove(media_id);
+                } else if pending.is_none()
+                    && drift > 0.25
+                    && target_changed
+                    && can_request_seek(self.last_seek.get(media_id), now, true)
+                {
+                    let ahead = target - state.position_seconds;
+                    if ahead > 0.0 && ahead <= MAX_SKIP_SECONDS {
+                        log::debug!(
+                            "fast-forward video {media_id} from {:.3}s to {:.3}s",
+                            state.position_seconds,
+                            target
+                        );
+                        player.skip_to(target);
+                    } else {
+                        log::debug!(
+                            "resync video {media_id} from {:.3}s to {:.3}s (drift {drift:.3}s)",
+                            state.position_seconds,
+                            target
+                        );
+                        player.seek(target);
+                    }
+                    self.last_seek.insert(media_id.clone(), now);
+                    self.last_target.insert(media_id.clone(), target);
                 }
             } else {
                 if state.playing {
                     player.pause();
                 }
-                if force_seek || drift > 0.05 {
+
+                if force_seek && target_changed {
+                    let has_pending = self.pending_seek.contains_key(media_id);
+                    let leading_ready = !has_pending
+                        && self.last_seek.get(media_id).is_none_or(|last| {
+                            now.duration_since(*last) >= PAUSED_SEEK_LEADING_INTERVAL
+                        });
+                    if leading_ready && can_request_seek(self.last_seek.get(media_id), now, false) {
+                        log::debug!(
+                            "preview seek video {media_id} from {:.3}s to {:.3}s",
+                            state.position_seconds,
+                            target
+                        );
+                        player.seek_paused(target);
+                        self.last_seek.insert(media_id.clone(), now);
+                        self.last_target.insert(media_id.clone(), target);
+                        self.pending_seek.remove(media_id);
+                    } else if let Some(pending) = self.pending_seek.get_mut(media_id) {
+                        if (pending.target - target).abs() > SEEK_TARGET_EPSILON {
+                            pending.target = target;
+                            pending.updated = now;
+                        }
+                    } else {
+                        self.pending_seek.insert(
+                            media_id.clone(),
+                            PendingSeek {
+                                target,
+                                updated: now,
+                            },
+                        );
+                    }
+                }
+
+                let pending = self.pending_seek.get(media_id).copied();
+                if pending.is_some_and(|pending| {
+                    now.duration_since(pending.updated) >= PAUSED_SEEK_DEBOUNCE
+                }) && can_request_seek(self.last_seek.get(media_id), now, false)
+                {
+                    if target_changed {
+                        log::debug!(
+                            "preview seek video {media_id} from {:.3}s to {:.3}s",
+                            state.position_seconds,
+                            target
+                        );
+                        player.seek_paused(target);
+                        self.last_seek.insert(media_id.clone(), now);
+                        self.last_target.insert(media_id.clone(), target);
+                    }
+                    self.pending_seek.remove(media_id);
+                } else if pending.is_none()
+                    && target_changed
+                    && drift > 0.05
+                    && can_request_seek(self.last_seek.get(media_id), now, false)
+                {
                     log::debug!(
                         "preview seek video {media_id} from {:.3}s to {:.3}s",
                         state.position_seconds,
                         target
                     );
                     player.seek_paused(target);
+                    self.last_seek.insert(media_id.clone(), now);
+                    self.last_target.insert(media_id.clone(), target);
                 }
             }
         }
@@ -234,6 +369,27 @@ fn resolve_path(base: &Path, path: &str) -> PathBuf {
     }
 }
 
+#[cfg(feature = "video")]
+const PLAYING_SEEK_DEBOUNCE: Duration = Duration::from_millis(90);
+#[cfg(feature = "video")]
+const PAUSED_SEEK_DEBOUNCE: Duration = Duration::from_millis(80);
+#[cfg(feature = "video")]
+const PAUSED_SEEK_LEADING_INTERVAL: Duration = Duration::from_millis(150);
+#[cfg(feature = "video")]
+const SEEK_TARGET_EPSILON: f64 = 0.001;
+#[cfg(feature = "video")]
+const MAX_SKIP_SECONDS: f64 = 10.0;
+
+#[cfg(feature = "video")]
+fn can_request_seek(last: Option<&Instant>, now: Instant, playing: bool) -> bool {
+    let interval = if playing {
+        Duration::from_millis(60)
+    } else {
+        Duration::from_millis(30)
+    };
+    last.is_none_or(|last| now.duration_since(*last) >= interval)
+}
+
 /// Map the show-clock position into a player's own loop.
 #[cfg(feature = "video")]
 fn clock_target(position: f64, duration: f64, looping: bool) -> f64 {
@@ -268,6 +424,23 @@ mod tests {
     use std::time::{Duration, Instant};
 
     #[test]
+    fn seek_requests_are_coalesced_per_player() {
+        let now = Instant::now();
+        assert!(can_request_seek(None, now, true));
+        assert!(can_request_seek(
+            Some(&(now - Duration::from_millis(100))),
+            now,
+            true
+        ));
+        assert!(!can_request_seek(Some(&now), now, true));
+        assert!(!can_request_seek(
+            Some(&(now - Duration::from_millis(20))),
+            now,
+            false
+        ));
+    }
+
+    #[test]
     fn maps_clock_into_player_loop() {
         assert!((clock_target(7.5, 3.0, true) - 1.5).abs() < 1e-9);
         assert!((clock_target(7.5, 3.0, false) - 2.999).abs() < 1e-9);
@@ -283,6 +456,33 @@ mod tests {
     }
 
     #[test]
+    fn playing_seeks_wait_for_a_quiet_timeline() {
+        let mut project = Project::demo();
+        let video_id = project.media[1].id.clone();
+        project.stages[0].layers[0].source = SourceSpec::Video {
+            media_id: video_id.clone(),
+        };
+
+        let mut runtime = VideoRuntime::new();
+        let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert_eq!(runtime.load(&project, &base), (1, 0));
+
+        runtime.sync_to_clock(1.0, true, true, true);
+        assert!(runtime.inner.pending_seek.contains_key(&video_id));
+        assert_eq!(runtime.inner.last_target.get(&video_id), None);
+
+        thread::sleep(PLAYING_SEEK_DEBOUNCE + Duration::from_millis(20));
+        runtime.sync_to_clock(1.0, true, true, false);
+        assert!(!runtime.inner.pending_seek.contains_key(&video_id));
+        assert_eq!(runtime.inner.last_target.get(&video_id), Some(&1.0));
+
+        // A duplicate seek to the position already requested must not reopen
+        // the decoder.
+        runtime.sync_to_clock(1.0, true, true, true);
+        assert!(!runtime.inner.pending_seek.contains_key(&video_id));
+    }
+
+    #[test]
     fn clock_sync_pauses_resumes_and_reseeks_the_player() {
         let mut project = Project::demo();
         let video_id = project.media[1].id.clone();
@@ -295,23 +495,37 @@ mod tests {
         assert_eq!(runtime.load(&project, &base), (1, 0));
 
         runtime.sync_to_clock(2.0, false, true, false);
-        let player = runtime.inner.players.get(&video_id).unwrap();
-        assert!(!player.state().playing);
+        {
+            let player = runtime.inner.players.get(&video_id).unwrap();
+            assert!(!player.state().playing);
+        }
 
         runtime.sync_to_clock(2.0, true, true, false);
-        assert!(player.state().playing);
+        {
+            let player = runtime.inner.players.get(&video_id).unwrap();
+            assert!(player.state().playing);
 
-        let deadline = Instant::now() + Duration::from_secs(2);
-        while player.state().position_seconds < 2.1 && Instant::now() < deadline {
-            thread::sleep(Duration::from_millis(10));
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while player.state().position_seconds < 2.1 && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(10));
+            }
+            assert!(player.state().position_seconds >= 2.1);
+            while player.take_frame().is_some() {}
         }
-        assert!(player.state().position_seconds >= 2.1);
-        while player.take_frame().is_some() {}
 
         // A deliberate backward seek must be applied even when the wrapped
         // distance would be small, e.g. 0.1s -> 9.9s in a 10s loop.
         runtime.sync_to_clock(0.1, false, true, true);
-        assert!(!player.state().playing);
-        assert!((player.state().position_seconds - 0.1).abs() < 0.01);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let state = runtime.inner.players.get(&video_id).unwrap().state();
+            if (state.position_seconds - 0.1).abs() < 0.01 || Instant::now() >= deadline {
+                assert!(!state.playing);
+                assert!((state.position_seconds - 0.1).abs() < 0.01);
+                break;
+            }
+            runtime.sync_to_clock(0.1, false, true, false);
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 }

@@ -105,7 +105,9 @@ shelf; Calibration and Show are separate modes.
   lives in the top **Project** menu; the same menu has **Import LPMT 1 XML…**
   for migrating legacy shows. **Help → About LPMT** shows version,
   renderer and license information, and **Help → Show splash** replays the
-  updated LPMT 2 startup splash.
+  updated LPMT 2 startup splash. Its editable source is
+  [`assets/lpmt_splash.svg`](assets/lpmt_splash.svg);
+  `scripts/render-splash.sh` regenerates the embedded PNG.
 - Ordered layer stack composited bottom-to-top with per-layer visibility,
   opacity, one-or-more surface assignment and `Normal`, `Add`, `Screen` or
   `Multiply` blending. A single layer can drive several surfaces without
@@ -119,8 +121,14 @@ shelf; Calibration and Show are separate modes.
   Slides advance from the shared show clock, so playback, seeking and output
   groups stay in sync. Each layer stores its own playlist, interval, looping and
   start slide; imported LPMT 1 slideshow folders are expanded into image assets.
-  The initial slideshow source stretches images through the normal layer
-  crop/surface warp; fit/keep-aspect UI is still pending.
+  Image/video/slideshow layers support **Stretch**, **Contain** and **Cover**
+  fit modes, so mixed-aspect slides keep their proportions. The timeline
+  automatically extends to cover the longest slideshow cycle when a slideshow is
+  created or retimed; loaded projects with a shorter timeline show an **Extend
+  timeline** warning. Slideshow images imported from a folder stay grouped under
+  that folder; the media shelf and picker show one folder tile at the root, and
+  clicking it opens the images inside rather than dumping them into the
+  top-level pool.
 - The demo has two warped surfaces and two layers.
 - Core project model (`Project`, `Stage`, `Surface`, `Layer`, `MediaAsset`,
   `OutputSpec`, `OutputGroup`) with stable IDs and JSON serialization.
@@ -213,15 +221,17 @@ milestone acceptance and breadth take priority over adding more M5 depth.
 
 M2–M5 acceptance was recorded on **2026-10-22**; M7 was accepted on
 **2026-10-23** for Linux-only v1. M6 is in progress. See
-[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen; 3D LUT
-and Bézier support are deferred to post-v1.
+[`docs/acceptance.md`](docs/acceptance.md). M5 remains feature-frozen; advanced
+blend modes, 3D LUT and Bézier support are deferred to post-v1.
 
 The immediate order is:
 
 1. Continue M6 media breadth: camera/capture and live shared textures, then
    per-layer audio mixing and hardware decode.
-2. Add slideshow fit/keep-aspect controls and finish the slideshow UI polish.
-3. Keep 3D LUT support and Bézier patches deferred to post-v1.
+2. Slideshow fit/keep-aspect and folder grouping are implemented; finish any
+   remaining slideshow UI polish found during acceptance.
+3. Keep advanced blend modes, 3D LUT support and Bézier patches deferred to
+   post-v1.
 4. Post-v1: real LPMT 1 show validation, longer production soak, macOS/Windows
    packaging, tempo maps, additional cue commands, DMX/Art-Net, MTC/LTC and
    per-stage timelines.
@@ -339,7 +349,14 @@ the shared show clock. Every used video follows that clock, is paused/resumed
 with it and is seeked when it drifts. **Restart** returns to zero and plays;
 **Loop** repeats the show at its duration (the timeline duration when tracks
 exist, otherwise the longest used video or audio). Scrubbing while paused
-decodes a single preview frame at the new position. **Space** toggles play/pause, **Home** restarts, **G** cycles the
+decodes a single preview frame at the new position. Rapid timeline drags are
+coalesced so the decoder follows the first and final scrub positions instead of
+reopening for every intermediate frame; a scrub while playing is applied once
+the drag settles. Seeks start at the nearest preceding keyframe and decode to
+the requested frame, so a large jump on a long-GOP/high-resolution video can
+take up to one GOP before the preview appears; playback then drops frames to
+catch up with the clock instead of reopening the decoder repeatedly. **Space**
+toggles play/pause, **Home** restarts, **G** cycles the
 selected output's calibration guide, **M** opens the media picker for the
 selected layer and **F1/F2/F3** switch Mapping, Calibration and Show when no
 text field has focus.

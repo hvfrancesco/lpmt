@@ -69,6 +69,13 @@ Notes / blockers:
 
 ```text
 All checks passed.
+
+Video seeking was subsequently hardened: seeks use FFmpeg's AV_TIME_BASE
+timestamp and start at the nearest keyframe, paused scrubs decode a preview
+frame, rapid timeline drags are coalesced, and playing scrubs drop frames to
+catch up with the clock instead of reopening the decoder for every frame. A
+large jump in a long-GOP/high-resolution video can still take up to one GOP
+before the first preview frame appears.
 ```
 
 ## M3 — Multi-output and edge blending
@@ -118,7 +125,7 @@ Checklist:
 - [X] Check both quad and grid-warp surfaces.
 - [X] Save/reload and undo/redo tint and chroma changes.
 - [x] Decide and record whether 3D LUT support is in v1 (decision only). Bézier
-      patches remain deferred.
+      patches and advanced blend modes remain deferred to post-v1.
 
 Result: `PASS`
 
@@ -210,7 +217,8 @@ Checklist:
 - [x] Slideshow source with a folder picker, per-layer playlist, interval,
       looping, start slide and shared-show-clock advance.
 - [x] LPMT 1 slideshow folders expand into image assets during XML import.
-- [ ] Slideshow fit/keep-aspect controls.
+- [x] Stretch/Contain/Cover fit controls, slideshow folder tiles in the media
+      shelf/picker and automatic timeline extension for slideshow cycles.
 - [ ] Camera and capture-device source with a Linux first backend.
 - [ ] Shared textures (NDI/Spout/Syphon/PipeWire as appropriate).
 - [ ] Per-layer audio mix bus and device selection.
@@ -223,7 +231,8 @@ Result: `IN PROGRESS`
 Notes / blockers:
 
 ```text
-Slideshow source and legacy folder migration are implemented. Camera/capture,
+Slideshow source, legacy folder migration, fit controls, media-pool folder
+grouping and timeline-length synchronization are implemented. Camera/capture,
 shared textures, per-layer audio and hardware decode remain.
 ```
 
@@ -294,8 +303,14 @@ packaging and a longer production soak on target hardware.
 - **v1 platform:** Linux only. macOS/Windows packaging and validation are
   post-v1.
 - **Post-v1:** real LPMT 1 show validation, longer production soak, tempo maps,
-  additional cue commands, DMX/Art-Net, MTC/LTC, per-stage timelines, Bézier
-  patches and distributed sync are not v1 acceptance blockers.
+  additional cue commands, DMX/Art-Net, MTC/LTC, per-stage timelines, advanced
+  blend modes, Bézier patches and distributed sync are not v1 acceptance blockers.
+- **Runtime log noise:** a recovery-snapshot warning is expected when an autosave
+  snapshot exists and is handled by the restore/discard modal. `sctk-adwaita`
+  "unknown button type: menu" is a harmless Wayland client-decoration warning.
+  `arboard` falls back to X11 clipboard handling when the compositor lacks the
+  Wayland data-control protocol; clipboard functionality may still work through
+  that fallback.
 
 ## Sign-off
 
